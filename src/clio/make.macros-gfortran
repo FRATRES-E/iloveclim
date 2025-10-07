@@ -1,0 +1,64 @@
+#
+#       $Id: make.macros.in,v 1.1 2000/10/16 13:29:56 severijn Exp $
+#
+
+
+
+
+
+bindir          = ${exec_prefix}/bin
+datadir         = ${prefix}/share
+exec_prefix     = ${prefix}
+includedir      = ${prefix}/include
+infodir         = ${prefix}/info
+libdir          = ${exec_prefix}/lib
+libexecdir      = ${exec_prefix}/libexec
+localstatedir   = ${prefix}/var
+mandir          = ${prefix}/man
+oldincludedir   = /usr/include
+prefix          = . 
+rootdir         = .
+sbindir         = ${exec_prefix}/sbin
+sharedstatedir  = ${prefix}/com
+sysconfdir      = ${prefix}/etc
+
+
+AR              = ar
+ARFLAGS         = -cvr
+CC              = gcc
+CFLAGS          = ${EXTRACFLAGS}
+CMDS            = add eof merge smooth subtract svd
+CPP             = gcc -E
+CPPFLAGS        =  ${EXTRACPPFLAGS}
+DEFS            = -DHAVE_CONFIG_H
+EGREP           = egrep
+F90EXT          = F90
+FC              = gfortran
+FFLAGS          = -g -cpp -Wall -ffixed-line-length-132 -fno-align-commons -fconvert='big-endian' ${EXTRAFFLAGS}
+FDYNFLAGS       =  ${EXTRAFFLAGS}
+FMAKEDEPEND     = ${FC} ${FFLAGS}
+FMODINC         = -I
+FOPTSEP         =
+GREP            = grep
+GZIP            = gzip
+INSTALL         = /usr/bin/install -c
+LD              = gfortran
+LDFLAGS         =  ${EXTRALDFLAGS}
+LDDYNFLAGS      =  ${EXTRALDFLAGS}
+LIBS            = ${EXTRALIBS}
+MAKE            = gmake
+MAKEFILE        = Makefile
+MAKEFLAGS       =
+MODEXT          = mod
+NETCDFINCLUDE   = -I/usr/local/include
+NETCDFLIB       = -L/usr/lib64 -lnetcdf -lnetcdff -L/lib64
+UDUNITSINCLUDE  = -I/usr/include
+UDUNITSLIB      = -L/usr/lib64 -ludunits
+RANLIB          = ranlib
+SED             = sed
+TAR             = tar
+
+
+INSTALL_DATA    =${INSTALL} -m 644
+INSTALL_PROGRAM =${INSTALL}
+INSTALL_SCRIPT  =${INSTALL}

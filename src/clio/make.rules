@@ -1,0 +1,359 @@
+#
+# $Id: make.rules,v 1.2 2000/12/19 14:15:07 severijn Exp $
+#
+
+#
+# Default make target
+#
+
+all: main
+
+#
+# File processing rules
+#
+
+.DEFAULT:
+
+#.SILENT:
+
+.SUFFIXES:
+.SUFFIXES:	.a .o .so .F .F90 .f .f90 .c .C .h
+
+#
+# Compilation:
+#
+
+.c.o:
+	${CC} ${CFLAGS} -c $<
+
+.C.o:
+	${CXX} ${CXXFLAGS} -c $<
+
+.F.o:
+	${FC} ${FFLAGS} -c $<
+#	${srcconfig} ${modelparameters} $< $*_2.F
+#	${FC} ${FFLAGS} -c $*_2.F
+#	mv $*_2.o $*.o
+#	#rm $*_2.F
+
+.f.o:
+	${FC} ${FFLAGS} -c $<
+
+.F90.o:
+	${FC} ${FFLAGS} -c $<
+#	${srcconfig} ${modelparameters} $< $*_2.${F90EXT}
+#	${FC} ${FFLAGS} -c $*_2.${F90EXT}
+#	mv $*_2.o $*.o
+#	#rm $*_2.${F90EXT}
+
+.f90.o:
+	${FC} ${FFLAGS} -c $<
+
+
+#.SUFFIXES:
+#.SUFFIXES: .H .h
+#
+# Rules for converting .H to .h files
+#.H.h:	
+#	rm -f $@
+#	${top_srcdir}/bin/configure-opa ${modelparameters} $< $@
+#	chmod 444 $@
+
+
+#.DEFAULTS:
+
+#.F.f:
+#	${bindir}/configure-opa "${EXTRAINCLUDES}" ${modelparameters} $< $@
+
+#
+# Shared Loadable Objects:
+#
+
+# These are for the Ferret external functions
+
+.F.so:
+	${FC} ${FDYNFLAGS} -c $<
+	${LD} ${LDDYNFLAGS} $*.o -o $*.so
+
+.f.so:
+	${FC} ${FDYNFLAGS} -c $<
+	${LD} ${LDDYNFLAGS} $*.o -o $*.so
+
+.F90.so:
+	${FC} ${FDYNFLAGS} -c $<
+	${LD} ${LDDYNFLAGS} $*.o -o $*.so
+
+.f90.so:
+	${FC} ${FDYNFLAGS} -c $<
+	${LD} ${LDDYNFLAGS} $*.o -o $*.so
+
+
+#
+# Linking:
+#
+
+#
+# Libraries:
+#
+
+#${LIBRARY}: ${LIBRARY}(${LIBOBJS})
+#	${RANLIB} $@
+#	@echo ${LIBRARY} is up-to-date
+
+library: ${LIBOBJS} FORCE
+	${AR} ${ARFLAGS} ${LIBRARY} ${LIBOBJS}
+	${RANLIB} ${LIBRARY}
+	@echo ${LIBRARY} is up-to-date
+
+#${LIBRARY}(%.o) : %.c
+.c.a:
+	${CC} ${CFLAGS} -c $<
+	${AR} ${ARFLAGS} ${LIBRARY} $*.o
+	rm $*.o
+
+#${LIBRARY}(%.o) : %.C
+.C.a:
+	${CXX} ${CXXFLAGS} -c $<
+	${AR} ${ARFLAGS} ${LIBRARY} $*.o
+	rm $*.o
+
+#${LIBRARY}(%.o) : %.F
+.F.a:
+	${srcconfig} $< $*_2.F
+	${FC} ${FFLAGS} -c $*_2.F
+	mv $*_2.o $*.o
+	${AR} ${ARFLAGS} ${LIBRARY} $*.o
+	rm $*.o $*_2.F
+
+#${LIBRARY}(%.o) : %.f
+.f.a:
+	${FC} ${FFLAGS} -c $<
+	${AR} ${ARFLAGS} ${LIBRARY} $*.o
+	rm $*.o
+
+#${LIBRARY}(%.o) : %.F90
+.F90.a:
+	${srcconfig} $< $*_2.${F90EXT}
+	${FC} ${FFLAGS} -c $*_2.${F90EXT}
+	mv $*_2.o $*.o
+	${AR} ${ARFLAGS} ${LIBRARY} $*.o
+	rm $*.o $*_2.${F90EXT}
+
+#${LIBRARY}(%.o) : %.f90
+.f90.a:
+	${FC} ${FFLAGS} -c $<
+	${AR} ${ARFLAGS} ${LIBRARY} $*.o
+	rm $*.o
+
+
+#
+# Installation:
+#
+
+#$(INCDIR)/$(HEADER):	$(INCDIR) $(HEADER)
+#	cp $(HEADER) $@
+#$(INCDIR)/$(HEADER1):	$(INCDIR) $(HEADER1)
+#	cp $(HEADER1) $@
+#$(INCDIR)/$(HEADER2):	$(INCDIR) $(HEADER2)
+#	cp $(HEADER2) $@
+
+#$(LIBDIR)/$(LIBRARY):	$(LIBDIR) $(LIBRARY)
+#	cp $(LIBRARY) $@
+
+#$(BINDIR)/$(PROGRAM):	$(BINDIR) $(PROGRAM)
+#	cp $(PROGRAM) $@
+
+#$(BINDIR) \
+#$(INCDIR) \
+#$(LIBDIR) \
+#$(MANDIR) :
+#	-test -d $@ || mkdir $@
+
+#$(MANDIR)/man1 \
+#$(MANDIR)/man3 \
+#$(MANDIR)/man3f :		$(MANDIR)
+#	-test -d $@ || mkdir $@
+
+#$(MANDIR)/man1/$(MANUAL):	$(MANDIR)/man1 $(MANUAL)
+#	cp $(MANUAL) $@
+#$(MANDIR)/man3/$(MANUAL):	$(MANDIR)/man3 $(MANUAL)
+#	cp $(MANUAL) $@
+#$(MANDIR)/man3f/$(MANUAL):	$(MANDIR)/man3 $(MANDIR)/man3/$(MANUAL) \
+#				$(MANDIR)/man3f
+#	rm -f $@
+#	ln -s $(MANDIR)/man3/$(MANUAL) $@
+
+#whatis:			$(MANDIR)/$(WHATIS)
+#$(MANDIR)/$(WHATIS):	$(MANDIR)
+#	$(MAKEWHATIS_CMD)
+
+#
+# Directory tree traversal
+#
+
+subdir_run:
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Running in $$d ...; \
+			 cd $$d; ${MAKE} run	\
+                	)			\
+		done				\
+	fi
+
+subdir_depend:
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Checking dependencies in $$d ...; \
+			 cd $$d; ${MAKE} depend	\
+                	)			\
+		done				\
+	fi
+
+subdir_install:
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Installing in $$d ...; \
+			 cd $$d; ${MAKE} install \
+                	)			\
+		done				\
+	fi
+
+subdir_install-strip:
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Installing stripped executables in $$d ...; \
+			 cd $$d; ${MAKE} install-strip \
+                	)			\
+		done				\
+	fi
+
+subdir_main:
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Making all in $$d ...; \
+			 cd $$d; ${MAKE} main	\
+                	)			\
+		done				\
+	fi
+
+subdir_uninstall:
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then	\
+		for d in $${dirs}; do	\
+			(echo Uninstalling in $$d ...; \
+			 cd $$d; ${MAKE} uninstall \
+                	)			\
+		done				\
+	fi
+
+
+#
+# Cleanup:
+#
+
+clean: subdir_clean
+	@echo Done
+
+subdir_clean: FORCE
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Cleaning up in $$d ...; \
+		 	 cd $$d; ${MAKE} subdir_clean \
+			) 			\
+		done				\
+	fi
+	rm -f *.o *.i *_2.F* *.mod core ${garbage}
+
+veryclean: subdir_veryclean
+	@echo Done
+
+subdir_veryclean: subdir_clean
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Cleaning up even more in $$d ...; \
+		 	 cd $$d; ${MAKE} subdir_veryclean \
+			) 			\
+		done				\
+	fi
+	rm -f *~ *.a *.so *.sl ${more_garbage}
+
+distclean: subdir_distclean
+	@rm -f ${TARFILE}
+	@echo Done
+
+subdir_distclean: subdir_veryclean
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Cleaning up everything in $$d ...; \
+		 	 cd $$d; ${MAKE} subdir_distclean \
+			) 			\
+		done				\
+	fi
+	rm -f ${dist_garbage}
+
+#
+# Dependencies:
+#
+# This target should only need to be made at the UPC.
+# NOTES:
+#   *  The target file might be a symbolic link.
+#   *  The name of the target doesn't match the name of the created file to
+#      prevent constant updating of the included file `depend' by make(1).
+#
+#depend:	FORCE
+#	$(CC_MAKEDEPEND) $(CPPFLAGS) *.c | grep -v '/usr/include' >>depend
+#	sort -u -o depend depend
+
+
+#
+# Distribution:
+#
+
+dist: ${distfiles}
+	@echo Creating distribution file list ...
+	@if test -n "${distfiles}"; then \
+		ls ${distfiles} | ${SED} -e "s|^|${top_srcdir}/|" >> ${distlist}; \
+	fi
+	@for d in ${allsubdirs}; do \
+		(echo Creating distribution file list in $$d ...; \
+		 cd $$d; ${MAKE} distpath="${top_srcdir}/$$d" distlist="../${distlist}" subdir_dist \
+		) \
+	done
+	@if test -f "${distlist}"; then \
+		echo Creating ${TARFILE} ... ;			\
+		${TAR} cvf ${TARFILE} `cat ${distlist}`;	\
+		rm -f ${distlist} ;				\
+		echo Compressing ${TARFILE} with ${GZIP} ... ;	\
+		${GZIP} ${TARFILE};				\
+	else							\
+		echo No files found ;				\
+	fi
+	@echo Done
+
+
+subdir_dist: ${distfiles}
+	@dirs="${subdirs}";			\
+	if test -n "$${dirs}"; then		\
+		for d in $${dirs}; do		\
+			(echo Creating distribution file list in $$d ...; \
+			 cd $$d; ${MAKE} distpath="${distpath}/$$d" distlist="../${distlist}" subdir_dist \
+			) \
+		done				\
+	fi
+	@if test -n "${distfiles}"; then		\
+		ls ${distfiles} | ${SED} -e "s|^|${distpath}/|" >> ${distlist}; \
+	fi
+
+#
+# Miscellaneous:
+#
+
+FORCE:

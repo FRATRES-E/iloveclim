@@ -1,0 +1,55 @@
+https://people.sc.fsu.edu/~jburkardt/f_src/asa183/asa183.html
+
+ASA183
+Wichman-Hill Random Number Generator
+
+ASA183, a FORTRAN90 library which implements a random number generator (RNG), by Wichman and Hill.
+
+ASA183 is Applied Statistics Algorithm 183.
+Licensing:
+
+The computer code and data files described and made available on this web page are distributed under the GNU LGPL license.
+Languages:
+
+ASA183 is available in a C version and a C++ version and a FORTRAN90 version and a MATLAB version and a Python version.
+Related Data and Programs:
+
+F90_RANDOM, FORTRAN90 programs which illustrate the use of Fortran's random number generator routines.
+
+HALTON, a FORTRAN90 library which computes elements of a Halton quasirandom sequence.
+
+IEEE_UNIFORM_SAMPLE, a FORTRAN90 library which tries to uniformly sample the discrete set of values that represent the legal IEEE real numbers;
+
+NORMAL, a FORTRAN90 library which computes elements of a sequence of pseudorandom normally distributed values.
+
+RANLIB, a FORTRAN90 library which produces random samples from Probability Density Functions (PDF's), including Beta, Chi-square Exponential, F, Gamma, Multivariate normal, Noncentral chi-square, Noncentral F, Univariate normal, random permutations, Real uniform, Binomial, Negative Binomial, Multinomial, Poisson and Integer uniform, by Barry Brown and James Lovato.
+
+RNGLIB, a FORTRAN90 library which implements a random number generator (RNG) with splitting facilities, allowing multiple independent streams to be computed, by L'Ecuyer and Cote.
+
+UNIFORM, a FORTRAN90 library which computes elements of a sequence of pseudorandom uniformly distributed values.
+
+VAN_DER_CORPUT, a FORTRAN90 library which computes elements of a van der Corput quasirandom sequence.
+Author:
+
+Original FORTRAN77 version by Brian Wichman and David Hill; FORTRAN90 version by John Burkardt.
+Reference:
+
+    Pierre LEcuyer,
+    Efficient and Portable Combined Random Number Generators,
+    Communications of the ACM,
+    Volume 31, Number 6, June 1988, pages 742-751.
+    Brian Wichmann, David Hill,
+    Algorithm AS 183: An Efficient and Portable Pseudo-random Number Generator,
+    Applied Statistics,
+    Volume 31, Number 2, 1982, pages 188-190.
+
+Source Code:
+
+    asa183.f90, the source code.
+
+Examples and Tests:
+
+    asa183_test.f90, a sample calling program.
+    asa183_test.txt, the output file.
+
+Last revised on 08 July 2008. 

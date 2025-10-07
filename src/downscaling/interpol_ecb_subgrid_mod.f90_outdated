@@ -1,0 +1,511 @@
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!
+!>      VUA and IPSL/LSCE by the iLOVECLIM / LUDUS coding group / Within the LUDUS code environement
+!
+!       LICENSING TERMS:
+!>      \copyright
+!!      This file is part of the lcm2ism coupling of GRISLI in iLOVECLIM.
+!!      lcm2ism is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+!!      as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+!!
+!!      lcm2ism is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+!!      of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+!!
+!!      You should have received a copy of the GNU General Public License along with Foobar.
+!!      If not, see <http://www.gnu.org/licenses/>.
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!dmr -- Adding the choice of components through the pre-processing options
+#include "choixcomposantes.h"
+!dmr -- Adding the choice of components through the pre-processing options
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      MODULE: transf_ecb_grisli_mod
+!
+!>     @author  Didier M. Roche (dmr)
+!
+!>     @brief This module transf_ecb_grisli_mod is handling the transfer of climate variables from the ECBilt grid
+!               to the GRISLI grid. It is grid-specific to the particular grids given.
+!
+!>     @date Creation date: January, 28th, 2016
+!>     @date Last modification: $LastChangedDate$
+!>     @author Last modified by : dmr
+!
+!>     @version This is svn version: $LastChangedRevision$
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      module interpol_ecb_subgrid_mod
+
+       use taillesGrilles, only: sgnx, sgny, iEcb, jEcb
+       use input_subgrid2L, only: iEg, jEg
+
+       implicit none
+       private
+
+       public :: init_interpol
+       public :: interpol_one_field
+
+      ! NOTE_avoid_public_variables_if_possible
+
+!      This defines the number of neighbours to consider for the interpolation (in lat and in lon)
+       integer, parameter :: npv=2,nph=2
+
+!      Definition de tableaux intermediaires pour les poids d'interpolation
+       real, dimension(sgnx,sgny,npv)     :: lgcfvg,lgcfhg
+
+      contains
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE: interpol_one_field
+!
+!>     @brief This function performs the actual interpolation from the ECBilt grid to the subgrid
+!
+!      DESCRIPTION:
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      function interpol_one_field(champs_in,champs_out,positive) result(returnValue)
+
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer                                             , intent(in) :: positive
+       double precision, dimension(jEcb,iEcb)              , intent(in) :: champs_in
+       double precision, dimension(sgnx,sgny)              , intent(out):: champs_out
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       double precision, dimension(-nph:jEcb+1+nph,-npv:iEcb+1+npv):: champs_in_extd
+       logical                                                     :: returnValue
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Construction de la variable ntfGCM a partir de tfGCM
+!        le tableau ntfGCM etant le tableau a bord replie
+!       (idem pour npfGCM & pfGCM)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      call prepare_field(jEcb,iEcb,nph,npv,champs_in,champs_in_extd)
+      call interp_field(jEcb,iEcb,sgnx,sgny,champs_in_extd,iEg,jEg,champs_out,positive)
+
+      returnValue = .true.
+      return
+
+      end function interpol_one_field
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the function here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE: init_interpol
+!
+!>     @brief This function computes the weights needed for the interpolation process, once and for all.
+!
+!      DESCRIPTION:
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      function init_interpol() result(returnValue)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!       <Void>
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       logical                          :: returnValue, success
+       double precision, dimension(nph) :: lch, ldnh
+       double precision, dimension(npv) :: lcv, ldnv
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Calcul des poids de grille en lat, lon a partir des tableaux pre-definis
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       success = compute_interpol_weights(sgnx,sgny,npv,jEg,lgcfvg,lcv,ldnv)
+       success = compute_interpol_weights(sgnx,sgny,nph,iEg,lgcfhg,lch,ldnh)
+
+       returnValue = success
+
+       return
+      end function init_interpol
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the function here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE: compute_interpol_weights
+!
+!>     @brief This subroutine is used in the interpolation between ECBilt and an ISM. Re-used from iLOVECLIM1.2
+!
+!      DESCRIPTION:
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      function compute_interpol_weights(nx,ny,np,iEcb,lgcf,lc,ldn) result(returnValue)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer,                               intent(in) :: nx,ny,np
+       double precision, dimension(nx,ny),    intent(in)  :: iEcb
+       double precision, dimension(nx,ny,np), intent(out) :: lgcf
+       double precision, dimension(np),       intent(out) :: lc,ldn
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer             :: i,j,k
+       logical             :: returnValue
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!>    @bug Description of the stupid sticky bug that we know exist there but is not corrected yet!
+
+        call compute_wdenominator(np,ldn)
+        do i=1,nx
+          do j=1,ny
+            call compute_wnumerator(np,iEcb(i,j),lc)
+            do k=1,np
+              lgcf(i,j,k)=lc(k)*ldn(k)
+            end do
+          end do
+        end do
+
+        returnValue = .true.
+
+        return
+      end function compute_interpol_weights
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the function here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE: compute_wdenominator
+!
+!>     @brief This subroutine computes the denominator of the interpolation kernel
+!
+!      DESCRIPTION:
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine compute_wdenominator(gr,ld)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer, intent(in)                          :: gr
+       double precision, dimension(gr), intent(out) :: ld
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer :: i,j,n
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        do i=1,gr
+          n=1
+          do j=1,gr
+            if(j.ne.i) then
+              n=n*(i-j)
+            endif
+          end do
+          ! dmr in principle, n cannot be zero, so the test is useless ...
+          if (n.ne.0) then
+            ld(i)=1./n
+          else
+            ld(i)=999999.
+          endif
+        end do
+
+       return
+      end subroutine compute_wdenominator
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the subroutine here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE: compute_wnumerator
+!
+!>     @brief This subroutine computes the numerator of the interpolation kernel
+!
+!      DESCRIPTION:
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine compute_wnumerator(gr,x,ln)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer                        , intent(in)    :: gr
+       double precision               , intent(in)    :: x
+       double precision, dimension(gr), intent(inout) :: ln
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       double precision    :: t
+       integer             :: i,j
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        do i=1,gr
+          t=1.
+          do j=1,gr
+            if(j.ne.i) then
+              t=t*(x-FLOOR(x)-(j-gr/2))
+            endif
+          end do
+          ln(i)=t
+        end do
+
+       return
+      end subroutine compute_wnumerator
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the subroutine here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE:
+!
+!>     @brief This subroutine
+!
+!      DESCRIPTION:
+!
+!>     Here add the long_description of the module ...
+!!      more blablas ...
+!!      more blablas ...
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine prepare_field(ni,nj,nh,nv,fGCM,newfGCM)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! tfa   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer                                             , intent(in) :: ni,nj,nv,nh
+       double precision, dimension(ni,nj)                  , intent(in) :: fGCM
+       double precision, dimension(-nh:ni+1+nh,-nv:nj+1+nv), intent(out):: newfGCM
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! tfa  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer :: i, j
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Recopie la zone principale du tableau commune a entree, sortie
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+
+         do j=1,nj
+           do i=1,ni
+             newfGCM(i,j)=fGCM(i,j)
+           end do
+         end do
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Ecriture de la zone d'extension "a gauche"
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+         do j=1,nj
+           do i=0,nh
+             newfGCM(-i,j)=fGCM(-i+ni,j)
+             newfGCM(ni+1+i,j)=fGCM(1+i,j)
+           end do
+         end do
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Ecriture de la zone d'extension "a droite"
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+         do i=-nh,ni+1+nh
+           do j=0,nv
+           newfGCM(i,-j)=newfGCM(i,1+j)
+           newfGCM(i,nj+1+j)=newfGCM(i,nj-j)
+           end do
+         end do
+
+       return
+      end subroutine prepare_field
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the subroutine here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      ROUTINE: interp_field
+!
+!>     @brief This subroutine performs the actual interpolation based on the previously calculated fields and weights
+!
+!      DESCRIPTION:
+!
+!>     Long_description of the module ...
+!!       Variables d'entree :
+!!       ni, nj  = dimensions du modele Atmosphere (ici ECBilt) = 64, 32
+!!       nx, ny  = dimension de la grille de l'ISM vers lequel on va
+!!       nph,npv = taille du recouvrement de grille = 4,4
+!!       fGCM    = variable climatique sur la grille avec recouvrement
+!!       iE, jE  = tableaux des longitudes, latitudes des cases ECBilt
+!!                 sur la grille de l'ISM considere
+!!       lgh,lgv = latitude and longitude weights defined in the init
+!!       vp      = drapeau de travail a valeurs positives
+!!       timstpl = nombre de pas de temps du fichier
+!!       Variables de sorties :
+!!       fc = tableau de valeurs climatiques sur la grille de l'ISM
+!!
+!!         --  initialement pour GISM : nx, ny = 165, 281
+!!         --  pour GRISLI Nord :       nx, ny = 241, 241
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine interp_field(ni,nj,nx,ny,fGCM,iE,jE,fc,vp)
+
+!$ USE OMP_LIB
+
+! NOTA needs to replace (lgh, lgv) by (lgcfhg,lgcfvg)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr   By reference variables ...
+!>    @param[in]  inParam  The Beaufitul Parameter that does all the input !!
+!>    @param[out] outParam The Beaufitul Parameter that does all the output!!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer                                                 , intent(in) :: ni,nj,nx,ny,vp
+       double precision, dimension(nx,ny)                      , intent(in) :: iE, jE
+       double precision, dimension(-nph:ni+1+nph,-npv:nj+1+npv), intent(in) :: fGCM
+       double precision, dimension(nx,ny)                      , intent(out):: fc
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr  Local variables ...
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       integer                              :: hX,hY,i,j,k,l,m
+       double precision                     :: help
+       double precision, dimension(nph,npv) :: rect, lgcf, forc
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!       Main code of the function starts here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (i,j,k,l,hX,hY,help,rect,lgcf,forc)
+          do i=1,nx
+            do j=1,ny
+              hX=FLOOR(iE(i,j))-nph/2
+              hY=FLOOR(jE(i,j))-npv/2
+              help=0.0
+              do k=1,nph
+                do l=1,npv
+                  rect(k,l)=fGCM(hX+k,hY+l)
+                  lgcf(k,l)=lgcfhg(i,j,k)*lgcfvg(i,j,l)
+                  forc(k,l)=rect(k,l)*lgcf(k,l)
+                end do
+              end do
+              do k=1,nph
+                do l=1,npv
+                  help=help+forc(k,l)
+                end do
+              end do
+              if ((vp.EQ.1).and.(help.lt.0.0)) help = 0.0
+              fc(i,j)=help
+            end do
+          end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+       return
+      end subroutine interp_field
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the subroutine here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      End of the module here
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+end module interpol_ecb_subgrid_mod
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      The End of All Things (op. cit.)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
