@@ -1,0 +1,42 @@
+parameter for vegetation, file "veget.par", read by "veget", modif : 19/05/00
+- test0 (15c)-< 
+equi1    
+k0veget, nyvegt, nwrveg :
+1	1	1
+prcmin, bmtdry, tmxdry, dtrdry, rpfdry
+0.0005	0.010	220.	30.	0.5
+ieqveg, ieqvegwr
+1	100
+iscendef
+0   1000
+c- Albedo of tree for Winter,Spring,Summer and Fall:
+0.13 0.13 0.13 0.13
+c- Albedo of grass for Winter,Spring,Summer and Fall:
+0.20 0.20 0.20 0.20
+c- Albedo of desert for Winter,Spring,Summer and Fall:
+0.33 0.33 0.33 0.33
+c- Albedo of grass over cold area (Steppe) = albeg + albegc
+-.06 -.04 -.02 -.04
+c- Albedo of bright sand desert (Sahara) = albed + albedc
+0.07 0.07 0.07 0.07
+c-gamm2 (controls the lower limit of vegetation at wich vegetation can sustain)
+0.00025
+c-CO2 enhancement factors for grass & trees (ref: 0.25 for both)
+0.25 0.25
+c- fco2veg : Would CO2 flux from vegetation influence atm. CO2 or not
+0.0
+------ comments :
+titveg = short title (max 15 char) for "veget.outp" file
+k0veget : |k0veget| = kveget = Nb of iteration of vegetation (each year)
+   > 0 : start from previous vegetation (read veget.rest)
+   < 0 : set up initial vegetation from T_an,Pre_an & GDD0 (read veget.init)
+nyvegt = Nb of years between 2 "call veget"  ; if 0 ==> no call (except one)
+nwrveg = Nb of years (=1/frequence) between 2 write in output file "veget.outp".
+	 [nwrveg must be a multipl. of nyvegt ; if =0 ==> no write]
+prcmin = daily precip. thershold (m), for vegetation in warm area.
+bmtdry = Soil-Water threshold (m) to compute "tpsdry"=Nb_days/yr of dry soil.
+tmxdry : above this limit(Nb_days/yr), soil_dryness start to affect vegetation 
+dtrdry = time interval (day) for linear transition [tmxdry ; tmxdry+dtrdry] :
+   If tpsdry(=Nb_day_dry) > tmxdry+dtrdry => Precip(Veget) is reduced by rpfdry
+rpfdry = reduction factor applied to Precip(Veget) if dry condition ^ satisfied
+c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|

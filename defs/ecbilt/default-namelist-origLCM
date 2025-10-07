@@ -1,0 +1,180 @@
+ $runatctl
+ iadyn=1
+ iaphys=1
+ ipert=0
+ initdate=0
+ $end
+
+ $dispar
+ tdis   = 5.0
+ addisl = 1.5
+ addish = 0.5
+ trel   = 40.0
+ tdif   = 4.0
+ idif   = 4
+ $end
+
+ $dfmpar
+ rrdef1 = 0.131
+ rrdef2 = 0.071
+ h0     = 3.0
+ $end
+
+ $moipar
+ ihavm  = 1
+ ivavm  = 1
+ imsink = 1
+ tdifq  = 1000d0
+ gpm500 = 5500
+ relhmax= 0.83
+ hmoisr = 0.5d0
+ umoisr = 0.6
+ rainmax= 1e-5
+ $end
+
+ $cloudpar
+ relhcrit  = 0.5d0
+ relhfac   = 1.0d0
+ $end
+
+ $forpar
+ iartif = 0
+ ipvf1   =1
+ ipvf2   =1
+ ipvf3   =1
+ ipvf4   =1
+ ipvf5   =1
+ $end
+ 
+ $radpar
+ iradcloud = 0
+ iscencel  = 1
+ eccf      = 0.016724
+ oblf      = 23.446
+ omwebf    = 102.04
+ iscenghg  = 0
+ isghgstrt = 500
+ iscentsi  = 0
+ istsistrt = 500
+ iscenvol  = 0
+ isvolstrt = 500
+ iscensul  = 0
+ issulstrt = 1850
+ bup       = 0.13
+ isceno3   = 0
+ iso3strt  = 1860
+ emisoc    = 0.99
+ emisse    = 0.96
+ emisld    = 0.99
+ albin     = 0.44
+ albis     = 0.44
+ albice    = 0.44
+ alphd     = 0.72
+ alphdi    = 0.62
+ alphs     = 0.53
+ cgren     = 0.04
+ albocef   = 0.95
+ iens=0
+ numens=1
+ ampwir    = 1.00
+ AMPEQIR   = 1.8
+ EXPIR     = 0.40
+ HPROFTROP = 1.25
+ HPROFEQ   = 1.02
+ HPROFW    = 0.85
+ HPROFAN   = 0.75
+ AMPANIR   = 0.5
+ HPROFAN2  = 0.75
+ AMPANIR2  = 0.5
+
+
+ $end
+  
+ $satfor
+ isatfor   = 0
+ nbsatfor  = 191
+ nafyear   = 10
+ iclimflux = 0
+ $end
+ 
+ $fluxpar
+ cdrag  = 1.4e-03
+ cwdrag = 2.1e-03
+ dragan = 15.0
+ uv10rfx= 0.8
+ uv10m  = 5.0
+ uv10rws= 0.8
+ ndayws = 15
+ $end
+
+ $fluxcorw
+ corAN  = -0.085d0
+ corPN  =  1.0d0
+ corAC  = -0.25d0
+ corID  =  0.0d0
+ corAS  = -0.085d0
+ corPS  =  0.d0
+ corAA  =  0.d0
+ $end
+
+ $outatctl
+ ioutdaily =0
+ ioutyearly=1
+ ixout     =1
+ meantype  =1
+ meanyl    =1
+ meantot   =1
+ $end
+ 
+ $wratpar
+ ts       = 0, 0, 0, 1
+ t        = 0, 0, 0, 0
+ t2m      = 0, 0, 0, 1
+ cp       = 0, 0, 0, 0
+ lsp      = 0, 0, 0, 0
+ pp       = 0, 0, 0, 1
+ snow     = 0, 0, 0, 1
+ evap     = 0, 0, 0, 1
+ eminp    = 0, 0, 0, 0
+ q        = 0, 0, 0, 1
+ r        = 0, 0, 0, 1
+ tcc      = 0, 0, 0, 0
+ u        = 0, 0, 0, 0
+ v        = 0, 0, 0, 0
+ uv10     = 0, 0, 0, 0
+ ageu     = 0, 0, 0, 0
+ agev     = 0, 0, 0, 0
+ omega    = 0, 0, 0, 0
+ psi      = 0, 0, 0, 0
+ qgpv     = 0, 0, 0, 0
+ gh       = 0, 0, 0, 0
+ chi      = 0, 0, 0, 0
+ sp       = 0, 0, 0, 0
+ shf      = 0, 0, 0, 0
+ lhf      = 0, 0, 0, 0
+ hforc    = 0, 0, 0, 0
+ vforc    = 0, 0, 0, 0
+ ssr      = 0, 0, 0, 0
+ tsr      = 0, 0, 0, 0
+ ttr      = 0, 0, 0, 0
+ str      = 0, 0, 0, 0
+ albs     = 0, 0, 0, 0
+ albp     = 0, 0, 0, 0
+ ustress  = 0, 0, 0, 0
+ vstress  = 0, 0, 0, 0
+ cdragw   = 0, 0, 0, 0
+ cdragv   = 0, 0, 0, 0
+ bm       = 0, 0, 0, 0
+ sdl      = 0, 0, 0, 0
+ runoffo  = 0, 0, 0, 0
+ runoffl  = 0, 0, 0, 0
+ hic      = 0, 0, 0, 0
+ dumt1    = 0, 0, 0, 0
+ dumt2    = 0, 0, 0, 0
+ dumu1    = 0, 0, 0, 0
+ dumu2    = 0, 0, 0, 0
+ $end
+
+$flgout
+ irad     = 1
+ $end

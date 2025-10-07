@@ -1,0 +1,186 @@
+ $runatctl
+ iadyn=1
+ iaphys=1
+ ipert=0
+ initdate=0
+ $end
+
+ $dispar
+ tdis   = 5.0
+ addisl = 1.5
+ addish = 0.5
+ trel   = 40.0
+ tdif   = 4.0
+ idif   = 4
+ $end
+
+ $dfmpar
+ rrdef1 = RRDEF1_VALUE
+ rrdef2 = RRDEF2_VALUE
+ h0     = 3.0
+ $end
+
+ $moipar
+ ihavm  = 1
+ ivavm  = 1
+ imsink = 1
+ tdifq  = 1000d0
+ gpm500 = 5500
+ relhmax= RELHMAX_VALUE
+ hmoisr = 0.5d0
+ umoisr = 0.6
+ rainmax= 1e-5
+ $end
+
+ $cloudpar
+ relhcrit  = 0.5d0
+ relhfac   = 1.0d0
+ $end
+
+ $forpar
+ iartif = 0
+ ipvf1   =1
+ ipvf2   =1
+ ipvf3   =1
+ ipvf4   =1
+ ipvf5   =1
+ $end
+ 
+ $radpar
+ iradcloud = 0
+ iscencel  = 0				! 0> use orbitals below, 1> use celest routine (transient)
+ iscenyear = 0				! <0 Past, >0 Future, 0 == 0 BP == 1950 AD
+ irunlabeloffset = 3000			! refers to the label of the inital startdata
+ eccf      = 0.016724			! Eccentricity
+ oblf      = 23.446			! Obliquity (deg)
+ omwebf    = 102.04			! Lon Perihelion (deg)
+ iscenghg  = 0				! 0>GHG 1st line,1> transient
+ isghgstrt = 500			! startline of GHG.dat
+ iscentsi  = 0				! 0> default no TSI
+ istsistrt = 500			! startline of TSI.dat
+ iscenvol  = 0				! 0> default no Volcanic forcing
+ isvolstrt = 500			! startline of VOLC.dat
+ iscensul  = 0				! 0> default no Sulfates
+ issulstrt = 1850			! startyear of Sulfates SUL.dat
+ bup       = BUP_VALUE	
+ isceno3   = 0
+ iso3strt  = 1860
+ emisoc    = 0.99
+ emisse    = 0.96
+ emisld    = 0.99
+ albin     = ALBIN_VALUE
+ albis     = ALBIS_VALUE
+ albice    = ALBICE_VALUE
+ alphd     = ALPHD_VALUE
+ alphdi    = ALPHDI_VALUE
+ alphs     = ALPHS_VALUE
+ cgren     = CGREN_VALUE
+ albocef   = ALBOCEF_VALUE
+ iens=0
+ numens=1
+ ampwir    = AMPWIR_VALUE
+ AMPEQIR   = AMPEQIR_VALUE
+ EXPIR     = EXPIR_VALUE
+ HPROFTROP = HPROFTROP_VALUE
+ HPROFEQ   = HPROFEQ_VALUE
+ HPROFW    = HPROFW_VALUE
+ HPROFAN   = HPROFAN_VALUE
+ AMPANIR   = AMPANIR_VALUE
+ HPROFAN2  = HPROFAN2_VALUE
+ AMPANIR2  = AMPANIR2_VALUE
+ evfac     = EVFAC_VALUE
+ mag_alpha = ALPHA_VALUE
+
+ $end
+
+ $satfor
+ isatfor   = 0
+ nbsatfor  = 191
+ nafyear   = 10
+ iclimflux = 0
+ $end
+
+ $fluxpar
+ cdrag  = CDRAG_VALUE
+ cwdrag = CWDRAG_VALUE
+ dragan = 15.0
+ uv10rfx= 0.8
+ uv10m  = 5.0
+ uv10rws= 0.8
+ ndayws = 15
+ $end
+
+ $fluxcorw
+ corAN  =  CORan_VALUE
+ corPN  =  1.0d0
+ corAC  = -0.25d0
+ corID  =  0.0d0
+ corAS  =  CORas_VALUE
+ corPS  =  0.d0
+ corAA  =  0.d0
+ $end
+
+ $outatctl
+ ioutdaily =0
+ ioutyearly=1
+ ixout     =1
+ meantype  =1
+ meanyl    =1
+ meantot   =1
+ $end
+
+! Output parameters: daily, monthly averaged over whole run, monthly, yearly 
+ $wratpar
+ ts       = 0, 0, 1, 0			! Surface temperature
+ t        = 0, 0, 1, 0			! Temperature (all levels)
+ t2m      = 0, 0, 1, 0			! Temperature at 2m
+ cp       = 0, 0, 0, 0			! Convective precipitation
+ lsp      = 0, 0, 0, 0			! large scale precipitation
+ pp       = 0, 0, 1, 0			! Total precipitation
+ snow     = 0, 0, 1, 0			! Snow
+ evap     = 0, 0, 1, 0			! Evaporation
+ eminp    = 0, 0, 0, 0			! Evaporation minus precipitation
+ q        = 0, 0, 1, 0			! specific humidity
+ r        = 0, 0, 1, 0			! relative humidity
+ tcc      = 0, 0, 0, 0			! total cloud cover
+ u        = 0, 0, 1, 0			! Wind component in x direction
+ v        = 0, 0, 1, 0			! Wind component in y direction
+ uv10     = 0, 0, 0, 0			! Wind magnitude at 10m
+ ageu     = 0, 0, 0, 0			! Ageostrophic wind component in x direction
+ agev     = 0, 0, 0, 0			! Ageostrophic wind component in y direction
+ omega    = 0, 0, 0, 0          	! Vertical velocity
+ psi      = 0, 0, 0, 0			! Stream function
+ qgpv     = 0, 0, 0, 0			! Quasi geostrophic potential vorticity
+ gh       = 0, 0, 0, 0			! Geopotential height
+ chi      = 0, 0, 0, 0			! Velocity potential
+ sp       = 0, 0, 0, 0			! Surface pressure
+ shf      = 0, 0, 0, 0			! Surface sensible heat flux
+ lhf      = 0, 0, 0, 0			! Surface latent heat fluxd
+ hforc    = 0, 0, 0, 0			! Heating Force (K/s)
+ vforc    = 0, 0, 0, 0			! Potential Vorticity Forcing (1/s^2)
+ ssr      = 0, 0, 1, 0			! Surface solar radiation (downward) [NOTA: solar = shortwave or total income?]
+ tsr      = 0, 0, 1, 0			! Top of Atmosphere solar radiation (downward)
+ ttr      = 0, 0, 1, 0			! Top of Atmosphere thermal radiation (upward)
+ str      = 0, 0, 1, 0			! Surface thermal radiation (upward) [NOTA: net flux (up - down),  >0 upward]
+ swrs     = 0, 0, 1, 0			! Surface shortwave radiation (downward)
+ lwrs     = 0, 0, 1, 0			! Surface longwave  radiation (downward)
+ albs     = 0, 0, 1, 0			! Surface albedo
+ albp     = 0, 0, 1, 0			! Planetary albedo (including clouds?)
+ ustress  = 0, 0, 0, 0			! Wind stress in x direction
+ vstress  = 0, 0, 0, 0			! Wind stress in y direction
+ cdragw   = 0, 0, 0, 0			! Drag coefficient of wind
+ cdragv   = 0, 0, 0, 0			! Drag coefficient of sensible heat flux
+ bm       = 0, 0, 1, 0			! Bottom Moisture
+ sdl      = 0, 0, 1, 0			! Snow depth over land
+ runoffo  = 0, 0, 0, 0			! Runoff over ocean
+ runoffl  = 0, 0, 0, 0			! Runoff over land
+ hic      = 0, 0, 0, 0			! Sea ice thickness ?
+ dumt1    = 0, 0, 0, 0			!
+ dumt2    = 0, 0, 0, 0			!
+ dumu1    = 0, 0, 0, 0			!
+ dumu2    = 0, 0, 0, 0			!
+ $end
+
+$flgout
+ irad     = 1
+ $end

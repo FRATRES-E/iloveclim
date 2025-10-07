@@ -1,0 +1,204 @@
+Parameters for output : (WARNING: '/' character forbidden) 
+
+long_name
+name, standard_name(WARNING: never change it), units, kind of pressure
+
+number, Instantaneous, Monthly_Means,
+Total_Monthly_Means, Yearly_Means
+multiplicative constant (units), additive constant
+--------------------------------------------------------------------------
+
+64	1e20	-1e32
+
+Specific Humidity
+q	Specific_Humidity		m	N
+1	0	0	0	1	1.	0.
+Surface Temperature
+ts	Surface_Temperature		K	N
+2	0	0	0	1	1.	0.
+Stratospheric Temperature
+tstrat	Stratospheric_Temperature	K	N
+3	0	0	0	1	1	0.
+Temperature at 2 Meter
+t2m	Two_Meter_Temperature		Celsius	N
+4	0	0	0	1	1	0.
+Bottom Moisture
+bm	Bottom_Moisture			m	N
+5	0	0	0	1	1	0.
+Snow Depth over Land
+sdl	Land_Snow_Depth			m	N
+6	0	0	0	1	1	0.
+Large Scale Precipitation
+lsp	Large_Scale_Precipitation	cm.yr-1	N
+7	0	0	0	1	1	0.
+Convective Precipitation
+cp	Convective_Precipitation	cm.yr-1	N
+8	0	0	0	1	1	0.
+Surface Sensible Heat Flux
+shf	Surface_Sensible_Heat_Flux	W.m-2	N
+9	0	0	0	1	1	0.
+Surface Latent Heat Flux
+lhf	Surface_Latent_Heat_Flux	W.m-2	N
+10	0	0	0	1	1	0.
+Relative Humidity
+r	Relative_Humidity		1	N
+11	0	0	0	1	1	0.
+10 Meter Height Wind Magnitude
+uv10	Wind_at_10_Meter		m.s-1	N
+12	0	0	0	1	1	0.
+Surface Runoff over Ocean
+runoffo	Ocean_Surface_Runoff		cm.yr-1	N
+13	0	0	0	1	1	0.
+Surface Runoff over Land
+runoffl	Land_Surface_Runoff		cm.yr-1	N
+14	0	0	0	1	1	0.
+Total Cloud Cover
+tcc	Total_Cloud_Cover		1	N
+15	0	0	0	1	1	0.
+Planetary Albedo
+palb	Planetary_Albedo		%	N
+16	0	0	0	1	1	0.
+Surface Albedo
+alb	Surface_Albedo			%	N
+17	0	0	0	1	1	0.
+Surface Solar Radiation
+ssr	Surface_Solar_Radiation		W.m-2	N
+18	0	0	0	1	1	0.
+Top Solar Radiation
+tsr	Top_Solar_Radiation		W.m-2	N
+19	0	0	0	1	1	0.
+Surface Thermal Radiation
+str	Surface_Thermal_Radiation	W.m-2	N
+20	0	0	0	1	1	0.
+Top Thermal Radiation
+ttr	Top_Thermal_Radiation		W.m-2	N
+21	0	0	0	1	1	0.
+U-stress
+ustress	U_Stress			Pa	N
+22	0	0	0	1	1	0.
+V-stress
+vstress	V_Stress			Pa	N
+23	0	0	0	1	1	0.
+Surface Evaporation
+evap	Surface_Evaporation		cm.yr-1	N
+24	0	0	0	1	1	0.
+Total Precipitation
+pp	Total_Precipitation		cm.yr-1	N
+25	0	0	0	1	1	0.
+Surface Pressure
+sp	Surface_Pressure		Pa	N
+26	0	0	0	1	1	0.
+Evaporation Minus Precipitation
+eminp	Evap_Minus_Precip		cm.yr-1	N
+27	0	0	0	1	1	0.
+Sea Ice Thickness
+hic	Sea_Ice_Thickness		m	N
+28	0	0	0	1	1	0.
+Drag Coefficient W
+cdragw	Drag_Coefficient_W		1	N
+29	0	0	0	1	1	0.
+Drag Coefficient V
+cdragv	Drag_Coefficient_V		1	N
+30	0	0	0	0	1	0.
+Total Snow Fall
+snow	Total_Snow_Fall			cm.yr-1	N
+31	0	0	0	1	1	0.
+Surface Shortwave Radiation
+swrs	Surface_Shortwave_Radiation	bl.W-2	N
+32	0	0	0	1	1	0.
+Surface Longwave Radiation
+lwrs	Surface_Longwave_Radiation	bl.W-2	N
+33	0	0	0	1	1	0.
+Total Precipitation R18O
+pp18	Total_Precip18			cm.yr-1	N
+34	0	0	0	1	1	0.
+Total Snow Fall R18O
+sn18	Total_Snow18			cm.yr-1	N
+35	0	0	0	1	1	0.
+Total Precipitation R17O
+pp17	Total_Precip17			cm.yr-1	N
+36	0	0	0	1	1	0.
+Total Snow Fall R17O
+sn17	Total_Snow17			cm.yr-1	N
+37	0	0	0	1	1	0.
+Total Precipitation R2H
+ppd	Total_Precipd			cm.yr-1	N
+38	0	0	0	1	1	0.
+Total Snow Fall R2H
+snd	Total_Snowd			cm.yr-1	N
+39	0	0	0	1	1	0.
+Bottom Moisture R18O
+bm18	Bottom_Mois18			m	N
+40	0	0	0	1	1	0.
+Bottom Moisture R17O
+bm17	Bottom_Mois17			m	N
+41	0	0	0	1	1	0.
+Bottom Moisture R2H
+bmd	Bottom_Moisd			m	N
+42	0	0	0	1	1	0.
+Snow Depth over Land R18O
+sdl18	Land_Snow_D18			m	N
+43	0	0	0	1	1	0.
+Snow Depth over Land R17O
+sdl17	Land_Snow_D17			m	N
+44	0	0	0	1	1	0.
+Snow Depth over Land R2H
+sdld	Land_Snow_Dd			m	N
+45	0	0	0	1	1	0.
+Specific Humidity R18O
+q18	Specific_Hum_d18O		m	N
+46	0	0	0	1	1.	0.
+Specific Humidity R17O
+q17	Specific_Hum_d17O		m	N
+47	0	0	0	1	1.	0.
+Specific Humidity R2H
+qd	Specific_Hum_dd		m	N
+48	0	0	0	1	1.	0.
+Air Temperature
+tair	Temperature			K	T4
+49	0	0	0	1	1	0.
+Wind in X Direction
+u	Wind_U				m.s-1	U3
+50	0	0	0	1	1	0.
+Wind in Y Direction
+v	Wind_V				m.s-1	U3
+51	0	0	0	1	1	0.
+Vertical Wind Pressure
+omega	Vertical_Pressure_Wind		Pa.s-1	T3
+52	0	0	0	1	1	0.
+Stream Function
+psi	Stream_Function			m2.s-1	U3
+53	0	0	0	1	1	0.
+Velocity Potential
+chi	Velocity_Potential		m2.s-1	U3
+54	0	0	0	1	1	0.
+Heating Force
+hforc	Heating_Force			K.s-1	T2
+55	0	0	0	0	1	0.
+Potential Vorticity Forcing
+vforc	Potential_Vorticity_Forcing	s-2	U3
+56	0	0	0	0	1	0.
+Ageostrophic Wind in X Direction
+ageu	Ageostrophic_Wind_U		m.s-1	U3
+57	0	0	0	0	1	0.
+Ageostrophic Wind in Y Direction
+agev	Ageostrophic_Wind_V		m.s-1	U3
+58	0	0	0	0	1	0.
+Quasi-Geostrophic Potential Vorticity
+qgpv	QG_Potential_Vorticity		s-1	U3
+59	0	0	0	0	1	0.
+Geopotential Height
+geopg	Geopotential_Height		m2.s-2	U3
+60	0	0	0	1	1	0.
+User Assigned Variable on T Grid
+user_t1	User_Assigned_T1		?	T3
+61	0	0	0	0	1	0.
+User Assigned Variable on T Grid
+user_t2	User_Assigned_T2		?	T3
+62	0	0	0	0	1	0.
+User Assigned Variable on U Grid
+user_u1	User_Assigned_U1		?	U3
+63	0	0	0	0	1	0.
+User Assigned Variable on U Grid
+user_u2	User_Assigned_U2		?	U3
+64	0	0	0	0	1	0.

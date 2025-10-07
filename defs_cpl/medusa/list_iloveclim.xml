@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<!-- List of XML files for components required for the iLoveclim configuration -->
+
+<MedusaCoCoGen>
+
+   <Composition>
+      <Solid        file="xml/clay.xml"   order="1" />
+      <Solid        file="xml/calc.xml"   order="2" />
+      <SoluteSystem file="xml/dic.xml"    order="3" />
+      <Solid        file="xml/orgm.xml"   order="7" />
+      <Solute       file="xml/o2.xml"     order="8" />
+      <Solute       file="xml/ca.xml"     order="9" />
+   </Composition>
+
+   <Processes>
+      <Process      file="xml/proc_calc_diss.xml" />
+      <Process      file="xml/proc_orgm_oxic.xml" />
+   </Processes>
+
+   <Equilibria>
+      <Equilibrium  file="xml/equi_dic.xml" />
+   </Equilibria>
+
+
+</MedusaCoCoGen>
+

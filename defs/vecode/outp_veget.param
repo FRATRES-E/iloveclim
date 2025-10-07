@@ -1,0 +1,69 @@
+Parameters for output : (WARNING: '/' character forbidden)
+
+long_name
+name, standard_name(WARNING: never change it), units, kind of pressure
+
+number, Instantaneous(WARNING: inactive), Monthly_Means,
+Total_Monthly_Means, Yearly_Means
+multiplicative constant (units), additive constant (WARNING: just for 2 and 32)
+--------------------------------------------------------------------------
+
+19	999.0	-1e32
+
+Tree Fraction
+tfrac	tree_fraction					%		N
+1	0	0	0	1	1.	0.
+Grass Fraction
+gfrac	grass_fraction					%		N
+2	0	0	0	1	1.	0.
+Desert Fraction
+dfrac	desert_fraction					%		N
+3	0	0	0	0	1.	0.
+Needle tree Fraction
+nfrac	needle_tree_fraction				%		N
+4	0	0	0	0	1.	0.
+Tree leaf area index
+lait	tree_leaf_area_index				1		N
+5	0	0	0	0	1.	0.
+Grass leaf area index
+laig	grass_leaf_area_index				1		N
+6	0	0	0	0	1.	0.
+Vegetation albedo
+alb	vegetation_albedo				%		N
+7	0	0	0	0	1.	0.
+Surface Temperature
+temp	surface_temperature				Celsius		N
+8	0	0	0	1	1.      0.
+Annual gdd0 index
+gdd0	Annual_gdd0_index				1e-3		N
+9	0	0	0	0	1.	0.
+Precipitation
+prc	precipitation					m.y-1		N
+10	0	0	0	0	1.	0.
+Reduced Precipitaion
+prcveg	reduced_precipitaion				m.y-1		N
+11	0	0	0	0	1.	0.
+Biomass carbon uptake
+uptake	Biomass_carbon_uptake				kg.C.y-1.m-2	N
+12	0	0	0	0	1.	0.
+Biomass carbon stock
+stock	Biomass_carbon_stock				kg.C.m-2	N
+13	0	0	0	0	1.	0.
+Leaves biomasscarbon stock
+b1	leaves_biomass_carbon_stock			kg.C.m-2	N
+14	0	0	0	0	1.	0.
+Stems root biomass stock
+b2	stems_root_biomass_stock			kg.C.m-2	N
+15	0	0	0	0	1.	0.
+Litter carbon stock
+b3	litter_carbon_stock				kg.C.m-2	N
+16	0	0	0	0	1.	0.
+Mortmass and soil organic matter carbon stock
+b4	mortmass_and_soil_organic_matter_carbon_stock	kg.C.m-2	N
+17	0	0	0	0	1.	0.
+Net primary productivity
+NPP	net_primary_productivity			kg.C.y-1.m-2	N
+18	0	0	0	0	1.	0.
+Ice sheet fraction
+cfrac	ice_sheet_fraction				%		N
+19	0	0	0	0	1.	0.
