@@ -1,0 +1,3 @@
+[submodule "i-operator"]
+	path = i-operator
+	url = https://github.com/FRATRES-E/i-operator.git
