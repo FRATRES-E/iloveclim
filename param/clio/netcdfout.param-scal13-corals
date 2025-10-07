@@ -1,0 +1,74 @@
+# lcdfmon: switch for monthly mean netcdf dumps; maxmrecs: maximum number of time records in one file
+ .F. 120
+# lmcdf -         |--05               |--10               |--15               |--20               |--25               |--30               |--35               |--40               |--45
+ .T. .T. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .F. .F. .F. .F. .F. .T. .F. .F.
+# lcdfann: switch for annual mean netcdf dumps; maxarecs: maximum number of time records in one file 
+ .T. 100
+# lacdf -         |--05               |--10               |--15               |--20               |--25               |--30               |--35               |--40               |--45
+ .T. .T. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .T. .F. .F. .F. .F. .T. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .F. .T. .T. .T. .T. .T. .T. .T. .T. .F. .F. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T. .T.
+#
+# l[m,a]cdf is an array of switches in the following order:
+#
+  1 lnctemp  3d potential temperature [degC]
+  2 lncsalt  3d salinity [PSU]
+  3 lncu     3d zonal momentum [m/s]
+  4 lncv     3d meridional momentum [m/s]
+  5 lncw     3d vertical momentum [m/day]
+  6 lncssh   2d sea surface height [m]
+  7 lncubar  2d external mode zonal momentum [m/s]
+  8 lncvbar  2d external mode meridional momentum [m/s]
+  9 lncsst   2d sea surface temperature [degC]
+ 10 lncsss   2d sea surface salinity [PSU]
+ 11 lncshflx 2d surface heat flux [W/m**2]
+ 12 lncsfflx 2d surface freshwater flux [m/a]
+ 13 lnczmix  2d depth of mixed layer [m]
+ 14 lnczcnv  2d depth of convection [m]
+ 15 lncmsl   2d G-M max. slope parameter
+ 16 lnhic    2d ice thickness [m]
+ 17 lnchicp  2d ice production [m]
+ 18 lncalbq  2d lead fraction
+ 19 lnchsn   2d snow height (above ice) [m]
+ 20 lncsnow  2d snow precipitation [m]
+ 21 lnctice  2d ice temperature [degC]
+ 22 lncfb    2d heat flux at ice base [W/m**2]  
+ 23 lncuice  2d zonal ice momentum [m/s]
+ 24 lncvice  2d meridional ice momentum [m/s]
+ 25 lnctx    2d zonal wind stress [N/m**2]
+ 26 lncty    2d meridional wind stress [N/m**2]
+ 27 lncmoc   meridional overturning streamfunction [Sv]
+ 28 lncmht   meridional heat transport [PW]
+ 29 lncmst   meridional salt transport [Sv*PSU]
+ 30 lncfice  2d FICE [m3/s]
+ 31 lncfdist 2d FDIST [nr]
+ 32 lncodoc  3d ODOC [UNIT]
+ 33 lncodocs 3d ODOCS [UNIT]
+ 34 lncodic  3d ODIC [UNIT]
+ 35 lncopo4  3d OPO4 [UNIT]
+ 36 lncono3  3d ONO3 or ON2O [UNIT]
+ 37 lncoalk  3d OALK [UNIT]
+ 38 lncoo2   3d OO2 [UNIT]
+ 39 lncooc13 3d OC13 [UNIT]
+ 40 lncodoc13  3d ODOC13 [UNIT]
+ 41 lncodocs13 3d ODOCS13 [UNIT]
+ 42 lncoc14  3d OC14 [UNIT]
+ 43 lncaqpco2  2d PCO2 surface ocean [p.p.m.]
+ 44 lnctpp_ma  2d TPP_ma [UNIT]
+ 45 lnccaco3m  2d CACO3_ma [UNIT]
+ 46 lnccorearea 3d coral area [km2]
+ 47 lnccorprod  3d coral prod [Pmol/year]
+ 48 lnccormass  3d coral mass [g]
+ 49 lncomega  3d Omega [UNIT]
+ 50 lncoco3  3d CO32- [UNIT]
+ 51 lnctaub  3d Tau_bleach [UNIT]
+ 52 lncdhw  3d DHW [UNIT]
+ 53 lncph 3D PH [UNIT]
+#
+# 27-29 are evaluated for the World Ocean and Indian, Pacific and Atlantic/Arctic 
+# sectors.
+#
+# All data written to netcdf files are monthly/annual means. When max[m,a]recs
+# is set to negative values, all timerecords will be written to the same file(s).
+# Be aware: a complete timerecord (with all 2d and 3d fields) needs approximately
+# 9 MBytes of diskspace, so you will run into the 2 GBytes filesize limitation
+# of 32 bit filesystems after about 220 records. 
+#

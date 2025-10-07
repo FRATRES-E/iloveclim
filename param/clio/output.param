@@ -1,0 +1,115 @@
+Parameters for output : number, type, monthly mean, 
+                        monthly meanfor the whole period, annual mean
+                        multiplicative constant (units), additive constant
+--------------------------------------------------------------------------
+Number of packages (1-4)
+4
+Depths of the 4 layers (in meters)
+0	500		|Those values will be converted in model layers.
+500    1500		|The first level contains the first depth.
+1500   3500 		|The second level is the one just above the second
+3500   5600		| depth.
+
+List of variables :
+
+Snow thickness                                                   
+1	1	0	0	0	1.	0.  
+Ice thickness                                                   
+2       1	 0     0       0	1.	0.
+Ice produced                                                   
+3	1	0       0       0	1.	0.
+Lead fraction                                                   
+4	1       0       0       0	-1.	1.
+Ice temperature                                                   
+5	1       0       0       0	1.	-273.15
+Oceanic flux at the ice base                                    
+6	1       0       0       0	1.	0.
+Ice velocity u                                                   
+7	2       0       0      0	1.	0.
+Ice velocity v                                                   
+8	2       0       0      0	1.	0.
+Iceberg meltflux
+9   1	0	0	0	1.	0.
+Iceberg distribution
+10  1   0   0   0   1.  0.
+Sea surface temperature                                    
+11	1	0	0	1	1.	-273.15
+Sea surface salinity                                                   
+12	1      0       0       1	1.	0.
+Ocean velocity u 0-100                                             
+13	2       0       0       0	1.	0.
+Ocean velocity v 0-100                                             
+14	2       0       0       0	1.	0.
+Thickness of the mixed layer                             
+15	1	0	0	0	1.	0.
+Thickness of the convective layer                            
+16	1	0	0	0	1.	0.
+Total heat flux at the ocean surface                               
+17 	1       0       0       1	1.	0.
+Freshwater flux at the ocean surface                                   
+18	1	0	0	0	1.	0.
+Max slope (G-M param)                       
+19	1	0	0	0	1.	0.  
+Eta 
+20	1	0	0	0	1.	0.            |end of package 1
+Oceanic temperature level 1
+21	1	0	0	0	1.	-273.15 
+Oceanic salinity at level 1
+22	1       0       0       0	1.	0.
+Oceanic velocity u level 1
+23	2       0       0       0	1.	0.
+Oceanic velocity v level 1
+24	2       0       0      0	1.	0.
+Oceanic temperature level 2
+25	1	0	0	0	1.	-273.15
+Oceanic salinity at level 2
+26	1       0       0       0	1.	0.
+Oceanic velocity u level 2
+27	2       0       0       0	1.	0.
+Oceanic velocity v level 2
+28	2       0       0       0	1.	0.
+Oceanic temperature level 3
+29	1	0	0	0	1.	-273.15
+Oceanic salinity at level 3
+30	1       0       0       0	1.	0.
+Oceanic velocity u level 3
+31	2       0       0       0	1.	0.
+Oceanic velocity v level 3
+32	2       0       0       0	1.	0.
+Oceanic temperature level 4
+33	1	0	0	0	1.	-273.15
+Oceanic salinity at level 4
+34	1       0       0       0	1.	0.
+Oceanic velocity u level 4
+35	2       0       0       0	1.	0.
+Oceanic velocity v level 4
+36	2       0       0       0	1.	0.            |end of package 2
+Solar flux at the ocean surface                               
+37	1	0	0	0	1.	0.
+wind stress u                                                   
+38      2       0       0       0	1.	0.
+wind stress v                                                   
+39      2       0       0      0	1.	0.
+Solar flux at the ocean or ice surface                            
+40	1	0	0	0	1.	0.
+Infra-red flux at the ocean or ice surface                         
+41	1       0       0       0	1.	0.
+Sensible flux at the ocean or ice surface                           
+42	1       0       0       0	1.	0.
+Latent flux at the ocean or ice surface                              
+43	1       0       0       0	1.	0.
+Salt flux at ice-ocean interface
+44      1       0       0       0       1       0.
+Albedo of the surface                                                   
+45      1       0       0       0	1.	0.            |end of package 3
+Air temperature                                                   
+46	1	0	0	0	1.	-273.15
+Air humidity                                                   
+47	1	0	0	0	1.	0.
+Wind velocity                                                   
+48	1	0	0	0	1.	0.
+Snow preicpitaion                                                   
+49	1	0	0	0	1.	0.
+calving flux                                                   
+50	1	0	0	0	1.	0.
+

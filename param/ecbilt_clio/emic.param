@@ -1,0 +1,74 @@
+# Components Activation
+
+   T       VECODE
+   F       ICEBERGS
+   F      GISM
+   F      AISM
+   F      LOCH
+
+# CO2 forcing:
+
+   T      Radiative
+   T      Fertilization
+
+# global attributes:
+
+title
+iLOVECLIM1.1.1 model output prepared for unknown-MIP experiment
+
+institution
+LSCE - Laboratoire des Sciences du Climat et de l'Environnement, LSCE/IPSL, CEA-CNRS-UVSQ, Université Paris-Saclay, F-91191 Gif-sur-Yvette, France
+
+source
+incremented from iLOVECLIM1.1 (2018) - atmosphere: ECBILT(32x64xL3,T21L3) - ocean: CLIO(122x65xL20,3x3,L20) - ice-sheet: GRISLI (40km)
+
+contact
+didier.roche@lsce.ipsl.fr, didier.roche@vu.nl
+
+project_id
+ACCLIMATE ERC / FP7/2007-2013 Grant agreement n° 339108
+
+experiment_id
+TBD
+
+realization
+1
+
+cmor_version
+1.1f
+
+Conventions
+CF-1.0
+
+history
+N/A
+
+references
+Model described by Goosse et al. (Geosci. Model Dev., 2010, 576-591), Roche (2013, 6, 1481-1491), Bouttes et al. (Geosci. Model Dev., 2015, 8, 1563-1576), Quiquet et al. (2018, 11, 453-466)
+
+comment
+Test drive
+
+experiment
+TBD
+
+institute_id
+iLOVECLIM
+
+model_id
+iLOVECLIM1.1.1
+
+forcing
+N/A
+
+parent_experiment_id
+N/A
+
+initialization_method
+1
+
+physics_version
+1
+
+product
+output

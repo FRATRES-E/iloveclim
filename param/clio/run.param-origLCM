@@ -1,0 +1,92 @@
+test0
+#    ^- refexp (sio1)
+1PE13.5 | 4 |p   89   41   14
+#    ^- format fmtinf (8c),1X, nfrinf (I3),1X (,A1,icheck,jcheck,kcheck)
+c---5----|----5----|----5----|----5----|----5----|----5----|----5----|72--5----|
+fichier de parametres pour le modele : (modif 02/02/95)  kmax =< 20
+c---5----|----5----|----5----|----5----|----5----|----5----|----5----|72--5----|
+#	kfond(>0 =>fond plat), lstab(=>Aj.Conv), nsewfr, bering, ajcmix, xslop
+-3	-0	4	0.3	0.0	1.0     0.
+#	T initiale : scal0(k,1) +----+ gibr = --^
+18. 17.8 17.6 16.9 16.2 15.2 14. 13. 11.4 10. 8.3 6.5 4.9 3.5 2.6 2. 1.7 1.5 1.3 1.3
+#	S initiale : scal0(k,2)
+34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7 34.7
+# Rappel: 1/tps(yr), Coef Explic.(ns), Mur N,S: unstyr(/1an),coef0,ahrap,nitrap
+1.	  0.	  0.	 0.	0.	0.	0.	0
+#	Rappel : Coef Implic. : coef(k)
+0.  0.  0.  0.  0.  0.  0.  0.  0.  0.  0.  0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+#	delta t : scalaire, vitesse, barot. : dts, dtu, dtb (= 24 h, 3h, 5mn)
+86400.		10800.		300.
+#	dts : coef(k)
+1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.
+# couple ou non, typ couplage, freq forcage de atm : icoupl, icoutp, itau_slow
+1       1	1
+#	Nb-iterat., Nb-sous-iter., Debut Moy. apres : nitrun, nsplit, nsplaj
+CLIO_NDAYS	46	25
+#       Nb iter in mode barocline, Debut Moy. apres : nclin, nclmoy
+1       7
+#	Kind-of : Start, Read/Write-File : kstart, kinput, koutpu
+1	0	0
+#	frequence d'ecriture resultats : nsav, ninfo, ntmoy, ntout
+CLIO_NSKIPD 	30 	1     1
+#	Outputs parameter : nwjl, nwm, nwa, nwtoa, nwtom
+180000	1	1        1        1
+#	Switch for frequency of outputs : nwtest,nwtal
+       0	1
+#       Bottom drag coeff., taux implic.Cori.(barot,baroclin): cdbot, txifcb,txifcu
+       1.5E-3   1.0     1.0
+#	diffusivite H. scal., qqt-mvt, eta : (ahs), ahu, ahe
+100.	1.E5	150.
+#	coef diffu H scal : * coef(k)
+1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+#	Visc. Vert. (Pac.\&Phil.) :  avnub, avnu0, rifumx
+1.E-4	1.E-2	1.
+#	Diff.(Pac.\&Phil.+simpl.) :  avkb,  avk0,  rifsmx
+1.5E-5	1.E-2	1.
+#	coef(k)*avnub
+20. 10. 5. 5. 5. 5. 5. 3. 3. 3. 1. 1. 1. 1. 1. 1. 1. 1. 1. 10.
+#	coef(k)*avnu0
+10. 10. 5. 3. 1. 1. 1. .5 .3 .1  0. 0. 0. 0. 0. 0. 0. 0. 0. 0.E-6
+#	coef(k)*avkb
+2. 2. 2. 1. 1. 1. 1. 1. 1. 1. 1.  1.0 1.2 1.4 2.3 8.4 10.5 10.8 11. 2.
+#	coef(k)*avk0
+10.  5.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  1.  50.
+#	taux decentr.H. vitesse : alphxu,alphxv,alphyu,alphyv
+0.	0.	0.	0.
+#	taux decentr.H. Scalaires : alphah(2), alphgr(ns), algrmn(ns)
+.0	.0	-0.1	-0.3	0.1	0.02
+#	Dec.H.: alphmi(k)
+.05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05 .05
+#	Dec.V.: alphaz(k)
+.0 .0 .0  .0 .0 .0 .0 .0 .0 .0 .0 .0 .0 .0 .0 .0 .0 .0 .0  1.0
+#       Parametres Avs(N2) : kavsmx, qavs, avsn2, ccfmn, ccfmx
+0       -0.7    3.47E-9 2.E-6   3.E-4
+#       taux implicit.V., flux Expl. : txiadu, txiads, txidfu, txidfs, txeflx
+1.	1.	1.	1.	0.	0.
+#	MoDif. FORCage \& fichier-de-modifs : mdforc, filcor
+0        |forc.corr
+#	Type de forcage, coef.*Flux(ns) : kforc, yforc(ns)
+0	0.	0.	0.
+#       FRESHWATER FLUX , scal(ns) pour les precipitations (=spvr -> locale)
+-100.   0.      
+#       valeurs de reference pour scal(ns)
+290.    34.7    
+#       Variables liee a la turbulence q2tmin,lotur,vlmin,varfor,kajul
+1.E-10  25.     2.E-3  0.0      16
+#       correction volume vcor, geothermic heat flux, hysteresis run
+1      50E-3    0
+#       ISOPYCNAL DIFFUSION , ai,slopemax
+300  0.01
+#       coef diffu isopycnale scal : * coef8(k)
+1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+#       coef ponderation slopemax  : * coef9(k)
+1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+#       GM90 PARAMETERIZATION , aitd,slopmgm,afilt,ahh,av
+300   1.  0. 0. 0.
+#       coef diffu thickness scal : * coef10(k)
+1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+#       slopemgm, slopc,slopd,refcur,Radmn,Radmx, domdds, ddslop, ddrati
+0.01 .004 .001  2. 1.5e4 1.0e5 4. .0 .02  1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+c---5----|----5----|----5----|----5----|----5----|----5----|----5----|72--5----|
+#       coef ponderation slopemgm : * coef11(k)
+1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.

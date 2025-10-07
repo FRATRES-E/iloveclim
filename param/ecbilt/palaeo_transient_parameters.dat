@@ -1,0 +1,15 @@
+## Date BP (>0 is BP !!) to force the insolation, ice-sheets and GHGs
+34000   palaeo_year
+
+## irunlabel that corresponds to that year
+## could be the begining of the simulation or a previous coherent time
+8000 ref_irunlabel
+
+## Acceleration factor: 1 = realtime, >1 is accelerated for slow B.C.
+## Beware that the acceleration factor should not change between the ref_irunlabel and the point where you are in the simulation
+## In case you want to change it from your restarting file, use the first year of the next simulations as a reference point
+1 accel_rt
+
+## Transient or equilibrium: will each new computed year be a new B.C. year or should the B.C. be fixed
+## 0 is transient, 1 is equilibrium
+1 equil_flag
