@@ -1,0 +1,16 @@
+
+ Enclosed you find the revised NetCDF output routines for CLIO. Backup
+ your ancient sources, and copy defgrid.f, outave.f and bloc.com to 
+ clio/sources/ in the EMIC source tree. Then run at least one year to
+ produce a history or time-average file with at least one time record.
+
+ Please take the time to work through GBU.pdf (The Good, the Bad, and 
+ the Ugly), to find out how to use Ferret´s 3-argument shade command
+ for more conventional horizontal maps. When you have problems with
+ too thin lines or vectors in the plots, please disable "smooth line arts"
+ and "smooth images" in the preferences of Adobe Reader.
+
+ I hope this turns out helpful for the rest of the diploma thesis.
+
+ Peter Herrmann (ph@phsck.de) March 2004
+

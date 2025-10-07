@@ -1,0 +1,380 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.75 [en] (X11; U; Linux 2.2.15-3SGI_31 i686) [Netscape]">
+   <title>CKO - ECBILT/CLIO Installation</title>
+</head>
+<body bgcolor="#FFFFFF">
+<img SRC="cko-logo-with-text.gif" ALT="CKO" >
+<br>
+<hr>
+<br>&nbsp;
+<h2>
+Installing ECBILT/CLIO</h2>
+In this document we describe how you can install the ECBILT/CLIO software
+on your computer. The installation process, which includes a demonstration
+run, consists of three steps
+<ol>
+<li>
+<a href="#unpacking">unpacking the software</a>,</li>
+
+<li>
+<a href="#configuring">configuring the model</a>, and</li>
+
+<li>
+<a href="#running">running the model</a>.</li>
+</ol>
+Note that you need the Field, NetCDF, and udunits libraries in order to
+run the model. If this software is not available on your computer, you
+should install it first. You can obtain the source code distribution of
+these libraries via the <a href="http://www.knmi.nl/onderzk/CKO/tools.html">tools
+page</a> of the <a href="http://www.knmi.nl/onderzk/CKO">CKO website</a>.
+<p><a NAME="unpacking"></a><b>Unpacking the Software</b>
+<br>To install the ECBILT/CLIO package, you should first create a directory
+named EMIC and change to this directory. Next, you should unpack the package
+using the commands
+<p><tt>gunzip -c ../emic.tar.gz | tar xvf -</tt>
+<p>Now, the directory EMIC should have the following contents (dates and
+times may differ)
+<pre>bgwd63 252% ll
+total 320
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 889 May 23 13:44 acconfig.h
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 22125 May 23 13:03 aclocal.m4
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 5 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 clio
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 2 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 config
+-rwxr-xr-x&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 186720 May 30 13:39 configure
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 33071 May 30 13:39 configure.in
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 doc
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 5 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 ecbilt
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 ecbilt_clio
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 ecbilt_fixoc
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 ecbilt_fom
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 ecbilt_swamp
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 fixoc
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 3 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 fixtim
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 5 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 fom
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 lbm
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 scenario
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10 May 31 09:01 stamp-h
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 swamp
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 tim
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 6 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 09:05 wkdir</pre>
+The file <tt>configure</tt> is a script that you will use to configure
+the ECBILT/CLIO model for your computer. Here is a description of the directories.
+<dl>
+<dt>
+<tt>clio</tt></dt>
+
+<dd>
+This directory contains the sources and inputdata of the ocean-seaice model
+CLIO developed at the univeristy of Louvain La Neuve.</dd>
+
+<dt>
+<tt>config</tt></dt>
+
+<dd>
+This directory contains files that are needed by the configuration program.</dd>
+
+<dt>
+<tt>doc</tt></dt>
+
+<dd>
+This directory contains these installation instructions and documentation
+on the ECBILT and CLIO models.</dd>
+
+<dt>
+<tt>ecbilt</tt></dt>
+
+<dd>
+This directory contains the sources, inputdata, and the default namelist
+of T21 quasi-geostrophic atmosphere model ECBILT developed at KNMI.</dd>
+
+<dt>
+<tt>ecbilt_clio</tt></dt>
+
+<dd>
+This directory contains the sources and inputdata for a coupled model consisting
+of the ECBILT atmosphere model, the CLIO ocean-seaice model and the land
+model lbm.</dd>
+
+<dt>
+<tt>ecbilt_fixoc</tt></dt>
+
+<dd>
+This directory contains the source code and inputdata for a coupled model
+consisting of the ECBILT atmosphere model, the fixed ocean model fixoc
+and the land model lbm.</dd>
+
+<dt>
+<tt>ecbilt_swamp</tt></dt>
+
+<dd>
+This directory contians the source and inputdata for a coupled model consisting
+of the atmosphere model ECBILT, a mixed layer ocean swamp, the land model
+lbm and the seaice model tim.</dd>
+
+<dt>
+<tt>ecbilt_fom</tt></dt>
+
+<dd>
+This directory contains the sources and inputdata of a coupled model consisting
+of the atmosphere model ECBILT, a flat-bottom ocean model fom, the seaice
+model tim, and the land model lbm.</dd>
+
+<br><tt>fixoc</tt>
+<dd>
+This directory contains the source and inputdata of an ocean model with
+prescribed sea surface temperature and sea-ice climatology.</dd>
+
+<dt>
+<tt>fixtim</tt></dt>
+
+<dd>
+This directory contains the source code, inputdata and the default namelist
+of a thermodynamic sea-ice model with prescribed thickness.</dd>
+
+<dt>
+<tt>fom</tt></dt>
+
+<dd>
+This directory contains the sources, inputdata and the default namelist
+of a flat-bottom ocean model developed at KNMI.</dd>
+
+<dt>
+<tt>lbm</tt></dt>
+
+<dd>
+This directory contains the sources, inputdata and the default namelist
+of the land-bucket model developed at KNMI.</dd>
+
+<dt>
+<tt>scenario</tt></dt>
+
+<dd>
+This directory contains historical data and future scenario's of atmospheric
+composition and land cover (albedo and forest fraction).</dd>
+
+<dt>
+<tt>swamp</tt></dt>
+
+<dd>
+This directory contains the source code, inputdata and the default namelist
+of a mixed-layer ocean model with prescribed heattransport.</dd>
+
+<dt>
+<tt>tim</tt></dt>
+
+<dd>
+This directory contains the sources, inputdata and the default namelist
+of a thermodynamic sea-ice model.</dd>
+
+<dt>
+<tt>wkdir</tt></dt>
+
+<dd>
+This directory contains the start data and specific namelist and parameter
+files for each of the coupled models.</dd>
+</dl>
+The remaining files are used by the configuration script. Normally, you
+should not have to do anything with these files and it is best to just
+leave them where they are. The next step is to configure the software for
+your computer.
+<p><a NAME="configuring"></a><b>Configuration</b>
+<br>You need to configure ECBILT/CLIO for two reasons: first, because of
+the differences between the computers on which ECBILT/CLIO can run. Second,
+because you need to adapt the model for your research topic. We describe
+how you can configure ECBILT/CLIO in these cases in the following sections.
+<p><i>Configuring for Your Computer</i>
+<br>Most of the work related to configuring ECBILT/CLIO for you computer
+is handled by the script <tt>configure</tt> that you can find in the directory
+EMIC. This script will figure out where it can find all the tools and libraries
+that are needed to compile and run the model. The script accepts several
+command-line options. You can get a list of these options by entering
+<p><tt>./configure --help</tt>
+<p>The last six options are the ones that control the configuration of
+the ECBILT/CLIO mode. Note that you can specify two or more of these options
+simultaneously. Also note that the script remembers the previous configuration
+options, so you only need to specify the options for things that you want
+to change.
+<p>You select the ocean model with the following option
+<p><tt>./configure --with-ocean=</tt><i>ocean-model</i>
+<p>The supported ocean models are <tt>clio</tt>,&nbsp; <tt>fom</tt>, <tt>swamp</tt>,
+and <tt>fixoc</tt>. If this option is not specified. the default ocean
+model CLIO is used. Note that the ocean model also determines which seaice
+model is used.
+<p>The ECBILT/CLIO model is compiled and run in a separate directory.&nbsp;
+The default directory is <tt>/tmp/$USER</tt>. You can change this directory
+with the following option
+<p><tt>./configure --with-scratch=</tt><i>scratch_directory</i>
+<p>You can start a demonstration run at the end of the configuration process
+with
+<p><tt>./configure --with-run</tt>
+<p>On some computers, the configuration script is not able to find the
+Field, NetCDF and/or udunits library. In this case, you have to specify
+the location of this library with one or more of the command-line options
+<tt>--with-field</tt>,
+<tt>--with-netcdf</tt>,
+and <tt>--with-udunits</tt>. For example, you can determine the location
+of the NetCDF library by searching for the file
+<tt>netcdf.h</tt>. The
+path to this file will usually be something like
+<tt>/usr/local/include/netcdf.h</tt>.
+Everything upto (but not including) `<tt>include</tt>' is the directory
+you are looking for. Once you know where the NetCDF software is located,
+you can configure ECBILT for your computer by entering the command
+<p><tt>./configure --with-netcdf=</tt><i>location-of-netcdf</i>
+<p>in the directory EMIC. For example, if the file <tt>netcdf.h</tt> is
+located in the directory <tt>/usr/local/include</tt> then the configuration
+script is invoked as follows
+<p><tt>./configure --with-netcdf=/usr/local</tt>
+<p>You can locate the Field and udunits library in a similar manner by
+searching for the files <tt>Contract.inc</tt> and <tt>udunits.h</tt> respectively.
+<p>During the configuration process a number of makefiles, scripts, and
+include files are created. When the configuration process is finished,
+the contents of the directory EMIC should be similar to this
+<pre>bgwd63 254% ll
+total 364
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1372 May 31 11:24 Makefile
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 889 May 23 13:44 acconfig.h
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 22125 May 23 13:03 aclocal.m4
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 2 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 bin
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 5 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 clio
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 2 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 config
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3360 May 31 11:24 config.cache
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5680 May 31 11:24 config.log
+-rwxr-xr-x&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 17363 May 31 11:24 config.status
+-rwxr-xr-x&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 186720 May 31 11:07 configure
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 33071 May 30 13:39 configure.in
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 9 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 doc
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 5 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 ecbilt
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 ecbilt_clio
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 ecbilt_fixoc
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 ecbilt_fom
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:24 ecbilt_swamp
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 fixoc
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 3 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 fixtim
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 5 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 fom
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 2 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 include
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 lbm
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 scenario
+-rw-r--r--&nbsp;&nbsp;&nbsp; 1 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10 May 31 11:25 stamp-h
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 swamp
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 4 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 tim
+drwxr-xr-x&nbsp;&nbsp;&nbsp; 6 severijn ksoo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 May 31 11:25 wkdir</pre>
+The configuration script creates a makefile and several directories
+<dl>
+<dt>
+<tt>bin</tt></dt>
+
+<dd>
+This directory contains the script <tt>run-emic</tt> to build and run the
+coupled model.</dd>
+
+<dt>
+<tt>include</tt></dt>
+
+<dd>
+This directory contains a header file that provides some information about
+your computer that is used at compile time. You should never have to modify
+this file.</dd>
+</dl>
+<i>Configuring the Model Physics and Output</i>
+<br>You can define the physics and output data of each component of the
+coupled model by setting parameters in a number of parameter (for CLIO)
+and namelist (all other models) files. In order to run the demo you don't
+have to modify any of these. In this case you can continue with the section
+<a href="#running">Running</a>
+now.
+<p>You can change the run-time parameters of one of the component models
+ecbilt, fixtim, lbm, swamp, or tim by copying the file <tt>default-namelist</tt>
+from the corresponding subdirectory of the <tt>EMIC</tt> directory to the
+subdirectory of <tt>EMIC/wkdir</tt> and editing this copy. So if you want
+to change the configuration of the landmodel lbm of a ECBILT/CLIO coupled
+model, you use the following commands in the <tt>EMIC</tt> directory
+<p><tt>cp lbm/default-namelist wkdir/ecbilt_clio_test/namelist-lbm</tt>
+<br><tt>vi wkdir/ecbilt_clio_test/namelist-lbm</tt>
+<p>Information (little outdated) on the content of the namelist files is
+available in the <tt>EMIC/doc/ecbilt</tt> directory.
+<p>You can change the configuration of the CLIO ocean model by editing
+the <tt>*.param</tt> files in the directory <tt>EMIC/wkdir/ecbilt_clio_test</tt>.
+Be sure to make a backup copy before editing these files. Information about
+the content of the parameter files is available in files in <tt>EMIC/doc/clio</tt>.
+<p><a NAME="running"></a><b>Running</b>
+<br>After the coupled model has been configured you can start the demonstration
+run by entering the command
+<p><tt>make run</tt>
+<p>in the directory <tt>EMIC</tt>. This will invoke the script <tt>run-emic</tt>
+in the <tt>bin</tt> directory. You can also invoke this script directly.
+It takes the following command-line options
+<br>&nbsp;
+<table COLS=3 WIDTH="90%" NOSAVE >
+<tr BGCOLOR="#30C094" NOSAVE>
+<td NOSAVE><b><font face="Arial,Helvetica">Option</font></b></td>
+
+<td><b><font face="Arial,Helvetica">Default</font></b></td>
+
+<td NOSAVE><b><font face="Arial,Helvetica">Description</font></b></td>
+</tr>
+
+<tr>
+<td><tt>-h</tt></td>
+
+<td></td>
+
+<td><font face="Arial,Helvetica">Print a description of the command line
+options</font></td>
+</tr>
+
+<tr>
+<td><tt>-l </tt><i>run_label</i></td>
+
+<td><tt>test</tt></td>
+
+<td><font face="Arial,Helvetica">The label identifying the run. This is
+the last part of the name the subdirectory of</font> <tt>EMIC/wkdir</tt><font face="Arial,Helvetica">.</font></td>
+</tr>
+
+<tr>
+<td><tt>-s </tt><i>start_year</i></td>
+
+<td><tt>1710</tt></td>
+
+<td><font face="Arial,Helvetica">The year in which the model run starts.</font></td>
+</tr>
+
+<tr>
+<td><tt>-n </tt><i>number_of_years</i></td>
+
+<td><tt>1</tt></td>
+
+<td><font face="Arial,Helvetica">The length of the model run in (model)&nbsp;years
+of 360 days.</font></td>
+</tr>
+
+<tr>
+<td><tt>-r </tt><i>restart_interval</i></td>
+
+<td><tt>1</tt></td>
+
+<td><font face="Arial,Helvetica">The number of years between writing of
+a restart file.</font></td>
+</tr>
+</table>
+
+<p>The demonstration runs take between 7 (fixoc & swamp) and 22 minutes (clio) to
+complete on a Linux PC with Pentium III processor at 733 MHz. The SGI Challenge
+("broeikas") at the KNMI needs between 21 and 42 minutes, while the DEC Alpha
+("ruunat") at the IMAU takes between 3 and 7 minutes to complete the runs.
+
+<br>&nbsp;
+<br>&nbsp;
+<address>
+<a href="mailto:c.severijns@knmi.nl">Camiel Severijns</a></address>
+
+<br><!-- Created: Thu Dec  2 09:28:07 CET 1999 -->
+<!-- hhmts start -->
+Last modified: Thu May 31 12:44:22 CEDT 2001
+<!-- hhmts end -->
+</body>
+</html>

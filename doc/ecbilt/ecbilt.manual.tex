@@ -1,0 +1,1278 @@
+\documentstyle[12pt, titlepage]{article}
+
+%\renewcommand{\baselinestretch}{1.5}
+\renewcommand{\textwidth}{14cm}
+\renewcommand{\textheight}{22cm}
+\renewcommand{\topmargin}{0cm}
+
+\begin{document}
+
+\tableofcontents
+
+\title{Description of Parameter Control and Output Control for the Atmosphere\_Ocean\_Sea-ice Model}
+\author{X. Wang\\ 
+        \\ {\em KNMI, De Bilt, The Netherlands} \\ 
+        \\ {\em version 2} \\ }
+\maketitle
+
+%\begin{abstract}
+
+%\end{abstract}
+\baselineskip=18pt
+
+\section{Introduction}
+
+
+This guide is intended to give a general instruction for the users of the climate
+model which is developed in the  research section Predictability of Weather and Climate
+of the Royal Netherlands Meteorological Institute. This model consists of atmosphere/ocean/sea-ice 
+and land components. This guide is the beginning of a series which will  
+come out as new features of the model are being developed. Here we describe 
+features to set tunable parameters and output control.
+
+
+One of the characteristics of the model is that we make use of the 'namelist' feature of 
+Fortran to be able to update all the tunable model parameters outside
+the model code. In other words it is possible to change parameters without recompiling 
+the source codes. 
+
+This report contains four parts. In the first part you find a list of all the parameters
+which you can update in the namelist. The second part gives an example namelist
+showing how to change the parameters. The third part is a list of all 
+variables that can be requested for output from the model.
+The last part concerns post processing.
+
+\baselineskip=14pt
+
+\newpage
+\section{Parameter List}
+
+
+\noindent 2.1   Input Control Parameters Atmosphere\\ \\
+---runatctl  (integration control parameters) -------------------------------------\\ \
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable			&		Default    \\
+\\ 
+\hline
+%----    &    ----   & 	-------			&		-------    \\
+nyears  &    integer &	total integration time in years.	&	1  \\
+irunlabel&   integer &	number of startfiles inat001.dat                   \\
+         &           &  and inoc001.dat	                        &	001\\
+iatm	&    integer &	number of atmospheric time steps	&	   \\	
+        &            &  in one day.			&	6          \\
+nwrskip	&    integer &	number of years between writing                   \\ 
+        &            &  the model state to disk.            	&	10 \\	
+iadyn	&    integer &	with (1) or without (0) atmospheric	&	   \\	
+        &            &  dynamics.			&	1          \\
+iaphys	&    integer  &	with (1) or without (0) atmospheric  &             \\
+	&	&	physics.			&	1          \\  \hline
+\end{tabular} \\
+\vspace{1.0cm} \\
+\\
+----dispar  (dissipation parameters)---------------------------    \\
+\\
+\begin{tabular}{llll}
+Name   &     Type   &	Variable			    &	Default    \\
+\\
+\hline
+tdis   &     real   &	Ekman dissipation time scale at     &              \\
+       &	    &	lower level.		            &	3.0        \\
+addisl &     real   &	parameter for computing dissipation &              \\
+       &            &	time scale for land.		    &   0.5	   \\				
+addish &     real   &	parameter for computing dissipation &              \\
+       &	    &   time scale over mountains.	    &	0.5        \\
+tdif   &    real    &   damping time scale of hyperviscosity&              \\
+       &	    &   of the smallest waves at all levels.&	1.0        \\
+idif   &    integer &	determines scale-selectivity of                    \\
+       &	    &   hyperviscosity: power of Laplace                   \\
+       &	    &   operator on PV.			    &	4          \\
+trel   &    real    &   temperature relaxation time scale.  &	50.0       \\  \hline
+\end{tabular}
+\\
+
+\baselineskip=18pt
+\newpage 
+-----dfmpar  (deformation parameters) ------------------------    \\
+\\
+\begin{tabular}{llll}
+Name    &    Type   &	Variable			    &   Default    \\ 
+\\
+\hline
+\\
+rrdef1	&    real   &	Rossby radius of deformation layer 1&	           \\
+	&	    &   (200 - 500 hPa). 		    &	0.110      \\
+rrdef2	&    real   &	Rossby radius of deformation layer 2               \\ 
+	&           &   (500 - 800 hPa).		    &	0.070      \\
+h0	&    real   &	mountain scale height.		    &   3.0        \\  \hline       
+\end{tabular}
+%\vspace{1.5cm} \\
+\\
+
+-----moipar  (moisture parameters) ---------------------------      \\
+\\
+\begin{tabular}{llll}
+Name  	&    Type   &	Variable			    &   Default    \\ 
+\\
+\hline
+ihavm	&    integer&	with (1) or without (0) horizontal                 \\
+	&	     &  divergence of moisture.		    &   1          \\
+ivavm	&    integer &  with (1) or without (0) vertical                   \\
+	&	     &  divergence of moisture.		    &   1          \\
+imsink	&    integer &  with (1) or without (0) the sources                \\
+	&	     &  and sinks of moisture.		    &	1          \\
+tdifg   &    real    &  diffusion time scale for moisture                  \\
+        &            &  in days                             &   5.0        \\
+gpm500  &    real     & mean 500 hPa geopotential height                   \\
+        &            &  (in meters) used in the calculation of the         \\
+        &             & ground pressure and temperature.    &   5500.0     \\
+hmoisr  &    real    &  reduction factor of mountain heights               \\
+        &            &  in order to tune the amount of water               \\
+        &            &  that is allowed to pass a topographic              \\
+        &            &  barrier.                             &   1.0        \\
+umoisr  &    real    &  reduction factor of 800 hPa winds                  \\
+        &            &  used in advecting the moisture.     &   0.8        \\
+rainmax &    real    &  maximum rate of dynamic and convective             \\
+        &            &  rain in m/s.                        &   0.000001   \\
+hmix    &    real    &	depth of mixed layer of the ocean.  &	50.0       \\
+bmoism  &    real    &  maximum bottom moisture.	    &	0.15       \\
+evfac	&    real    &	maximum evaporation factor over                    \\   
+        &	     &  land.                               &   1.0        \\
+relmax	&    real    &	maximum relative humidity before                   \\ 
+	&	     &	saturation.  			    &	1.0        \\  \hline       
+\end{tabular}
+\\
+\\
+\\
+
+-----fluxpar  (flux parameter) ---------------------------      \\
+\\
+\begin{tabular}{llll}
+Name	&    Type    &	Variable			      &  Default   \\
+\\
+\hline
+cdrag  &    real     &	coefficient in sensible and latent                  \\
+       &	     &	air-sea heat flux and wind stress.    &   1.4e-03   \\    
+uv10rfx&    real     & reduction factor of 800 hPa winds to                 \\
+       &             & obtain 10 meter wind used in the                     \\
+       &             & definition of the surface heat flux.   & 0.8         \\ 
+uv10m  &    real     & minimum value of 10 meter wind used in               \\
+       &             & all surface fluxes.                    & 4.0         \\  
+uv10rvs&    real     & reduction factor of 800 hPa winds to                 \\
+       &             & obtain 10 meter wind used in definition              \\
+       &             & of the wind stress to drive the ocean                \\
+       &             & currents.                              & 0.8         \\       
+dsnm   &     real    & maximum land snow depth.               & 2000.0      \\
+ndayws &     real    & averaging period of wind stress in days.& 30.0       \\ \hline
+\end{tabular}
+\\
+\\
+
+-----forpar  (forcing parameter) ---------------------------      \\
+\\
+\begin{tabular}{llll}
+Name	&    Type    &	Variable			      &  Default   \\
+\\
+\hline
+iartif	&    integer &  with (1 and inf=.true.) or without (0)&            \\
+	&            &  artificial forcing.		      &  0         \\
+ipvf1	&    integer &  with (1) or without (0) diabatic heating.& 1       \\
+ipvf2	&    integer &  with (1) or without (0) advection of  f            \\
+	&	     &  by divergent wind.			& 1        \\
+ipvf3	&    integer &	with (1) or without (0) stretching term. & 1       \\
+ipvf4	&    integer &	with (1) or without (0) advection of               \\
+	&	     &	zeta by divergent wind.			& 1        \\
+ipvf5	&    integer &	with (1) or without (0) vertical                   \\
+	&            &	advection of zeta.                       & 1       \\
+ipvf6	&    integer &	with (1) or without (0) solenoidal term. & 1       \\
+ipvf7	&    integer &	with (1) or without (0) advection of               \\
+	&            &	temperature by divergent wind.		& 0        \\ \hline
+\end{tabular}
+\newpage
+
+-----radpar   (radiation parameter) ---------      \\
+\\
+\begin{tabular}{llll}
+\\
+Name	&    Type  &	Variable		&		Default    \\
+\\
+solarc	&    real  &	solar constant.		&		1363.0     \\  \hline  
+\end{tabular}
+\\
+\\
+\\
+\\
+-----satfor   (radiation parameter) ---------      \\
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable		&		Default    \\
+\\
+\hline
+nafyear  &   integer  & number of years of data to save.  &    0            \\
+isatfor	&    integer  &	save (1) or not to save (0)                         \\
+        &             & nafyear of atmospheric data                         \\
+        &             & to disk to be used to drive                         \\
+        &             & the ocean in uncoupled mode.      &    0            \\
+nbsatfor &   integer  & first year in the integrations to                   \\
+         &            & start saving nafyear  of data.    &    0            \\
+irunatm  &   integer  & =1, if the atmospheric model is run.                \\
+         &            & =0, if the ocean is forced with                     \\
+         &            & atmospheric data reading from the disk. & 1         \\  \hline
+\end{tabular}
+\\
+\\
+\\
+\\
+%\newpage
+\noindent 2.2  Input Control Parameters Ocean\\ \\
+---runoctl  (integration control parameters) -------\\ \
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable			&		Default    \\
+\\ 
+\hline
+\\
+idtbtrop&    integer &	length of barotropic timestep           &          \\
+        &            &  of ocean in days.	                &      5   \\	
+idtbclin&    integer &	length of baroclinic timestep           &          \\
+        &            &  of ocean in days.	                &      5   \\  \hline 	
+\end{tabular} \\
+\\
+\\
+\newpage
+---couppar  (coupling parameters between atmosphere and ocean ) -------\\ \
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable		&		Default    \\
+\\ 
+\hline
+%----   &    ----    & 	-------			&		-------   \\
+icoupleh&    integer &	with (1) or without (0) heat flux       &         \\
+        &            &  exchange between atmosphere and ocean.  &     1   \\
+icouples&    integer &	with (1) or without (0) salinity        &         \\
+        &            &  exchange between atmosphere and ocean.  &     1   \\	
+icouplew&    integer &	with (1) or without (0) wind stress     &         \\
+       	&	     &  forcing from atmosphere to ocean.       &     1   \\
+ltflux  &    logical &  true:  prescribed heat flux       	&         \\
+        &            &  false: relaxation               	&     F   \\	
+mico    &    logical &  true:  prescribed salt flux      	&         \\
+        &            &  false: relaxation        		&     F   \\	
+ndreloct&    real    &	relaxation constant for temperature     &         \\
+        &            &  in days.                                &    50   \\
+ndrelocs&    real    &	relaxation constant for salinity        &         \\
+        &            &  in days.                                &    50   \\  \hline
+\end{tabular} \\
+\\
+\\
+---icepar  (sea-ice parameters) --------------\\ \
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable			&		Default    \\
+\\ 
+\hline
+rks     &    real    &	thermal conductivity of snow.   	&      0.3097 \\
+rki     &    real    &	thermal conductivity of ice.     	&      2.034  \\
+abottom &    real    &	thermal exchange coefficient            &             \\
+        &            &  between ocean and sea-ice.              &      20.0   \\  \hline	
+\end{tabular} \\
+\\
+\\
+---ocpar  (ocean parameters) --------------\\ \
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable			&		Default    \\
+\\ 
+\hline
+rkap    &    real    &	Stommel friction.	                &      8e-6   \\	
+rkapv   &    real    &	vertical diffusion coefficient.	        &      3e-5   \\	
+rkaph   &    real    &	horizontal diffusion coefficient.	&      1.0e+3 \\     	
+accstr  &    real    &	strength of acc current.           	&      100e+6 \\ \hline
+\end{tabular} \\
+\\
+\newpage
+---levpar  (depth of ocean level parameters ) --------------\\ \
+\\
+\begin{tabular}{llll}
+Name	&    Type  &	Variable			    &		Default    \\
+\\ 
+\hline
+h(1)    &    real    &	depth of 1st ocean level.   	            &          30.0   \\
+h(2)    &    real    &	depth of 2nd ocean level.     	            &          50.0   \\
+h(3)    &    real    &	depth of 3rd ocean level.                   &          80.0   \\	
+h(4)    &    real    &	depth of 4th ocean level.	            &          140.0  \\	
+h(5)    &    real    &	depth of 5th ocean level.	            &          250.0  \\	
+h(6)    &    real    &	depth of 6th ocean level.	            &          350.0  \\     	
+h(7)    &    real    &	depth of 7th ocean level.                   &          400.0  \\ 
+h(8)    &    real    &	depth of 8th ocean level.   	            &          450.0  \\
+h(9)    &    real    &	depth of 9th ocean level.     	            &          500.0  \\
+h(10)   &    real    &	depth of 10th ocean level.                  &          550.0  \\	
+h(11)   &    real    &	depth of 11th ocean level.	            &          600.0  \\	
+h(12)   &    real    &	depth of 12th ocean level.	            &          600.0  \\ \hline	
+\end{tabular} \\
+\\
+\\
+\noindent 2.3   Output Control Parameters Atmosphere\\ \\
+-----outatctl  (output control parameters) -------------------------     \\
+\begin{tabular}{llll}
+\\
+Name	 &   Type&	Variable			&	Default    \\
+\\
+\hline
+ioutdaily&   integer&	output (1) or not (0) of instan-   &               \\
+	&           &	taneous fields.			&	0          \\
+ixout	&    integer&	output frequency of instantaneous                  \\
+	&	    &	fields (in days).	        &	30         \\
+meantype &   integer&	control output mean type:                          \\
+	 &	    &	= 0 no mean will be computed                       \\
+	 &	    &   = 1 monthly mean                                   \\
+	 &          &	= 2 seasonal mean.      	&	1          \\
+meanyl	 &   integer&	output (1) or not (0) of monthly                   \\
+	 &	    &	or seasonal mean fields                            \\
+	 &          &	depending on meantype.		&	1          \\	
+meantot	 &   integer&	output (1) or not (0) of whole-period              \\
+	 &	    &	monthly or seasonal mean fields                    \\
+	 &	    &	depending on meantype.	 	&	0          \\
+ifrendat &   integer&	frequency for writing restart data                 \\
+	 &	    &   in days.			&	30         \\  \hline
+\end{tabular}
+\\
+\newpage
+------wratpar  (array for selecting output atmospheric variables)  ------------          \\
+\\
+\begin{tabular}{llll}
+Name	&    Type          &	Variable			        &	Default    \\
+\hline
+t       &    integer array &    upper level temperature		&	0, 0, 0    \\
+u	&    ..	           &    wind in x direction		&	0, 0, 0    \\
+v	&    ..            &    wind in y direction		&	0, 0, 0    \\
+q	&    ..	           &	specific humidity		&	0, 0, 0    \\
+omega	&    ..	           &    wind in z direction (in pressure &                 \\
+	&	           &	vertical coordinate)		&	0, 0, 0    \\
+ts	&    ..            &	surface temperature		&	0, 0, 0    \\
+bm	&    ..            &    bottom moisture          	&	0, 0, 0    \\
+sdl	&    ..	           &	snow depth over land           	&	0, 0, 0    \\
+lsp	&    ..	           &	large scale precipitation	&	0, 0, 0    \\
+cp	&    ..	           &	convective precipitation	&	0, 0, 0    \\
+shf	&    ..	           &	surface sensible heat flux      &	0, 0, 0    \\
+lhf     &    ..	           &	surface latent heat flux        &	0, 0, 0    \\
+psi	&    ..	           &	stream function			&	0, 0, 0    \\
+chi	&    ..	           &	velocity potential		&	0, 0, 0    \\
+r	&    ..	           &	relative humidity		&	0, 0, 0    \\
+runoffl	&    ..	           &	runoff over land		&	0, 0, 0    \\
+runoffo	&    ..	           &	runoff over ocean		&	0, 0, 0    \\
+uv10	&    ..	           &    10 meter height wind magnitude  &	0, 0, 0    \\
+t2m     &    ..            &    temperature at 2m height	&	0, 0, 0    \\
+alb	&    ..	           &	surface albedo           	&	0, 0, 0    \\
+ssr	&    ..	           &	surface solar radiation		&	0, 0, 0    \\
+tsr	&    ..	           &	top solar radiation	        &	0, 0, 0    \\
+str	&    ..	           &	surface thermal radiation	&	0, 0, 0    \\
+ttr	&    ..	           &	top thermal radiation	        &	0, 0, 0    \\
+ustress	&    ..	           &	u wind stress			&	0, 0, 0    \\
+vstress	&    ..	           &	v wind stress			&	0, 0, 0    \\
+evap	&    ..	           &	evaporation			&	0, 0, 0    \\
+omegas	&    ..            &    vertical wind at the surface	&	0, 0, 0    \\
+pp	&    ..            &	large scale precipitation +     &                  \\
+	&	           &	convective precipitation	&	0, 0, 0    \\
+hforc   &    ..   	   &    heating force			&       0, 0, 0    \\
+vforc   &    ..            &    potential vorticity forcing	&       0, 0, 0    \\
+ageu	&    ..	           &	ageostrophic wind in x direction&	0, 0, 0    \\	    
+agev	&    ..	           &	ageostrophic wind in y direction&	0, 0, 0    \\
+sp  	&    ..	           &	surface pressure                &	0, 0, 0    \\
+ttc  	&    ..	           &	total cloud cover               &	0, 0, 0    \\
+palb  	&    ..	           &	planetary albedo                &	0, 0, 0    \\
+eminp	&    ..	           &	evaporation - precipitation	&	0, 0, 0    \\  \hline   
+\hline
+\end{tabular}
+
+\newpage
+
+\noindent 2.4  Output Control Parameters Ocean\\ \\
+------outoctl (output control parameter)  ------------          \\
+\\
+\begin{tabular}{llll}
+Name	  &    Type          &	 Variable			  &	Default    \\ 
+\\
+\hline
+isnapshot &    ..            &   output (1) or not (0) instan-    &          \\          
+          &                  &   taneous fields.                  &       0  \\ 
+ifreq     &    ..            &   frequency of outputting instan-  &          \\ 
+          &                  &   taneous fields in days.          &	  30 \\
+mtype     &    ..            &   =0, no output of mean fields.                \\ 
+          &                  &   =1, output monthly mean fields.             \\
+          &                  &   =2, output seasonal mean fields. &	  1  \\  \hline
+\end{tabular}
+\\
+\\
+\\
+------wrocpar (array for selecting output ocean variables)  ------------          \\
+\\
+\begin{tabular}{llll}
+Name	&    Type          &	Variable			        &	Default    \\
+\\
+\hline
+to	&    integer array  &	ocean temperature.		                &	0, 0 \\
+sa      &    ..            &    ocean salinity.		                        &	0, 0  \\
+ro      &    ..            &    sea water density.       	                &	0, 0  \\
+hadvt   &    ..            &    horizontal (x+y) advection of temperature.	&       0, 0  \\
+hadvs   &    ..            &    horizontal (x+y) advection of salinity.    	&       0, 0  \\
+vadvt   &    ..            &    vertical advection of temperature.	        &       0, 0  \\
+vadvs   &    ..            &    vertical advection of salinity.               	&       0, 0  \\
+hdift   &    ..            &    horizontal (x+y) diffusion of temperature.	&       0, 0  \\
+hdifs   &    ..            &    horizontal (x+y) diffusion of salinity.  	&       0, 0  \\
+vdift   &    ..            &    vertical diffusion of temperature.	        &       0, 0  \\
+vdifs   &    ..            &    vertical diffusion of salinity.                 &       0, 0  \\
+convt   &    ..            &    convective adjustment of temperature.  	        &       0, 0  \\
+convs   &    ..            &    convective adjustment of salinity.	        &       0, 0  \\
+relaxt  &    ..            &    heat forcing of the ocean.                      &       0, 0  \\
+relaxs  &    ..            &    salinity forcing of the ocean.                  &       0, 0  \\
+uo	&    ..	           &    u velocity of ocean circulation.                &	0, 0  \\
+vo	&    ..            &    v velocity of ocean circulation.                &	0, 0  \\
+wo	&    ..	           &    w velocity of ocean circulation.                &	0, 0  \\
+heex    &    ..            &    heat flux from atmosphere to ocean.             &       0, 0  \\
+saex    &    ..            &    fresh water flux from atmosphere to ocean.      &       0, 0  \\
+brin    &    ..            &    fresh water flux due to ice change.             &	0, 0  \\
+heico   &    ..            &    heat flux from ice to ocean.                    &       0, 0  \\
+dice    &    ..            &    ice thickness.                                  &       0, 0  \\ 
+sds     &    ..            &    snow depth over sea-ice.                        &	0, 0  \\
+tice    &    ..            &    temperature of ice.                             &	0, 0  \\ \hline
+\end{tabular}
+\\
+\baselineskip=14pt
+	    
+	    
+\newpage
+\section{Example Namelist}
+Here you find an example namelist. Such a file is part of the model. When 
+the model is run it reads the namelist in. The values of the parameters in the namelist 
+overrule the default values set in the model. In this way you may modify parameter values
+without compiling the source code again. The order of the parameters in each block of the
+namelist is arbitrary.
+In this namelist the first 13 blocks are input control parameters (see chapter 2). They
+are self explanatory. The last 4 blocks are output control parameters.
+After the example namelist a brief explanation about output control parameters is
+given.  \\
+%%
+\\
+\\
+\\
+\begin{tabular}{lll}
+begin namelist      \\
+                    \\
+\$runatctl          \\
+ nyears    & = & 2  \\
+ irunlabel & = & 15 \\
+ iatm      & = & 6  \\
+ nwrskip   & = & 5  \\
+\$end               \\
+                    \\
+\$dispar            \\
+ tdis   &  = & 3.0  \\
+ addisl &  = & 0.5  \\
+ addish &  = & 0.5  \\
+ trel   &  = & 50.0 \\
+ tdif   &  = & 3.0  \\
+ idif   &  = & 2    \\
+\$end               \\
+                    \\
+\$dfmpar            \\
+ rrdef1 &  = &  0.120 \\
+ rrdef2 &  = &  0.070 \\
+ h0     &  = &  3.    \\
+\$end                 \\
+\end{tabular}
+
+\newpage
+%%%
+\begin{tabular}{lll}
+                          \\
+\$moipar             \\
+ ihavm    & = & 1    \\
+ ivavm    & = & 1    \\
+ imsink   & = & 1    \\
+ tdifq    & = & 2d0  \\
+  umoisr   & = & 0.6  \\
+ rainmax  & = & 1e-5 \\
+\$end                \\
+                            \\
+\$fluxpar              \\
+ cdrag    & = & 1.4e-03\\
+ uv10rfx  & = & 0.8    \\
+ uv10m    & = & 4.     \\
+\$end                  \\
+                            \\
+\$forpar          \\
+ iartif &   = & 0 \\
+ ipvf1  &   = & 1 \\
+ ipvf2  &   = & 1 \\
+ ipvf3  &   = & 1 \\
+ ipvf4  &   = & 1 \\
+ ipvf5  &   = & 1 \\
+ ipvf6  &   = & 1 \\
+ ipvf7  &   = & 1 \\
+\$end             \\
+                           \\
+\$radpar          \\
+\$end             \\
+                           \\
+\$satfor          \\
+ isatfor &  = & 1 \\
+ nbsatfor&  = & 5 \\
+ nafyear &  = & 1 \\
+ irunatm &  = & 1 \\
+\$end             \\
+\end{tabular}
+%%%%% 
+\newpage                 
+\begin{tabular}{llll}
+                  \\
+\$runoctl         \\
+ idtbclin &  = 1  \\
+ idtbtrop &  = 1  \\
+\$end             \\
+                                \\
+\$couppar         \\
+ ndreloct &  = & 20 \\
+ ndrelocs &  = & 40 \\
+ icoupleh &  = & 1  \\
+ icouplew &  = & 1  \\
+ icouples &  = & 1  \\
+ ltflux   &  = & .false. \\
+ mico     &  = & .false. \\
+\$end             \\
+                                \\
+\$icepar           \\
+ rks      &  = &  0.3097 \\
+ rki      &  = &  2.034  \\
+ abottom  &  = &  20d0  \\
+\$end             \\
+                                \\
+\$ocpar           \\
+ rkap    &  = &  8d-6  \\
+ rkapv   &  = &  3d-5  \\
+ rkaph   &  = &  1d3   \\
+ accstr  &  = &  100d6 \\
+\$end             \\
+                                \\
+\$levpar          \\
+\$end             \\
+                                \\
+\$outatctl&       \\
+  ioutdaily &   = & 1    \\
+  ixout     &   = & 5    \\
+  meantype  &   = & 1    \\
+  meantot   &   = & 1    \\
+  meanyl    &   = & 0    \\
+\$end                    \\
+\end{tabular}
+%%%%%
+\newpage
+\begin{tabular}{llll}
+                         \\
+\$wratpar                 \\
+ ts    &  = & 0,      0,          2 \\
+ t     &  = & 0,      1, 	  1 \\
+ u     &  = & 0,      2,	  0 \\
+ v     &  = & 0,      2,	  0 \\
+ omega &  = & 0,      2,	  0 \\
+ psi   &  = & 1,      0,	  0 \\
+ shf   &  = & 0,      0,	  2 \\
+ lhf   &  = & 0,      0,	  2 \\
+ lsp   &  = & 0,      0, 	  0 \\
+ hforc &  = & 0,      0,          0 \\
+ vforc &  = & 0,      0,          0 \\
+ cp    &  = & 0,      0, 	  0 \\
+ q     &  = & 0,      0,          1 \\
+ r     &  = & 0,      0,          1 \\
+ ageu  &  = & 0,      0,          1 \\
+ agev  &  = & 0,      0,          1 \\
+ ssr   &  = & 0,      0,          0 \\
+ tsr   &  = & 0,      0,          0 \\
+ ttr   &  = & 0,      0,          0 \\
+ str   &  = & 0,      0,          0 \\
+ bm    &  = & 0,      0, 	  0 \\
+ pp    &  = & 0,      0, 	  0 \\
+ evap  &  = & 0,      0,	  0 \\
+ eminp &  = & 0,      0,	  0 \\
+ albs  &  = & 0,      0,	  0 \\
+ ustress  &  = & 0,      0,	  0 \\
+ vstress  &  = & 0,      0,	  0 \\
+ sdl      &  = & 0,      0,	  0 \\
+ uv10     &  = & 0,      0,	  0 \\
+ runoffo  &  = & 0,      0,	  0 \\
+ runoffl  &  = & 0,      0,	  0 \\
+ chi      &  = & 0,      0,	  0 \\
+ sp       &  = & 0,      0,	  0 \\
+\$end                    \\
+\end{tabular}
+%%%%
+\newpage
+\begin{tabular}{llll}
+                         \\ 
+\$outoctl&               \\
+  isnapshot &   = & 1    \\
+  ifreq     &   = & 90   \\
+  mtype     &   = & 1    \\
+\$end                    \\
+                         \\
+\$wrocpar        \\
+ to      &  = & 1,  1 \\
+ sa      &  = & 1,  1 \\
+ uo      &  = & 1,  1 \\
+ vo      &  = & 1,  1 \\
+ wo      &  = & 1,  0 \\
+ relaxt  &  = & 0,  2 \\
+ relaxs  &  = & 0,  2 \\
+ heex    &  = & 0,  0 \\
+ saex    &  = & 0,  0 \\
+ brin    &  = & 0,  0 \\
+ tice    &  = & 0,  0 \\
+ dice    &  = & 0,  0 \\
+ heico   &  = & 0,  0 \\
+\$end  
+\end{tabular}
+%%%%%
+\\
+end namelist
+\baselineskip=18pt
+
+The parameters in block \$outatctl are the general control parameters for the atmospheric output. 
+The meaning of each parameter should be clear from chapter 2.
+
+The parameters in \$wratpar are used to select each individual atmospheric variable. They are integer
+arrays. The first element of each array relates to instantaneous fields. The second 
+relates to the whole-period monthly or seasonal mean and standard deviation. The third element 
+relates to the year-to-year monthly or seasonal mean and standard deviation.\\
+\\
+\begin{tabular}{ll}
+  A value 0 always means NO output.  \\ 
+  A value 1 means output of instantaneous or mean fields. \\  
+  A value 2 (only possible for elements 2 and 3) means output of the mean fields \\
+together with the standard deviation around it.
+\end{tabular}
+\\
+\\
+In this example namelist we see from \$outatctl that:
+
+\newpage
+Instantaneous fields are wanted with an output frequency of 5 days. From the first elements of
+the arrays in \$wratpar we see that only psi will be outputted.
+
+Meantype is 1 in \$outatctl. So the monthly-mean will be outputted.
+Meantot is 1 means that the monthly-mean will be computed over the whole period. The second element of each 
+array in the \$wratpar block tells us which variables are requested. We see that
+t is selected for the mean only and u,v,omega are selected for the mean and 
+the standard deviation and all the other variables are not selected at all.
+
+If meanyl were 1, then monthly-means would also be computed for each year.               
+But because here meanyl is set to 0, the selection in \$wratpar as indicated by the third elements
+of the arrays (ts, shf and lhf are selected for mean and standard deviation and 
+t is selected for mean only) has no effect. 
+
+For ocean output we see from \$outoctl that the instantaneous fields are wanted because isnapshot is set to 
+1. The output frequency is set to 90 days. 
+The selection of each individual variable is given by the first
+elements of the arrays in \$wrocpar. 
+We see that the ocean temperature, salinity, u velocity, v velocity and w velocity are selected here.  We see that 
+mtype is equal to 1 and therefore monthly mean fields are computed. 
+For each individual variable this is decided by the second elements of the arrays in \$wrocpar.
+In this example we see that the ocean temperature, salinity, u velocity, v velocity are selected for mean only while 
+relaxt and relaxs are selected for mean and standard deviation. All the other variables of the ocean are not selected
+at all.
+\section{Variables} 
+\noindent{4.1   Atmospheric Variables}
+\\
+The following variables can be requested for output from the climate model (see Table-1).  The code number is according 
+to ECMWF MARS convention. Some model-specific variables have self invented code numbers. The variables of the
+atmospheric model can be divided into two categories.  One are defined on T-levels, the other on U-levels.
+T-level pressure values are 1000 hPa, 650 hPa and 350 hPa. U-level pressure values are 850 hPa, 500 hPa 
+and 250 hPa. 
+\newpage
+The capital T and U in brackets following the numbers of levels for each variable indicate to 
+which kind of level it belongs. The necessity of making this distinction will become clear in chapter 5. \\
+\\ 
+\begin{tabular}{lllll} 
+name in & code   & level   &variable		  	&    unit           \\ 
+namelist  \\ 
+\hline 
+ t     &  130   &  3(T)	&temperature.		        &   ($^oC$)         \\ 
+ u     &  131   &  3(U)	&wind in x direction.		&    ($m/s$)        \\
+ v     &  132   &  3(U)	&wind in y direction.		&    ($m/s$)        \\
+ q     &  133   &  1(T)	&specific humidity.		&    ($kg/kg$)      \\
+ omega &  135   &  3(T)	&vertical pressure wind.	&    ($Pa/s$)       \\
+ ts    &  139   &  1(T)	&surface temperature.		&    ($^oC$)        \\
+ bm    &  140   &  1(T)	&bottom moisture.               &    ($m$)          \\
+ sdl    & 141   &  1(T)	&snow depth over land.          &    ($m$ )         \\
+ lsp  &   142   &  1(T)	&large scale precipitation.     &    ($cm/year$)    \\
+ cp   &   143   &  1(T)	&convective precipitation.	&    ($cm/year$)    \\
+ shf  &   146   &  1(T)	&surface sensible heat flux (upward).	&    ($W/m^2$)  \\
+ lhf  &   147   &  1(T)	&surface latent heat flux (upward).	&    ($W/m^2$)  \\
+ psi  &   148   &  3(U)	&stream function.		&    ($m^2/s$)      \\
+ chi  &   149   &  3(U)	&velocity potential.		&    ($m^2/s$)      \\
+ r    &   157   &  1(T)	&relative humidity.		&    (-)            \\
+ uv10  &  159   &  1(T) &10 meter height wind magnitude.&    ($m/s$)        \\        
+ runoffo& 160   &  1(T) &surface runoff over ocean.     &    ($m/s$)        \\    
+ runoffl& 161   &  1(T) &surface runoff over land.      &    ($m/s$)        \\
+ tcc    & 164   &  1(T) &total cloud cover.             &    (0-1)          \\
+ palb   & 174   &  1(T)	&planetary albedo.              &    (\%)           \\
+ alb   &  175   &  1(T)	&surface albedo.                &    (\%)           \\
+ ssr   &  176   &  1(T)	&surface solar radiation (downward).&($W/m^2$)      \\
+ tsr   &  178   &  1(T)	&top solar radiation (downward).    & ($W/m^2$)     \\
+ str    & 177   &  1(T)	&surface thermal radiation (upward).& ($W/m^2$)     \\
+ ttr    & 179   &  1(T)	&top thermal radiation (upward).    & ($W/m^2$)     \\
+ ustress& 180   &  1(T) &U-stress.                           & ($Pa$)       \\
+ vstress& 181   &  1(T) &V-stress.                           & ($Pa$)       \\
+ evap  &  182   &  1(T)	&surface evaporation.		     & ($cm/year$)  \\
+ pp    &  260   &  1(T)	&total precipitation (142+143).	     & ($cm/year$)  \\   
+ hforc &  301   &  2(T)	&heating force.			     &  ($K/s$)     \\
+ vforc &  302   &  3(U)	&potential vorticity forcing.	     &  ($1/s^2$)   \\
+ ageu  &  303   &  3(U)	&ageostrophic wind in x direction.   &  ($m/s$)     \\
+ agev  &  304   &  3(U)	&ageostrophic wind in y direction.   &  ($m/s$)     \\
+ sp    &  134   &  1(T)	&surface pressure.                   &  ($Pa$)     \\
+ eminp &  309   &  1(T)	&evaporation - precipitation (182-142-143).  & ($cm/year$) \\  \hline
+\hline    
+\end{tabular}
+Talbe-1
+\\
+\noindent{4.2  Ocean Variables} 
+\\ 
+\\ 
+The following variables can be requested for output from the ocean model (see Table-2).  
+The code numbers here are self invented.
+\\ 
+\\
+\\
+\begin{tabular}{lllll}
+name in & code   & level   &variable		  	        &    unit       \\
+namelist  \\
+\hline  
+ to     &   401   &  12	&ocean temperature.	                &    ($^oC$)    \\
+ sa     &   402   &  12	&ocean salinity.	                &    ($PSU$)    \\
+ ro     &   403   &  12	&sea water density.	                &    ($kg/m^3$) \\
+ hadvt  &   404   &  12	&horizontal (x+y) advection of temperature.& ($^oC/s$)  \\
+ hadvs  &   405   &  12	&horizontal (x+y) advection of salinity.&    ($PSU/s$)  \\
+ vadvt  &   406   &  12	&vertical advection of temperature.	&    ($^oC/s$)  \\
+ vadvs  &   407   &  12	&vertical advection of salinity.	&    ($PSU/s$)  \\
+ hdift  &   408   &  12	&horizontal (x+y) diffusion of temperature.& ($^oC/s$)  \\
+ hdifs  &   409   &  12	&horizontal (x+y) diffusion of salinity.&    ($PSU/s$)  \\
+ vdift  &   410   &  12	&vertical diffusion of temperature.	&    ($^oC/s$)  \\
+ vdifs  &   411   &  12	&vertical diffusion of salinity.	&    ($PSU/s$)  \\
+ convt  &   412   &  12	&convective adjustment of temperature.	&    ($^o$C/s)  \\
+ convs  &   413   &  12	&convective adjustment of salinity.	&    ($PSU/s$)  \\
+ relaxt &   415   &  1  &ocean heat forcing.                    &    ($^o$C/s)  \\
+ relaxs &   416   &  1  &ocean salinity forcing.                &    ($PSU/s$)  \\
+ uo     &   417   &  12	&x velocity of the ocean circulation.	&    ($m/s$)    \\
+ vo     &   418   &  12	&y velocity of the ocean circulation.	&    ($m/s$)    \\
+ wo     &   414   &  11	&z velocity of the ocean circulation.	&    ($m/s$)    \\
+ heex   &   421   &  1  &heat flux from atmosphere to ocean.    &    ($W/m^2$)  \\
+        &         &     &no sea-ice present: 176-146-147-177      &             \\
+        &         &     &sea-ice present: 426                    &              \\
+ saex  &    422   &  1  &fresh-water flux from atmosphere to ocean.   &($m/s$)  \\
+       &        &       &no sea-ice present: 182+425-142-143-160 &              \\
+       &        &       &sea-ice present: 425 - 160              &              \\
+ brin  &  425  &   1    &fresh water flux from atmosphere to     &              \\
+       &       &        &ocean due to ice changes.               &    ($m/s$)   \\       
+ heico &  426  &    1   &heat flux from ice to ocean.            &    ($W/m^2$) \\
+ dice  &  427  &    1   &ice thickness.                          &    ($m$)     \\
+ sds   &  428  &    1   &snow depth over sea-ice.                &    ($m$)     \\ 
+ tice  &  430  &    1   &temperature of ice.                     &    ($K$)     \\  \hline
+\hline
+\end{tabular}
+Table-2
+
+
+\newpage
+\baselineskip=20pt
+\section{Post Processing}
+
+\noindent{5.1   DATA PROCESSING AND VISUALIZATION}
+\\
+
+In this section a description of procedures to process the output
+dataset from the climate model is given.  
+
+For each type of atmospheric data (as defined by the parameter meantype) and ocean data 
+(as defined by mtype) the model writes all the variables that are requested by the user in one dataset.
+The format is based on the GRIB format. Each entry consists of
+a header and a field. 
+There are 8 integers in the header. They are code number, level,
+year, month, day, x dimension, y dimension, field identifier. The
+last identifies the type of data: 0 for instantaneous fields, 1 for mean fields and 2 for
+standard deviation fields. The dataset is in global grid points and unformatted.
+ 
+To visualize these output data we need to convert this format into the format which can be read by
+the graphic program GrADS. This is done by the program tograds\_at for atmospheric output.
+The other thing this program does is to split the output data file into 2 grads data files with
+one for T-level variables, one for U-level variables.
+At the same time it writes control 
+files for the two grads data files. The names of the grads data files
+that you get after running this program are the original output data file's name 
+with an extension grdstl.dat, grdsul.dat which corresponds to 
+T-level and U-level variables.  One level variables are included in T-level variables with pressure 
+level of 1000 hPa with no regards of the actual level in 
+the model. Two-level variables which are defined on the upper two T-levels
+are also included in T-level variables with constant zero fields on 1000 hPa level.  The names of the control
+files have the extension grdstl.ctl, grdsul.ctl respectively. The reason of splitting the output dataset into
+two grads datafiles is that in GrADS it is impossible to define pressure level for each
+individual variable. In this atmospheric model however some  variables
+are defined on T-level, some on U-level.
+\newpage
+In order to make it easier for
+later visualization of the data it is important to define all the levels 
+correctly. 
+
+The program tograds\_at is stored in directory /usr/local/xbin on the PowerIndigo (bgwdm1). What
+you need to do to be able to use this program is, first, to define the path /usr/local/xbin in your 
+.login file. After this, in the directory where your data file exists
+type:
+
+tograds\_at outputdataname 
+\\
+Then tograds\_at will see outputdataname as the name of the dataset.
+\\
+For the ocean output the program tograds\_oc should be used. This program is stored in /usr/local/xbin as 
+well. This program has the same function as tograds\_at for atmospheric data. It splits the data 
+into two grads datasets. One for one level variables and the other for 12 level variables. 
+For simplicity the vertical velocity of the ocean circulation which is defined on 11 levels is also
+included in 12 level variables. The names of the grads data files and the grads control files have 
+the same structure as atmospheric dataset, namely for grads data files the names are the
+datafile's name with an extension of grds1.dat and grds12.dat for one level and twelve level variables 
+respectively. For control files are the datafile's name with an extension of grds1.ctl and grds12.ctl
+respectively. 
+
+The usage of this program is the same as for atmospheric output.
+In the directory where output dataset is stored type:
+tograds\_oc outputdataname \\
+Then tograds\_oc program will see outputdataname as the input data name.
+\\
+\\
+\noindent{5.2   POST PROCESSING PROGRAM}
+\\
+\\
+There are some post processing programs which are written by Koos Verbeek stored in the directory
+~wang/lib on the bgwdm9. That directory also contains read.me file and a manual about the usage of these 
+programs with filename manual.tex. \\
+\newpage
+\noindent{5.3   GRADS SCRIPTS}\\  \\
+\noindent{5.3.1  Grads Graphic Scripts}\\
+\\
+There are a few grads graphic scripts available on the PowerIndigo in the
+directory wang/GRADS\_LIB/version3.0. You can run these scripts in your own
+working directory if you define the environment variable 'GASCRP' in your .login file.
+For instance you can add the following line in your .login file: \\
+setenv GASCRP $\simeq$wang/GRADS\_LIB/version3.0. \\
+These scripts are meant to serve as example scripts. There are comments in 
+each of the script. Users can easily modify them to serve their own needs. 
+These scripts make multiple
+plots depending on the time steps that you choose. In the Appendix a more
+detailed information about each script is given.
+These scripts are best suited for batch mode working. There are a few unix script jobs that
+run these grads scripts stored in the same directory. In the Appendix the functions 
+of these script jobs are also listed.
+\\
+\\
+WARNING: to use these grads scripts interactively the PORTRAIT mode of GrADS session should be used.
+\\
+\\
+\\
+\noindent Overview \\
+\\ 
+\begin{tabular}{ll}
+
+p1lev.sc1  &	plot 1 level variable in lat-lon projection      \\
+p1lev.sc2  &	plot 1 level variable in north polar projection   \\
+\\
+p2lev.sc1  &	plot 2 level variable in lat-lon projection      \\
+p2lev.sc2  &	plot 2 level variable in north polar projection   \\
+\\
+p3lev.sc1  &	plot 3 level variable in lat-lon projection      \\
+p3lev.sc2  &	plot 3 level variable in north polar projection   \\
+\\
+pnlev.sc3  &	plot n level variable in lat-height section       \\
+\\
+\end{tabular}
+\\
+\begin{tabular}{ll}
+
+Script Job name	&	Function  \\
+\\
+grads.job1      &	run p1lev.sc1      \\
+grads.job2      &	run p1lev.sc2      \\
+\\
+grads.job3      &	run p2lev.sc1      \\
+grads.job4      &	run p2lev.sc2      \\
+\\
+grads.job5      &	run p3lev.sc1      \\
+grads.job6      &	run p3lev.sc2      \\
+\\
+grads.job7      &	run pnlev.sc3      \\
+\\
+\end{tabular}
+\\
+\\
+\noindent{5.3.2  Grads Manipulation Scripts}\\
+\\
+There is a grads script which can be used to compute the depth-mean values for
+different variables of the ocean model in the grads. This script is stored in directory ~wang/GRADS\_LIB
+/version3.0 on the PowerIndigo. The values of the thickness of each level is as follows:
+30, 50, 80, 140, 250, 350, 400, 450, 500, 550, 600, 600. The unit is in
+meters. If your model has different level thickness than these the script should be modified.
+In the Appendix a more detailed information about this script is given.
+\\
+\\
+\\
+\begin{tabular}{ll}
+
+Script Name	&	Function  \\
+\\
+dm.sc           &   compute depth-mean in grads program  
+\\
+\end{tabular}
+\\
+\baselineskip=18pt
+\\
+\\
+\newpage
+\section{Appendix}
+A: GrADS Scripts
+\\
+\noindent 1. p1lev.sc1  \\  \\
+\begin{tabular}{ll}
+Purpose:    &     plot 1 level variables, two time steps on one page.       \\
+\\
+Projection: &	  lat-lon projection                                        \\
+\\
+Use:        &     grads: run p1lev.sc1 ctlfilename varname t1 t2 string     \\
+\\
+Mode:       &     interactive and batch                                     \\
+\\
+Hardcopy:   &     varname.plot.'n'                                          \\                                        
+*****  \\
+ctlfilename: &   grads control file name            \\
+varname:     &   variable name              \\       
+t1:       &   begin time step          \\
+t2:       &   end time step         \\
+string:   &   user defined character string  \\
+\end{tabular}
+\\
+** see figure.1  
+\\
+\\
+\noindent 2. p1lev.sc2 \\ \\
+\begin{tabular}{ll}
+Purpose:    &   plot 1 level variables, two time steps on one page.         \\
+\\
+Projection: &   north polar projection                                      \\
+\\
+Use:	    &   grads: run p1lev.sc2 ctlfilename varname t1 t2 string       \\
+\\
+Mode:       &   interactive and batch                                       \\
+\\
+Hardcopy:   &   varname.plot.'n'                                            \\
+*****  \\
+ctlfilename: &  grads control file name                  \\
+varname:     &  variable name                    \\
+t1:       &  begin time step     \\
+t2:       &  end time step        \\
+string:   &   user defined character string  
+\end{tabular}
+\\
+** see figure.2  
+\\ 
+\\
+\newpage
+\noindent 3. p2lev.sc1 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  plot 2 level variables, two plots fill one page, one plot for one level.\\
+\\
+Projection:  &  lat-lon projection                                                     \\
+\\
+Use:         &  grads: run p2lev.sc1 ctlfilename varname t1 t2  string                 \\
+\\
+Mode:        &  interactive and batch                                                  \\
+\\
+Hardcopy:    &  varname.plot.'n'                                                       \\
+*****  \\
+ctlfilename: &  grads control file name    \\ 
+varname:     &  variable name      \\ 
+t1:       &  begin time step    \\
+t2:       &  end time step  \\
+string:   &   user defined character string  
+\end{tabular}
+** see figure.3
+\\
+\\ 
+\noindent 4. p2lev.sc2 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  plot 2 level variables, two plots fill one page, one plot for one level.\\
+\\
+Projection:  &  north polar projection                                                  \\
+\\
+Use:         &  grads: run p2lev.sc2 ctlfilename varname t1 t2  string                  \\
+\\
+Mode:        &  interactive and batch                                                   \\
+\\
+Hardcopy:    &  varname.plot.'n'                                                        \\
+*****  \\ 
+ctlfilename: &  grads control file name     \\ 
+varname:     &  variable name       \\
+t1:       &  begin time step     \\
+t2:       &  end time step  \\
+string:   &   user defined character string 
+\end{tabular}
+** see figure.4
+\\ 
+\\
+\newpage
+\noindent 5. p3lev.sc1 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  plot 3 level variables, three plots fill one page, one plot for one level.\\
+\\
+Projection:  &  lat-lon projection                                                    \\
+\\
+Use:         &  grads: run p3lev.sc1 ctlfilename varname t1 t2 string                 \\
+\\
+Mode:        &  interactive and batch                                                 \\
+\\
+Hardcopy:    &  varname.plot.'n'                                                      \\
+*****  \\
+ctlfilename: &  grads control file name   \\
+varname:     &  variable name       \\
+t1:       &  begin time step    \\ 
+t2:       &  end time step  \\
+string:   &   user defined character string  
+\end{tabular}
+** see figure.5
+\\ 
+\\
+\noindent 6. p3lev.sc2 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  plot 3 level variables, three plots fill one page, one plot for one level.\\
+\\
+Projection:  &  north polar projection                                                \\
+\\
+Use:         &  grads: run p3lev.sc2 ctlfilename varname t1 t2  string                \\
+\\
+Mode:        &  interactive and batch                                                 \\
+\\
+Hardcopy:    &  varname.plot.'n'                                                      \\
+*****  \\
+ctlfilename: &  grads control file name \\
+varname:     &  variable name           \\
+t1:       &  begin time step            \\
+t2:       &  end time step              \\
+string:   &   user defined character string  
+\end{tabular}
+** see figure.6
+\\ 
+\\
+\newpage
+\noindent 7. pnlev.sc3 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  plot n level variables, four plots fill one page, one plot for one time step.\\
+\\
+Projection:  &  lat-height projection                                                  \\
+\\
+Use:         &  grads: run pnlev.sc3 ctlfilename varname lev1 lev2 t1 t2 t3 t4 string  \\
+\\
+Mode:        &  interactive and batch                                                  \\
+\\
+Hardcopy:    &  varname.plotv.'n'                                                      \\
+*****  \\
+ctlfilename: &  grads control file name  \\                                    
+varname:     &  variable name            \\               
+lev1:     &  lower pressure level        \\
+lev2:     &  upper pressure level        \\
+t1:       &  first time step             \\  
+t2:       &  second time step            \\
+t3:       &  third time step             \\  
+t4:       &  fourth time step            \\
+string:   &  user defined character string  
+\end{tabular}
+\\
+** see figure.7
+\\
+\\
+\\
+
+\noindent 8. dm.sc \\ \\
+\begin{tabular}{ll}
+Purpose:     &  compute depth-mean values for various variables.   \\
+\\
+Projection:  &  none                                               \\
+\\
+Use:         &  grads: run dm.sc ctlfilename varname               \\
+\\
+Mode:        &  interactive                                        \\
+\\
+Hardcopy:    &  none                                               \\
+*****  \\
+ctlfilename: &  grads control file name  \\                                    
+varname:     &  variable name    \\               
+\end{tabular}
+\\
+\newpage
+B: Job Scripts
+\\
+\\
+\\
+\noindent 1. grads.job1 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run p1lev.sc1, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job1 ctlfilename varname t1 t2 dir  string    \\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name     \\
+t1:       &  begin time step    \\
+t2:       &  end time step   \\ 
+dir:      &  directory name where data/control file stored \\ 
+string:   &  user defined character string  
+\end{tabular}
+\\
+\\
+\\
+\\ 
+\noindent 2. grads.job2 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run p1lev.sc2, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job2 ctlfilename varname t1 t2 dir  string     \\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name     \\
+t1:       &  begin time step    \\
+t2:       &  end time step    \\
+dir:      &  directory name where data/control file stored \\ 
+string:   &  user defined character string  
+\end{tabular}
+\\ 
+\newpage
+\noindent 3. grads.job3 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run p2lev.sc1, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job3 ctlfilename varname t1 t2 dir  string     \\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name     \\
+t1:       &  begin time step    \\
+t2:       &  end time step    \\
+dir:      &  directory name where data/control file stored  \\
+string:   &  user defined character string  
+\end{tabular}
+\\
+\\
+\\
+\\ 
+\noindent 4. grads.job4 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run p2lev.sc2, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job4 ctlfilename varname t1 t2 dir  string     \\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name     \\
+t1:       &  begin time step    \\
+t2:       &  end time step    \\
+dir:      &  directory name where data/control file stored  \\
+string:   &  user defined character string  
+\end{tabular}
+\\
+\newpage 
+\noindent 5. grads.job5 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run p3lev.sc1, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job5 ctlfilename varname t1 t2 dir  string     \\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name     \\
+t1:       &  begin time step    \\
+t2:       &  end time step    \\
+dir:      &  directory name where data/control file stored  \\
+string:   &  user defined character string  
+\end{tabular}
+\\
+\\
+\\
+\\
+\noindent 6. grads.job6 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run p3lev.sc2, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job6 ctlfilename varname t1 t2 dir  string     \\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name     \\
+t1:       &  begin time step    \\
+t2:       &  end time step    \\
+dir:      &  directory name where data/control file stored   \\
+string:   &  user defined character string 
+\end{tabular}
+\\
+\newpage 
+\noindent 7. grads.job7 \\ \\
+\begin{tabular}{ll}
+Purpose:     &  run pnlev.sc3, transfer produced plot(s) from gx format to ps, send \\
+             &  plot(s) directly to printer  \\
+\\
+Use:         &  unix prompt: grads.job7 ctlfilename varname lev1 lev2 t1 t2 t3 t4 dir string\\
+Mode:        &  interactive and batch        \\ 
+\\
+*****  \\
+ctlfilename: &  grads control file name     \\
+varname:     &  variable name      \\
+lev1      &  lower level pressure  \\
+lev2      &  upper level pressure  \\
+t1:       &  first time step       \\
+t2:       &  second time step      \\
+t3:       &  third time step       \\
+t4:       &  fourth time step       \\
+dir:      &  directory name where data/control file stored  \\ 
+string:   &  user defined character string 
+\end{tabular}
+\\ 
+
+
+\newpage
+Figure.1\\
+\\
+\\
+Figure.2\\
+\\
+\\
+Figure.3\\
+\\
+\\
+Figure.4\\
+\\
+\\
+Figure.5\\
+\\
+\\
+Figure.6\\
+\\
+\\
+Figure.7\\
+
+
+\end{document}
+
