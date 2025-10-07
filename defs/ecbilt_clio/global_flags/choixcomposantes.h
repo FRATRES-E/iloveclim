@@ -181,9 +181,9 @@
 ! 0  transmit the climate fields from ECBilt with an interpolation only
 ! 1  use vertical downscaling for temperatures when coupling GRISLI and ECBilt
 !
-#define DOWNSTS 1
+#define DOWNSTS 0
 
-#define DOWNSCALING 2
+#define DOWNSCALING 0
 !
 ! 0 use GRISLI basal melting rate (depends on module_choix in GRISLI)
 ! 1 use CLIO basal melting rate (make sure GRISLI is compiled with bmelt_clio_coupl)
