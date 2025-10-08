@@ -44,3 +44,6 @@
 run-me.sh
 data
 wkdir
+inputs
+inputs_cpl
+std-data
