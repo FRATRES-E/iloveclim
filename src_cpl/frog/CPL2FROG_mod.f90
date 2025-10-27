@@ -190,14 +190,27 @@
 
         !use veget_mod, only: b3, b4
         use veget_mod, only: b4, Fv
+        use comsurf_mod, only: fractn, nld ! fraction of land
+        use comatm, only: darea, nlat, nlon
 
         type(cpl_fields) :: send_cpl_fields
 !~         real(kind=sp), dimension(:,:,:),allocatable :: send_temp_var
+
+        real, dimension(nlat, nlon) :: darea_2d
+        real, dimension(nlat, nlon) :: fracgr
+        integer :: j
+ 
+        do j=1,nlon 
+          darea_2d(:,j)=darea(:)
+        enddo
+        fracgr(:,:)=fractn(:,:,nld) !fraction of land in grid cell
 
         ALLOCATE(send_cpl_fields%TempForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2),UBOUND(temp2vamper,DIM=3)))
         !ALLOCATE(send_cpl_fields%B3_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%B4_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%Fv_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
+        ALLOCATE(send_cpl_fields%fracgr_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
+        ALLOCATE(send_cpl_fields%darea_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
 #if ( SNOW_EFFECT == 1 )
         ALLOCATE(send_cpl_fields%dsnow_thick(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2),UBOUND(temp2vamper,DIM=3)))
 #endif
@@ -206,10 +219,14 @@
         !send_cpl_fields%B3_vegForc(:,:) = REAL(b3(:,:),KIND=sp)
         send_cpl_fields%B4_vegForc(:,:) = REAL(b4(:,:),KIND=sp)
         send_cpl_fields%Fv_vegForc(:,:) = REAL(Fv(:,:),KIND=sp)
-        b4(:,:)=0.0
+        send_cpl_fields%fracgr_vegForc(:,:) = REAL(fracgr(:,:),KIND=sp)
+        send_cpl_fields%darea_vegForc(:,:) = REAL(darea_2d(:,:),KIND=sp)
 #if ( SNOW_EFFECT == 1 )
         send_cpl_fields%dsnow_thick(:,:,:) = REAL(dsnow2vamper(:,:,:),KIND=sp)
 #endif
+
+       !mise a 0 de Fv chaque annee apres envoi au permafrost
+       Fv(:,:) = 0.0
 
       END FUNCTION GET_VAMPVARS
 

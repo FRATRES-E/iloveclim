@@ -621,7 +621,7 @@
         b34(lat,lon)=b3(lat,lon)+b4(lat,lon)
 
 #if ( FROG_EXP > 0 )
-        Fv(lat,lon)=Fv_t(lat,lon)*st(lat,lon)+Fv_g(lat,lon)*sg(lat,lon)
+        Fv(lat,lon)= Fv(lat,lon)+ Fv_t(lat,lon)*st(lat,lon)+Fv_g(lat,lon)*sg(lat,lon)
 #endif
 
 #if ( CYCC ==2 )
@@ -1113,8 +1113,8 @@
         b4g(lat,lon)=b4g(lat,lon)+k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon)-b4g(lat,lon)/t4g
 
 #if ( FROG_EXP > 0 )
-        Fv_t(lat,lon)=Fv_t(lat,lon)+k3t/t3t*b3t(lat,lon) !-b4t(lat,lon)/t4t
-        Fv_g(lat,lon)=Fv_g(lat,lon)+k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon) !-b4g(lat,lon)/t4g
+        Fv_t(lat,lon)=k3t/t3t*b3t(lat,lon) !-b4t(lat,lon)/t4t
+        Fv_g(lat,lon)=k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon) !-b4g(lat,lon)/t4g
 
 #endif
 
