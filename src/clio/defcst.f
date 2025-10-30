@@ -11,6 +11,7 @@
 !  modif : 23/08/02
 
 !! START_OF_USE_SECTION
+      use global_constants_mod, only: tK_zero_C
 
       use const_mod, only: cpo, cstmax, cstmin, epsil, gpes, omega, one,
      &    pi, radian, rho0, rterre, svrdrp, unsrt, untour, yeaday, zero
@@ -121,47 +122,70 @@
 
       integer(ip) :: run_param_id, fresh_for_dat_id, thermo_param_id,
      &               dynami_param_id, correcw_dat_id
-      integer(kind=ip)  :: lok_nsmax = 13
+      integer(kind=ip)  :: lok_nsmax = 2 !! limit the reading in run.param to first two tracer, no need for the rest
         
 !---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 !  1 ) Reading of the parameter of the run ; arrays of associated parameters |
 !-----------------------------------------------------------------------
 
        open(newunit=run_param_id,file='run.param',status='old')
-!- header 1 :
+!dmr --- Ignoring first two lines of run.param
         read(run_param_id,*)
         read(run_param_id,*)
 !- Checking at one particular point :
         icheck = 0
         jcheck = 0
         kcheck = 0
+
+!dmr --- Read the line that in standard version reads as:
+!dmr --- 1PE13.5 | 4 |p   89   41   14
+!dmr --- Format explanation:
+!dmr --- ^- format fmtinf (8c),1X, nfrinf (I3),1X (,A1,icheck,jcheck,kcheck)
+!dmr --- In practice, seems to ignore the beginning of the line and reads icheck indexes
         read(run_param_id,'(A)') line
         if (line(14:14).ne.' ') read(line(15:),*) icheck, jcheck, kcheck
-!ray    read(run_param_id,'(15x,3i5)') icheck, jcheck, kcheck
-!- header 2 :
-      do 100 n=1,4
+
+!dmr --- Skip the next 4 lines that in the STD version reads as:
+! #    ^- format fmtinf (8c),1X, nfrinf (I3),1X (,A1,icheck,jcheck,kcheck)
+! c---5----|----5----|----5----|----5----|----5----|----5----|----5----|72--5----|
+! fichier de parametres pour le modele : (modif 02/02/95)  kmax =< 20
+! c---5----|----5----|----5----|----5----|----5----|----5----|----5----|72--5----|
+
+      do n=1,4
         read(run_param_id,*)
- 100  continue
+      enddo
+
 !- option of the code :
+! #       kfond(>0 =>fond plat), lstab(=>Aj.Conv), nsewfr, bering, ajcmix, xslop
 !---
 ! kfond > 0 => Nb_niv.=kfond (flat); < -2 => DownSloping , -1,-3 => mouchard
 ! lstab > 1 => AjConv by pairs, lstab times ; -1 total mixing; 0 : nothing
 !        -3 =>  permutation & mixing of a fraction ajcmix
+
       read(run_param_id,*)
       read(run_param_id,*) kfond, lstab, nsewfr, bering, ajcmix, xslop
+
 !- initial value (by level) for each scalar :
-      print*, "in defcst, read nsmax = ", nsmax, lok_nsmax
-      if (lok_nsmax.GT.nsmax) then
+      WRITE(*,*)  "Defcst, reading lok_nsmax = ", lok_nsmax, 
+     >        " tracers on a total of nsmax = ", nsmax
+
+      if (lok_nsmax.GT.nsmax) then !! should not be (dmr)
          lok_nsmax = nsmax
       endif
-      do 105 n=1,lok_nsmax
+
+!dmr --- 2025-10-30 modified this so that the standard file is always run.param (2 tracers)
+!dmr     Now reads T,S in that order and that is it
+      do n=1,lok_nsmax
         read(run_param_id,*)
         read(run_param_id,*) (scal0(k,n),k=kmax,1,-1)
- 105  continue
-!- conversion Celcius -> Kelvin :
-      do 110 k=1,kmax
-        scal0(k,1) = scal0(k,1) + 273.15d0
- 110  continue
+      enddo
+
+!dmr --- Could be improved with automatic checking
+!- conversion Celsius -> Kelvin :
+      do k=1,kmax
+        scal0(k,1) = scal0(k,1) + tK_zero_C ! 273.15d0
+      enddo
+
 !- restoring :
       nitrap = 0
       ahrap = 0.
@@ -174,6 +198,7 @@
       read(run_param_id,*) dts(kmax), dtu, dtb
       read(run_param_id,*)
       read(run_param_id,*) (coef2(k),k=kmax,1,-1)
+
 !- Parameters associated with the coupling with an atmospheric model
 ! icoupl=0 : not coupled
 ! icoupl=1 : following of a preceding run
@@ -494,10 +519,11 @@ cnb keep bering value in memory
 
 !--used in redforc, informe : change unit(model)  -> standard  unit
       unitfx(0) = 1.
-      do 290 ns=1,nsmax
+      do ns=1,nsmax
         scalwr(ns) = 0.
         unitfx(ns) = 1.
- 290  continue
+      enddo
+
 !- unitfx(0) = Year(s) ;
 !- unitfx(1) = rho.Cp : Fx. en W/m2 ; unitfx(2) = Year / 34.7 g/l : Fx. en m/y
       unitfx(0) = yeaday * 86400.0
