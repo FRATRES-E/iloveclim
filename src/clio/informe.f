@@ -166,7 +166,17 @@ c~ #include "type.com"
         nv = nv + 1
         titvar(nv) = 'Fs30A'
         nv = nv + 1
-        titvar(nv) = 'Fsber'    !26
+        titvar(nv) = 'Fsa30A'    !26
+        nv = nv + 1
+        titvar(nv) = 'Fsd30A'
+        nv = nv + 1
+        titvar(nv) = 'FsaNA'
+        nv = nv + 1
+        titvar(nv) = 'FsdNA'
+        nv = nv + 1
+        titvar(nv) = 'Mov30A'
+        nv = nv + 1
+        titvar(nv) = 'Fsber'    !32
 #if ( FRAZER_ARCTIC == 1 )
         nv = nv + 1
         titvar(nv) = 'BSFF'
