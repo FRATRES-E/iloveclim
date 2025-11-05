@@ -174,6 +174,8 @@ c~ #include "type.com"
         nv = nv + 1
         titvar(nv) = 'FsdNA'
         nv = nv + 1
+        titvar(nv) = 'dtsaltA'
+        nv = nv + 1
         titvar(nv) = 'Mov30A'
         nv = nv + 1
         titvar(nv) = 'Fsber'    !32

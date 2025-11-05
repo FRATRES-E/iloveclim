@@ -30,7 +30,7 @@
      &  , zsurf, zvolo
       use isoslope_mod, only: viso, uiso
       use ice_mod,      only: ficebergn, ficebergs, toticesm, xlg, vwx
-     &  , albq, hgbq, hnbq
+     &  , albq, hgbq, hnbq, ddtb
       use dynami_mod,   only: bound, vg, dxs1, ug
 
       use reper_mod,    only: dlat, fmtw, ndhsf, nferme, nocean, nvhsf
@@ -75,7 +75,8 @@
      &             , sszonm, ss, vvpa, vvpasm, vvpd, vvpdsm
      &             , vvtfa, vvtfd, vvtba, vvtbd, vvtca, vvtcd
      &             , vva, vvd, flux, ccxdif, uu2, u2cd2, phix, cnx
-     &             , sskmean, ssmean
+     &             , saltatlantic, volatlantic,saltatlantic_old
+     &             , saltatlantic_new, saltatlantic_dt
 !PB
 
 !---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
@@ -431,6 +432,7 @@
       nv = nv + 2
       endif
       nm2n=nv
+
 !- Heat flux at 30 S
       yy = -30.0
       jj= 1 + nint( (yy - ylat1) / dlat + 0.5 )
@@ -467,31 +469,26 @@
 
 !- Calculate Atlantic average salinity for Atlantic salt budget
 !calculations
-      do k=ks1,ks2
-        countjj = 0.0
-        sskmean = 0.0
-        do jj = 1,90
-          ss = 0.0
-          if (iszon(jj,nbsmax).ne.iezon(jj,nbsmax)) then
-             do i=iszon(jj,nbsmax),iezon(jj,nbsmax)
-                 ss = ss + tms(i,jj,k) * scal(i,jj,k,2)
-             enddo
-             countjj = countjj + 1
-          endif
-          sszonm = sszonm + (ss / (iezon(jj,nbsmax)-iszon(jj,nbsmax)))
+      saltatlantic=0.0
+      volatlantic=0.0
+       do j=1,imax
+        do i=iszon(j,nbsmax),iezon(j,nbsmax)
+         do k=1,kmax
+          saltatlantic=saltatlantic+aire(i,j)*dz(k)*
+     &     tms(i,j,k)*scal(i,j,k,2) !m2*m*g/kg -> m3*g/kg
+          volatlantic=volatlantic+aire(i,j)*dz(k)*tms(i,j,k)
+          enddo
         enddo
-        sskmean = sszonm / countjj * dz(k)
       enddo
-      ssmean = sskmean / sum(dz,dim=1)
-      write(mouchard_id,*) 'Atlantic mean
-     &                       salinity',ssmean
-
+      saltatlantic=saltatlantic/volatlantic !m3*g/kg/m3 -> g/kg
+!      write(mouchard_id,*) 'Atlantic mean
+!     &                       salinity [g/kg]',saltatlantic
 
 !- Salt flux at 30 S (Fs30A)
       yy = -30.0
       jj= 1 + nint( (yy - ylat1) / dlat + 0.5 )
       vvpsm = 0.0
-      ssc2 = 2.0 * scal0(ks1,2)
+      ssc2 = 2.0 * scal0(ks1,2) ! should we use saltatlantic as reference salinity?
       do k=ks1,ks2
         vv = 0.0
         ccydif = ahs(k) * unsdy
@@ -522,25 +519,20 @@
         do i=iszon(jj,nbsmax),iezon(jj,nbsmax)
          vv2 = 0.5 * (v(i,jj,k)+v(i+1,jj,k))
      &         + viso(i,jj,k)
-         v2cd2 = 0.5 * cmx(i,jj,2) * vv2
-         cny = smy(i,jj,2) * unsdy * dts(k) * vv2
-         aalpha = min( one, abs(cny) + alphmi(k) )
-         phiy = tms(i,jj,k) * tms(i,jj-1,k) * (
-     &       v2cd2 * (scal(i,jj-1,k,2) + scal(i,jj,k,2) - ssc2) )
+         v2cd2 = 0.5 * cmx(i,jj,2) * vv2 ! why 'times 0.5?
+         phiy = tms(i,jj,k) * tms(i,jj-1,k) * (v2cd2 * 
+     &       0.5*(scal(i,jj-1,k,2) + scal(i,jj,k,2)) )
          vv = vv + phiy
        enddo
        vvpsm = vvpsm + vv*dz(k)
       enddo
       nv = nv + 1
       vinfor(nv) = vvpsm * dx
-      write(mouchard_id,*) 'test  Advective salt flux at 30 S
-     &                   [1e9 kg/s]', vinfor(nv)/1e9
+!      write(mouchard_id,*) 'Advective salt flux at 30 S
+!     &                   [1e9 kg/s]', vinfor(nv)/1e9
        
 !- Diffisive salt flux at 30 S (Fsd30A)
-      yy = -30.0
-      jj= 1 + nint( (yy - ylat1) / dlat + 0.5 )
       vvpsm = 0.0
-      ssc2 = 2.0 * scal0(ks1,2)
       do k=ks1,ks2
         vv = 0.0
         ccydif = ahs(k) * unsdy
@@ -559,12 +551,11 @@
       enddo
       nv = nv + 1
       vinfor(nv) = vvpsm * dx     
-      write(mouchard_id,*) 'test  Diffisive salt flux at 30 S 
-     &                   [1e9 kg/s]', vinfor(nv)/1e9
+!      write(mouchard_id,*) 'Diffisive salt flux at 30 S 
+!     &                   [1e9 kg/s]', vinfor(nv)/1e9
 
 ! Advective and diffusive salt fluxes at northern boundary of the Atlantic basin (Fram
 ! Strait + Barents Strait + Canadian Archipelico)
-      ssc2 = 2.0 * scal0(ks1,2)
       vvtfa = 0.0
       vvtfd = 0.0
       vvtba = 0.0
@@ -584,20 +575,18 @@
               v2cd2 = 0.5 * cmx(ii,jj,2) * vv2
               ! advective part
               phiy = tms(ii,jj,k) * tms(ii,jj-1,k) * (
-     &             v2cd2 * (scal(ii,jj-1,k,2) + scal(ii,jj,k,2) - ssc2))
-              flux = (phiy/34.8)*(-1)
-              vva = vva + flux
+     &             v2cd2 * 0.5*(scal(ii,jj-1,k,2) + scal(ii,jj,k,2)))
+              vva = vva + phiy
               ! diffusive part
               cny = smy(ii,jj,2) * unsdy * dts(k) * vv2
               aalpha = min( one, abs(cny) + alphmi(k) )
               phiy = tms(ii,jj,k) * tms(ii,jj-1,k) * (
      &                 (aalpha*abs(v2cd2) + cmxy(ii,jj,2)*ccydif)
      &                * (scal(ii,jj-1,k,2) - scal(ii,jj,k,2))  )
-              flux = (phiy/34.8)*(-1)
-              vvd = vvd + flux
+              vvd = vvd + phiy
          enddo
          vvtfa = vvtfa + vva*dz(k)
-         vvtfd = vvtfd + vvd*dz(k)
+         vvtfd = vvtfd + vvd*dz(k)*(-1) ! *-1 according to eqation 9 in Ragani & Dijkstra 2025
 
          ! Barents Strait
          vva = 0.0
@@ -610,20 +599,18 @@
               u2cd2 = 0.5 * cmy(ii,jj,2) * uu2
               ! advective part
               phix = tms(ii,jj,k) * tms(ii-1,jj,k) * (
-     &               u2cd2 * (scal(ii-1,jj,k,2)+scal(ii,jj,k,2) - ssc2))
-              flux = (phix/34.8)*(-1)
-              vva = vva + flux
+     &               u2cd2 * 0.5*(scal(ii-1,jj,k,2)+scal(ii,jj,k,2)))
+              vva = vva + phix
               ! diffusive part
               cnx = smx(ii,jj,2) * unsdx * dts(k) * uu2
               aalpha = min( one, abs(cnx) + alphmi(k) )
               phix = tms(ii,jj,k) * tms(ii-1,jj,k) * (
      &                 (aalpha*abs(u2cd2) + cmxy(ii,jj,2)*ccxdif)
      &                * (scal(ii-1,jj,k,2) - scal(ii,jj,k,2))  )
-              flux = (phix/34.8)*(-1)
-              vvd = vvd + flux
+              vvd = vvd + phix
          enddo
          vvtba = vvtba + vva*dz(k)
-         vvtbd = vvtbd + vvd*dz(k)
+         vvtbd = vvtbd + vvd*dz(k)*(-1) ! *-1 according to eqation 9 in Ragani & Dijkstra 2025
 
          ! Canadian Archipelico
          vva = 0.0
@@ -636,72 +623,85 @@
                v2cd2 = 0.5 * cmx(ii,jj,2) * vv2
                ! advective part         
                phiy = tms(ii,jj,k) * tms(ii,jj-1,k) * (
-     &             v2cd2 * (scal(ii,jj-1,k,2) + scal(ii,jj,k,2) - ssc2))
-               flux = (phiy/34.8)*(-1)
-               vva = vva + flux
+     &             v2cd2 * 0.5*(scal(ii,jj-1,k,2) + scal(ii,jj,k,2)))
+               vva = vva + phiy
                ! diffusive part
                cny = smy(ii,jj,2) * unsdy * dts(k) * vv2
                aalpha = min( one, abs(cny) + alphmi(k) )
                phiy = tms(ii,jj,k) * tms(ii,jj-1,k) * (
      &                   (aalpha*abs(v2cd2) + cmxy(ii,jj,2)*ccydif)
      &                   * (scal(ii,jj-1,k,2) - scal(ii,jj,k,2))  )
-               flux = (phiy/34.8)*(-1)
-               vvd = vvd + flux
+               vvd = vvd + phiy
          enddo
          vvtca = vvtca + vva*dz(k)
-         vvtcd = vvtcd + vvd*dz(k)
+         vvtcd = vvtcd + vvd*dz(k)*(-1) ! *-1 according to eqation 9 in Ragani & Dijkstra 2025
 
       enddo ! k=ks1,ks2
 
       nv = nv + 1
       vinfor(nv) = ((vvtfa * dx)
      &             +  (vvtba * dy)
-     &             +  (vvtca * dx)/1000*scal0(ks1,2))
-      write(mouchard_id,*) 
-     &            'Advective salt flux north. bound. [1e9 kg/s]',
-     & vinfor(nv)/1e9
+     &             +  (vvtca * dx))!/1000*scal0(ks1,2))
+!      write(mouchard_id,*) 
+!     &            'Advective salt flux north. bound. [1e9 kg/s]',
+!     & vinfor(nv)/1e9
       nv = nv + 1
       vinfor(nv) = ((vvtfd * dx)
      &             +  (vvtbd * dy)
-     &             +  (vvtcd * dx)/1000*scal0(ks1,2))
-      write(mouchard_id,*) 
-     &            'Diffusive salt flux north. bound. [1e9 kg/s]',
-     &            vinfor(nv)/1e9
+     &             +  (vvtcd * dx))!/1000*scal0(ks1,2))
+!      write(mouchard_id,*) 
+!     &            'Diffusive salt flux north. bound. [1e9 kg/s]',
+!     &            vinfor(nv)/1e9
+
+! Atlantic salt content tendency
+      saltatlantic_new = 0.0
+      saltatlantic_dt = 0.0
+      do j=1,imax
+        do i=iszon(j,nbsmax),iezon(j,nbsmax)
+         do k=1,kmax
+          saltatlantic_new = saltatlantic_new+aire(i,j)*dz(k)*
+     &     tms(i,j,k)*scal(i,j,k,2) !m2*m*g/kg -> m3*g/kg
+          enddo
+        enddo
+      enddo
+      saltatlantic_dt = (saltatlantic_new-saltatlantic_old)/ddtb
+      saltatlantic_old = saltatlantic_new
+!      write(mouchard_id,*) 'Atlantic salt tendency [1e9 kg/s]'
+!     &                    ,saltatlantic_dt/1e9
+      nv = nv + 1
+      vinfor(nv) = saltatlantic_dt
+
 
 !- Mov parameter at 30 S (meridional freshwater flux at 30S related to overturning circulation)
       yy = -30.0 ! Set latitude
-      jj= 1 + nint( (yy - ylat1) / dlat + 0.5 ) ! get index corresponding to yy latitude
+      jj= 1 + nint( (yy - ylat1) / dlat + 0.5 )
       vvpsm = 0.0
 
-      do k=ks1,ks2 ! Loop over all depth levels
-
-        ! First do loop over zonal direction to get zonal mean salinity
+      do k=ks1,ks2
+        ! Get zonal mean salinity
         ss = 0.0
-        do i=iszon(jj,nbsmax),iezon(jj,nbsmax) ! Loop over all longitude indexes that are part of basin 3 =    Atlantic
+        do i=iszon(jj,nbsmax),iezon(jj,nbsmax) ! nbsmax==3==Atlantic
              ss = ss + 0.5 * (scal(i,jj-1,k,2) + scal(i,jj,k,2) )
         enddo
         sszonm = ss / (iezon(jj,nbsmax)-iszon(jj,nbsmax)) ! sszonm = zonal mean salinity at depth k
 
-        ! Do second loop over zonal direction
+        ! Calculate Mov at 30S
         vv = 0.0 ! horizontal velocity?
-        do i=iszon(jj,nbsmax),iezon(jj,nbsmax) ! Loop over all longitudes that are part of basin 3 = Atlantic
-             vv2    = 0.5 * (v(i,jj,k)+v(i+1,jj,k)) ! average meridional velocity at tracer grid
-             v2cd2 = 0.5 * cmx(i,jj,2) * vv2 ! cmx = ‘metric coeficient in x direction’ used in building grid; why ‘*0.5’?? cmx(i,jj,2)  == 1
-             phiy = tms(i,jj,k) * tms(i,jj-1,k)   ! tms is land-sea mask
-     &              * (v2cd2 * (sszonm - scal0(ks1,2)) ) ! scal(:,:,:,2) is salinity field. Minus reference salinity scal0
-     &              * 0.5*(dxs1(i,jj)+dxs1(i,jj-1)) ! average zonal grid cell size dxs1 in meters
-
+        do i=iszon(jj,nbsmax),iezon(jj,nbsmax)
+             vv2    = 0.5 * (v(i,jj,k)+v(i+1,jj,k))
+     &                 + viso(i,jj,k)
+             v2cd2 = 0.5 * cmx(i,jj,2) * vv2
+             phiy = tms(i,jj,k) * tms(i,jj-1,k)
+     &              * (v2cd2 * (sszonm - saltatlantic) )
              vv   = vv + phiy
          enddo
-
-      vvpsm = vvpsm + vv*dz(k) !meridional salt advection times layer thickness is salt flux
+      vvpsm = vvpsm + vv*dz(k)
       enddo
 
       nv = nv + 1
-      vinfor(nv) = vvpsm * (-1/scal0(ks1,2)) / 1e6   ! Movs freshwater flux in Sv
+      vinfor(nv) = vvpsm * dx * (-1/saltatlantic) / 1e6   ! Movs freshwater flux in Sv
 !      vinfor(nv) = vvpsm * (-1/scal0(ks1,2)) * dx / 1e6   ! Movs freshwater flux in Sv
-      write(mouchard_id,*) 'test movs [Sv]', vinfor(nv)
-      
+!      write(mouchard_id,*) 'Mov 30S [Sv]', vinfor(nv)
       
             
 !- Salt flux at Bering Strait (fsber)

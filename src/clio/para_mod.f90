@@ -50,7 +50,7 @@
 !--parametres pour les sorties sur fichier "evolu" par la routine "informe" :
 ! [indispensable pour inclusion du fichier  reper.com]
 !dmr -- faux a priori ...      parameter ( ninfmx = 30 + nhsfmx + 2*kmax + 20)
-      integer, parameter :: ninfmx = 35 + nhsfmx + nsmax*kmax + 20, nchinf = 5 , nchsep = nchinf+2
+      integer, parameter :: ninfmx = 36 + nhsfmx + nsmax*kmax + 20, nchinf = 5 , nchsep = nchinf+2
 
 !--parametres pour couplage : Nombre de tableaux envoyes et recus par l'ocean :
       integer, parameter :: ntocn = 4 , ntatm = 10
