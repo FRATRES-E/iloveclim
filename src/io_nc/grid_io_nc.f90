@@ -79,9 +79,10 @@
         INTEGER(KIND=ip), DIMENSION(size_class) :: class_axis_values =                                                            &
                    (/  33, 100, 166, 233, 300, 366, 450, 550, 700, 900 /)
 
-
-        INTEGER, PARAMETER, PUBLIC :: nbyearsinfile=1
+! Time notion of file
+        INTEGER, PARAMETER, PUBLIC :: nbyearsinfile=100 !time step in each file NewGen  
         INTEGER :: nb_file=0
+
 !--- UGLY HACK FOR CLIO GENERATION TO BE REPLACED !!!
 
 
@@ -132,7 +133,6 @@
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE   :: my_fCAL_clio
 #endif
 
-! eclermont - added
 #if ( OOISO == 1 )
         TYPE(IO_GRID_VAR)                         :: mu_phyto_clio
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_phyto_clio
@@ -160,7 +160,6 @@
 #endif
 
 #if ( ICEBERG > 0 )
-!---    ICEBERG variables
         TYPE(IO_GRID_VAR)                       :: mu_vol_icb
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_vol_icb
         TYPE(IO_GRID_VAR)                       :: mu_heat_icb
@@ -178,6 +177,7 @@
         TYPE(IO_GRID_VAR)                       :: mu_viceb_class_icb
         REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_viceb_class_icb
 #endif
+
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       FILE NAMES DEFINITIONS AND HANDLING
@@ -231,173 +231,168 @@
         call CLIO_axis_tdepth%wrte(NCfilenameindexed)
         call CLIO_axis_time%wrte(NCfilenameindexed)
 
+
+! ------ 1) Variable allocation -> Variables declarations 
+
         IF (.NOT. allocated(my_SST)) then
-        allocate(my_SST(imax-2,jmax))
-        allocate(my_fwruno(imax-2,jmax))
-        allocate(my_3D_temp(imax-2,jmax,kmax))
+          allocate(my_SST(imax-2,jmax))
+          allocate(my_fwruno(imax-2,jmax))
+          allocate(my_3D_temp(imax-2,jmax,kmax))
 
 #if ( REMIN == 1 )
-        allocate(my_3D_remin(imax-2,jmax,kmax))
+          allocate(my_3D_remin(imax-2,jmax,kmax))
 #endif
 
 #if ( NEOD > 0 )
-        allocate(my_neodymium143(imax-2,jmax,kmax))
-        allocate(my_neodymium144(imax-2,jmax,kmax))
-        allocate(my_epsNd(imax-2,jmax,kmax))
+          allocate(my_neodymium143(imax-2,jmax,kmax))
+          allocate(my_neodymium144(imax-2,jmax,kmax))
+          allocate(my_epsNd(imax-2,jmax,kmax))
 #endif
 
 #if ( OCYCC == 1 )
-         allocate(my_fPOC_clio(imax-2,jmax,kmax))
-         allocate(my_fCAL_clio(imax-2,jmax,kmax))
+          allocate(my_fPOC_clio(imax-2,jmax,kmax))
+          allocate(my_fCAL_clio(imax-2,jmax,kmax))
 #endif
 
-! ajout par eclermont
 #if ( OOISO == 1 )
-        allocate(my_phyto_clio(imax-2,jmax,kmax))
-        allocate(my_respO2(imax-2,jmax,kmax))
-        allocate(my_prodO2(imax-2,jmax,kmax))
-        allocate(my_reminO2(imax-2,jmax,kmax))
-        allocate(my_NCP(imax-2,jmax,kmax))
-        allocate(my_FtotalO(imax-2,jmax))
-        allocate(my_F17O(imax-2,jmax))
-        allocate(my_F18O(imax-2,jmax))
+          allocate(my_phyto_clio(imax-2,jmax,kmax))
+          allocate(my_respO2(imax-2,jmax,kmax))
+          allocate(my_prodO2(imax-2,jmax,kmax))
+          allocate(my_reminO2(imax-2,jmax,kmax))
+          allocate(my_NCP(imax-2,jmax,kmax))
+          allocate(my_FtotalO(imax-2,jmax))
+          allocate(my_F17O(imax-2,jmax))
+          allocate(my_F18O(imax-2,jmax))
 #endif
 
 #if ( ICEBERG > 0 )
-        allocate(my_vol_icb(imax-2,jmax))
-        allocate(my_heat_icb(imax-2,jmax))
-        allocate(my_dvol_icb(imax-2,jmax))
-        allocate(my_hiceb_class_icb(imax-2,jmax,numclass))
-        allocate(my_wiceb_class_icb(imax-2,jmax,numclass))
-        allocate(my_pond_class_icb(imax-2,jmax,numclass))
-        allocate(my_uiceb_class_icb(imax-2,jmax,numclass))
-        allocate(my_viceb_class_icb(imax-2,jmax,numclass))
-
+          allocate(my_vol_icb(imax-2,jmax))
+          allocate(my_heat_icb(imax-2,jmax))
+          allocate(my_dvol_icb(imax-2,jmax))
+          allocate(my_hiceb_class_icb(imax-2,jmax,numclass))
+          allocate(my_wiceb_class_icb(imax-2,jmax,numclass))
+          allocate(my_pond_class_icb(imax-2,jmax,numclass))
+          allocate(my_uiceb_class_icb(imax-2,jmax,numclass))
+          allocate(my_viceb_class_icb(imax-2,jmax,numclass))
 #endif
 
-        call mu_SST%init("SST",test_CLIO_file,"ptlon ptlat time")
-        call mu_SST%show()
 
-        call mu_fwruno%init("fwruno",test_CLIO_file,"ptlon ptlat time")
-        call mu_fwruno%show()
+! ----- 2) Variables creation in the NewGen file 
+          call mu_SST%init("SST",test_CLIO_file,"ptlon ptlat time")
+          call mu_SST%show()
 
-        call mu_3D_temp%init("temp",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_3D_temp%show()
+          call mu_fwruno%init("fwruno",test_CLIO_file,"ptlon ptlat time")
+          call mu_fwruno%show()
+
+          call mu_3D_temp%init("temp",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_3D_temp%show()
 
 #if ( REMIN == 1 )
-        call mu_3D_remin%init("remin",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_3D_remin%show()
+          call mu_3D_remin%init("remin",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_3D_remin%show()
 #endif
 
 #if ( NEOD > 0 )
-        call mu_neodymium143%init("neodymium143",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_neodymium143%show()
-        call mu_neodymium144%init("neodymium144",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_neodymium144%show()
-        call mu_epsNd%init("epsNd",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_epsNd%show()
+          call mu_neodymium143%init("neodymium143",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_neodymium143%show()
+          call mu_neodymium144%init("neodymium144",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_neodymium144%show()
+          call mu_epsNd%init("epsNd",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_epsNd%show()
 #endif
 
 #if ( OCYCC == 1 )
-        call mu_fPOC_clio%init("fPOC",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_fPOC_clio%show()
-
-        call mu_fCAL_clio%init("fCAL",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_fCAL_clio%show()
+          call mu_fPOC_clio%init("fPOC",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_fPOC_clio%show()
+          call mu_fCAL_clio%init("fCAL",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_fCAL_clio%show()
 #endif
 
-! Ajout par eclermont
 #if ( OOISO == 1 )
-        call mu_phyto_clio%init("phyto_growth",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_phyto_clio%show()
-
-        call mu_respO2%init("resp_O2",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_respO2%show()
-
-        call mu_prodO2%init("prod_O2",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_prodO2%show()
-
-        call mu_reminO2%init("Remin",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_reminO2%show()
-
-        call mu_NCP%init("NCP",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_NCP%show()
-
-        call mu_FtotalO%init("Ototal_flux",test_CLIO_file,"ptlon ptlat time")
-        call mu_FtotalO%show()
-
-        call mu_F17O%init("O17_flux",test_CLIO_file,"ptlon ptlat time")
-        call mu_F17O%show()
-
-        call mu_F18O%init("O18_flux",test_CLIO_file,"ptlon ptlat time")
-        call mu_F18O%show()
+          call mu_phyto_clio%init("phyto_growth",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_phyto_clio%show()
+          call mu_respO2%init("resp_O2",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_respO2%show()
+          call mu_prodO2%init("prod_O2",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_prodO2%show()
+          call mu_reminO2%init("Remin",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_reminO2%show()
+          call mu_NCP%init("NCP",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_NCP%show()
+          call mu_FtotalO%init("Ototal_flux",test_CLIO_file,"ptlon ptlat time")
+          call mu_FtotalO%show()
+          call mu_F17O%init("O17_flux",test_CLIO_file,"ptlon ptlat time")
+          call mu_F17O%show()
+          call mu_F18O%init("O18_flux",test_CLIO_file,"ptlon ptlat time")
+          call mu_F18O%show()
 #endif
 
 #if ( ICEBERG > 0 )
-        call mu_vol_icb%init("vol_icb",test_CLIO_file,"ptlon ptlat time")
-        call mu_vol_icb%show()
-        call mu_heat_icb%init("heat_icb",test_CLIO_file,"ptlon ptlat time")
-        call mu_heat_icb%show()
-        call mu_dvol_icb%init("dvol_icb",test_CLIO_file,"ptlon ptlat time")
-        call mu_dvol_icb%show()
-        call mu_hiceb_class_icb%init("hiceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_hiceb_class_icb%show()
-        call mu_wiceb_class_icb%init("wiceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_wiceb_class_icb%show()
-        call mu_pond_class_icb%init("pond_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_pond_class_icb%show()
-        call mu_uiceb_class_icb%init("uiceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_uiceb_class_icb%show()
-        call mu_viceb_class_icb%init("viceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_viceb_class_icb%show()
+          call mu_vol_icb%init("vol_icb",test_CLIO_file,"ptlon ptlat time")
+          call mu_vol_icb%show()
+          call mu_heat_icb%init("heat_icb",test_CLIO_file,"ptlon ptlat time")
+          call mu_heat_icb%show()
+          call mu_dvol_icb%init("dvol_icb",test_CLIO_file,"ptlon ptlat time")
+          call mu_dvol_icb%show()
+          call mu_hiceb_class_icb%init("hiceb_class",test_CLIO_file,"ptlon ptlat class time")
+          call mu_hiceb_class_icb%show()
+          call mu_wiceb_class_icb%init("wiceb_class",test_CLIO_file,"ptlon ptlat class time")
+          call mu_wiceb_class_icb%show()
+          call mu_pond_class_icb%init("pond_class",test_CLIO_file,"ptlon ptlat class time")
+          call mu_pond_class_icb%show()
+          call mu_uiceb_class_icb%init("uiceb_class",test_CLIO_file,"ptlon ptlat class time")
+          call mu_uiceb_class_icb%show()
+          call mu_viceb_class_icb%init("viceb_class",test_CLIO_file,"ptlon ptlat class time")
+          call mu_viceb_class_icb%show()
 #endif
-        else ! case where new netCDF file, but rest already allocated
-        call mu_SST%show()
-        call mu_SST%setf(test_CLIO_file)
-        call mu_SST%show()
-        call mu_fwruno%setf(test_CLIO_file)
 
-        call mu_3D_temp%setf(test_CLIO_file)
+! Case where new netCDF file, but rest already allocated and declaration of variables is done
+        else 
+          call mu_SST%setf(test_CLIO_file)
+          call mu_SST%show()
+          call mu_fwruno%setf(test_CLIO_file)
+          call mu_3D_temp%setf(test_CLIO_file)
 
 #if ( REMIN == 1 )
-        call mu_3D_remin%setf(test_CLIO_file)
+          call mu_3D_remin%setf(test_CLIO_file)
 #endif
 
 #if ( NEOD > 0 )
-        call mu_neodymium143%setf(test_CLIO_file)
-        call mu_neodymium144%setf(test_CLIO_file)
-        call mu_epsNd%setf(test_CLIO_file)
+          call mu_neodymium143%setf(test_CLIO_file)
+          call mu_neodymium144%setf(test_CLIO_file)
+          call mu_epsNd%setf(test_CLIO_file)
 #endif
 
 #if ( OCYCC == 1 )
-        call mu_fPOC_clio%setf(test_CLIO_file)
-        call mu_fCAL_clio%setf(test_CLIO_file)
+          call mu_fPOC_clio%setf(test_CLIO_file)
+          call mu_fCAL_clio%setf(test_CLIO_file)
 #endif
 
-! Ajout par eclermont
 #if ( OOISO == 1 )
-        call mu_phyto_clio%setf(test_CLIO_file)
-        call mu_respO2%setf(test_CLIO_file)
-        call mu_prodO2%setf(test_CLIO_file)
-        call mu_reminO2%setf(test_CLIO_file)
-        call mu_NCP%setf(test_CLIO_file)
-        call mu_FtotalO%setf(test_CLIO_file)
-        call mu_F17O%setf(test_CLIO_file)
-        call mu_F18O%setf(test_CLIO_file)
+          call mu_phyto_clio%setf(test_CLIO_file)
+          call mu_respO2%setf(test_CLIO_file)
+          call mu_prodO2%setf(test_CLIO_file)
+          call mu_reminO2%setf(test_CLIO_file)
+          call mu_NCP%setf(test_CLIO_file)
+          call mu_FtotalO%setf(test_CLIO_file)
+          call mu_F17O%setf(test_CLIO_file)
+          call mu_F18O%setf(test_CLIO_file)
 #endif
 
 #if ( ICEBERG > 0 )
-        call mu_vol_icb%setf(test_CLIO_file)
-        call mu_heat_icb%setf(test_CLIO_file)
-        call mu_dvol_icb%setf(test_CLIO_file)
-        call mu_hiceb_class_icb%setf(test_CLIO_file)
-        call mu_wiceb_class_icb%setf(test_CLIO_file)
-        call mu_pond_class_icb%setf(test_CLIO_file)
-        call mu_uiceb_class_icb%setf(test_CLIO_file)
-        call mu_viceb_class_icb%setf(test_CLIO_file)
+          call mu_vol_icb%setf(test_CLIO_file)
+          call mu_heat_icb%setf(test_CLIO_file)
+          call mu_dvol_icb%setf(test_CLIO_file)
+          call mu_hiceb_class_icb%setf(test_CLIO_file)
+          call mu_wiceb_class_icb%setf(test_CLIO_file)
+          call mu_pond_class_icb%setf(test_CLIO_file)
+          call mu_uiceb_class_icb%setf(test_CLIO_file)
+          call mu_viceb_class_icb%setf(test_CLIO_file)
 #endif
 
         endif
+
+
 
         ! re-initialize monthly accumulation variables
         CALL MONTHLY_RE_INIT()
@@ -417,7 +412,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       BY REFERENCE VARIABLES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       LOCAL VARIABLES
@@ -469,7 +463,6 @@
         my_fCAL_clio(:,:,:) = d_zero
 #endif
 
-! ajout par eclermont
 #if ( OOISO == 1 )
         my_phyto_clio(:,:,:) = d_zero
         my_respO2(:,:,:) = d_zero
@@ -500,7 +493,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       BY REFERENCE VARIABLES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       LOCAL VARIABLES
@@ -603,7 +595,6 @@
          my_fCAL_clio(:,:,:) = my_fCAL_clio(:,:,:) + fCAL_flx_clio(:,:,:)/days_year360d
 #endif
 
-! Ajout par eclermont
 #if ( OOISO == 1)
          my_phyto_clio(:,:,:) = my_phyto_clio(:,:,:) + phyto_clio(2:UBOUND(phyto_clio,dim=1)-1,:,:)/days_year360d
          my_respO2(:,:,:)=my_respO2(:,:,:) + respO2_clio(2:UBOUND(respO2_clio,dim=1)-1,:,:)/days_year360d
