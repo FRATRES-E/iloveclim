@@ -28,22 +28,22 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
        USE global_constants_mod, ONLY: dblp=>dp, silp=>sp, sip,  freezeT => tK_zero_C, big_dp => alt_olympus_mons, ip
-      
+
        USE IO_NC_MOD, ONLY: IO_NC_FILE, IO_GRID_VAR, IO_NC_AXIS
-      
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       IMPLICIT NONE
-      
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   History
 ! dmr           Change from 0.0.0: Created a first version that can test write a CLIO file
 ! PB            Change from 0.1.0: Added a first support for the iceberg variables
 ! dmr           Change from 0.2.0: Added a first support 3D ocean files (with time)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      
+
       CHARACTER(LEN=5), PARAMETER :: version_mod ="0.3.0"
-      
+
 
       PRIVATE
       PUBLIC :: DAILYSTEP_IO_NC, GLOBAL_RE_INIT, GLOBAL_FINALIZE
@@ -53,7 +53,7 @@
 
 !--- UGLY HACK FOR CLIO GENERATION TO BE REPLACED !!!
 
-        INTEGER(KIND=ip), PARAMETER :: size_x = 120, size_y = 65, size_class = 10, size_tdepth = 20      
+        INTEGER(KIND=ip), PARAMETER :: size_x = 120, size_y = 65, size_class = 10, size_tdepth = 20
 
         REAL(KIND=silp), DIMENSION(size_y) :: y_axis_values =                                                                     &
                  (/  -79.5, -76.5, -73.5, -70.5, -67.5, -64.5, -61.5, -58.5, -55.5, -52.5, -49.5, -46.5, -43.5, -40.5, -37.5,     &
@@ -80,7 +80,8 @@
                    (/  33, 100, 166, 233, 300, 366, 450, 550, 700, 900 /)
 
 
-
+        INTEGER, PARAMETER, PUBLIC :: nbyearsinfile=1
+        INTEGER :: nb_file=0
 !--- UGLY HACK FOR CLIO GENERATION TO BE REPLACED !!!
 
 
@@ -92,7 +93,7 @@
         TYPE(IO_NC_FILE), TARGET                :: test_CLIO_file
         TYPE(IO_NC_AXIS), TARGET                :: CLIO_axis_ptlat, CLIO_axis_ptlon, CLIO_axis_time, CLIO_axis_class,&
                                                    CLIO_axis_tdepth
- 
+
 !---    CLIO variables
         TYPE(IO_GRID_VAR)                         :: mu_SST
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE   :: my_SST
@@ -108,7 +109,7 @@
 
 
 #if ( REMIN == 1 )
-        TYPE(IO_GRID_VAR)                         :: mu_3D_remin 
+        TYPE(IO_GRID_VAR)                         :: mu_3D_remin
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_3D_remin
 #endif
 
@@ -121,7 +122,7 @@
 
         TYPE(IO_GRID_VAR)                       :: mu_epsNd
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_epsNd
-#endif 
+#endif
 
 #if ( OCYCC == 1 )
         TYPE(IO_GRID_VAR)                           :: mu_fPOC_clio
@@ -133,27 +134,27 @@
 
 ! eclermont - added
 #if ( OOISO == 1 )
-        TYPE(IO_GRID_VAR)                         :: mu_phyto_clio 
+        TYPE(IO_GRID_VAR)                         :: mu_phyto_clio
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_phyto_clio
-        
+
         TYPE(IO_GRID_VAR)                         :: mu_respO2
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_respO2
-        
+
         TYPE(IO_GRID_VAR)                         :: mu_prodO2
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_prodO2
-        
+
         TYPE(IO_GRID_VAR)                       :: mu_reminO2
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_reminO2
-        
+
         TYPE(IO_GRID_VAR)                       :: mu_NCP
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_NCP
 
         TYPE(IO_GRID_VAR)                       :: mu_FtotalO
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_FtotalO
-        
+
         TYPE(IO_GRID_VAR)                       :: mu_F17O
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_F17O
-        
+
         TYPE(IO_GRID_VAR)                       :: mu_F18O
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_F18O
 #endif
@@ -165,17 +166,17 @@
         TYPE(IO_GRID_VAR)                       :: mu_heat_icb
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_heat_icb
         TYPE(IO_GRID_VAR)                       :: mu_dvol_icb
-        REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_dvol_icb        
+        REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_dvol_icb
         TYPE(IO_GRID_VAR)                       :: mu_hiceb_class_icb
-        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_hiceb_class_icb  
+        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_hiceb_class_icb
         TYPE(IO_GRID_VAR)                       :: mu_wiceb_class_icb
-        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_wiceb_class_icb 
+        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_wiceb_class_icb
         TYPE(IO_GRID_VAR)                       :: mu_pond_class_icb
-        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_pond_class_icb         
+        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_pond_class_icb
         TYPE(IO_GRID_VAR)                       :: mu_uiceb_class_icb
-        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_uiceb_class_icb  
+        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_uiceb_class_icb
         TYPE(IO_GRID_VAR)                       :: mu_viceb_class_icb
-        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_viceb_class_icb                                      
+        REAL(dblp), DIMENSION(:,:,:),ALLOCATABLE:: my_viceb_class_icb
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -187,20 +188,21 @@
 
 ! ---
 
-      SUBROUTINE GLOBAL_RE_INIT()
+      SUBROUTINE GLOBAL_RE_INIT(nameindx)
 
 
+        use global_constants_mod, only: str_len
         use para0_mod, only: imax, jmax, kmax
-        use iceberg_mod, only: numclass        
-        
+        use iceberg_mod, only: numclass
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       BY REFERENCE VARIABLES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
+        INTEGER, INTENT(in) :: nameindx
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       LOCAL VARIABLES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-        
+        CHARACTER(len=str_len) :: nameindx_str, NCfilenameindexed
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       MAIN BODY OF THE ROUTINE
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -209,22 +211,27 @@
 !       THINGS TO DO ONCE
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+        WRITE(nameindx_str,'(I0.3)') nameindx
+        nb_file=nameindx
+        NCfilenameindexed="CLIO3_NewGen"//TRIM(nameindx_str)//".nc"
+
         ! initialize netCDF files, including axes attributes and initial coordinates variables
         ! for now, do a relatively ugly direct import. Will do better later on.
 
-        call test_CLIO_file%init(FileName="CLIO3_NewGen.nc")
+        call test_CLIO_file%init(FileName=NCfilenameindexed)
         call CLIO_axis_ptlat%init("ptlat", y_axis_values, OPT_AxisUnit="degrees_north")
         call CLIO_axis_ptlon%init("ptlon", x_axis_values, OPT_AxisUnit="degrees_east")
         call CLIO_axis_class%init("class", class_axis_values, OPT_AxisUnit="iceberg_size_class")
         call CLIO_axis_tdepth%init("tdepth", tdepth_axis_values, OPT_AxisUnit="meters")
         call CLIO_axis_time%init("time",OPT_isTime=.true., OPT_AxisUnit="years since 0001-01-01", OPT_calendar="360_day")
-        
-        call CLIO_axis_ptlat%wrte("CLIO3_NewGen.nc")
-        call CLIO_axis_ptlon%wrte("CLIO3_NewGen.nc")
-        call CLIO_axis_class%wrte("CLIO3_NewGen.nc")
-        call CLIO_axis_tdepth%wrte("CLIO3_NewGen.nc")
-        call CLIO_axis_time%wrte("CLIO3_NewGen.nc")     
-        
+
+        call CLIO_axis_ptlat%wrte(NCfilenameindexed)
+        call CLIO_axis_ptlon%wrte(NCfilenameindexed)
+        call CLIO_axis_class%wrte(NCfilenameindexed)
+        call CLIO_axis_tdepth%wrte(NCfilenameindexed)
+        call CLIO_axis_time%wrte(NCfilenameindexed)
+
+        IF (.NOT. allocated(my_SST)) then
         allocate(my_SST(imax-2,jmax))
         allocate(my_fwruno(imax-2,jmax))
         allocate(my_3D_temp(imax-2,jmax,kmax))
@@ -233,7 +240,7 @@
         allocate(my_3D_remin(imax-2,jmax,kmax))
 #endif
 
-#if ( NEOD > 0 ) 
+#if ( NEOD > 0 )
         allocate(my_neodymium143(imax-2,jmax,kmax))
         allocate(my_neodymium144(imax-2,jmax,kmax))
         allocate(my_epsNd(imax-2,jmax,kmax))
@@ -256,18 +263,18 @@
         allocate(my_F18O(imax-2,jmax))
 #endif
 
-#if ( ICEBERG > 0 )        
+#if ( ICEBERG > 0 )
         allocate(my_vol_icb(imax-2,jmax))
         allocate(my_heat_icb(imax-2,jmax))
-        allocate(my_dvol_icb(imax-2,jmax))        
-        allocate(my_hiceb_class_icb(imax-2,jmax,numclass))        
-        allocate(my_wiceb_class_icb(imax-2,jmax,numclass))        
-        allocate(my_pond_class_icb(imax-2,jmax,numclass))        
-        allocate(my_uiceb_class_icb(imax-2,jmax,numclass))        
-        allocate(my_viceb_class_icb(imax-2,jmax,numclass))              
-        
-#endif        
-        
+        allocate(my_dvol_icb(imax-2,jmax))
+        allocate(my_hiceb_class_icb(imax-2,jmax,numclass))
+        allocate(my_wiceb_class_icb(imax-2,jmax,numclass))
+        allocate(my_pond_class_icb(imax-2,jmax,numclass))
+        allocate(my_uiceb_class_icb(imax-2,jmax,numclass))
+        allocate(my_viceb_class_icb(imax-2,jmax,numclass))
+
+#endif
+
         call mu_SST%init("SST",test_CLIO_file,"ptlon ptlat time")
         call mu_SST%show()
 
@@ -282,14 +289,14 @@
         call mu_3D_remin%show()
 #endif
 
-#if ( NEOD > 0 ) 
+#if ( NEOD > 0 )
         call mu_neodymium143%init("neodymium143",test_CLIO_file,"ptlon ptlat tdepth time")
         call mu_neodymium143%show()
         call mu_neodymium144%init("neodymium144",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_neodymium144%show()     
+        call mu_neodymium144%show()
         call mu_epsNd%init("epsNd",test_CLIO_file,"ptlon ptlat tdepth time")
-        call mu_epsNd%show()        
-#endif   
+        call mu_epsNd%show()
+#endif
 
 #if ( OCYCC == 1 )
         call mu_fPOC_clio%init("fPOC",test_CLIO_file,"ptlon ptlat tdepth time")
@@ -299,17 +306,17 @@
         call mu_fCAL_clio%show()
 #endif
 
-! Ajout par eclermont 
+! Ajout par eclermont
 #if ( OOISO == 1 )
         call mu_phyto_clio%init("phyto_growth",test_CLIO_file,"ptlon ptlat tdepth time")
         call mu_phyto_clio%show()
 
         call mu_respO2%init("resp_O2",test_CLIO_file,"ptlon ptlat tdepth time")
         call mu_respO2%show()
-                
+
         call mu_prodO2%init("prod_O2",test_CLIO_file,"ptlon ptlat tdepth time")
         call mu_prodO2%show()
-        
+
         call mu_reminO2%init("Remin",test_CLIO_file,"ptlon ptlat tdepth time")
         call mu_reminO2%show()
 
@@ -326,25 +333,72 @@
         call mu_F18O%show()
 #endif
 
-#if ( ICEBERG > 0 )           
+#if ( ICEBERG > 0 )
         call mu_vol_icb%init("vol_icb",test_CLIO_file,"ptlon ptlat time")
         call mu_vol_icb%show()
         call mu_heat_icb%init("heat_icb",test_CLIO_file,"ptlon ptlat time")
         call mu_heat_icb%show()
         call mu_dvol_icb%init("dvol_icb",test_CLIO_file,"ptlon ptlat time")
-        call mu_dvol_icb%show()                
+        call mu_dvol_icb%show()
         call mu_hiceb_class_icb%init("hiceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_hiceb_class_icb%show() 
+        call mu_hiceb_class_icb%show()
         call mu_wiceb_class_icb%init("wiceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_wiceb_class_icb%show() 
+        call mu_wiceb_class_icb%show()
         call mu_pond_class_icb%init("pond_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_pond_class_icb%show() 
+        call mu_pond_class_icb%show()
         call mu_uiceb_class_icb%init("uiceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_uiceb_class_icb%show() 
+        call mu_uiceb_class_icb%show()
         call mu_viceb_class_icb%init("viceb_class",test_CLIO_file,"ptlon ptlat class time")
-        call mu_viceb_class_icb%show() 
-#endif        
-        
+        call mu_viceb_class_icb%show()
+#endif
+        else ! case where new netCDF file, but rest already allocated
+        call mu_SST%show()
+        call mu_SST%setf(test_CLIO_file)
+        call mu_SST%show()
+        call mu_fwruno%setf(test_CLIO_file)
+
+        call mu_3D_temp%setf(test_CLIO_file)
+
+#if ( REMIN == 1 )
+        call mu_3D_remin%setf(test_CLIO_file)
+#endif
+
+#if ( NEOD > 0 )
+        call mu_neodymium143%setf(test_CLIO_file)
+        call mu_neodymium144%setf(test_CLIO_file)
+        call mu_epsNd%setf(test_CLIO_file)
+#endif
+
+#if ( OCYCC == 1 )
+        call mu_fPOC_clio%setf(test_CLIO_file)
+        call mu_fCAL_clio%setf(test_CLIO_file)
+#endif
+
+! Ajout par eclermont
+#if ( OOISO == 1 )
+        call mu_phyto_clio%setf(test_CLIO_file)
+        call mu_respO2%setf(test_CLIO_file)
+        call mu_prodO2%setf(test_CLIO_file)
+        call mu_reminO2%setf(test_CLIO_file)
+        call mu_NCP%setf(test_CLIO_file)
+        call mu_FtotalO%setf(test_CLIO_file)
+        call mu_F17O%setf(test_CLIO_file)
+        call mu_F18O%setf(test_CLIO_file)
+#endif
+
+#if ( ICEBERG > 0 )
+        call mu_vol_icb%setf(test_CLIO_file)
+        call mu_heat_icb%setf(test_CLIO_file)
+        call mu_dvol_icb%setf(test_CLIO_file)
+        call mu_hiceb_class_icb%setf(test_CLIO_file)
+        call mu_wiceb_class_icb%setf(test_CLIO_file)
+        call mu_pond_class_icb%setf(test_CLIO_file)
+        call mu_uiceb_class_icb%setf(test_CLIO_file)
+        call mu_viceb_class_icb%setf(test_CLIO_file)
+#endif
+
+        endif
+
         ! re-initialize monthly accumulation variables
         CALL MONTHLY_RE_INIT()
 
@@ -394,10 +448,10 @@
 !       MAIN BODY OF THE ROUTINE
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!--- Temporary 
+!--- Temporary
 
         my_SST(:,:) = d_zero
-        my_fwruno(:,:) = d_zero        
+        my_fwruno(:,:) = d_zero
         my_3D_temp(:,:,:) = d_zero
 
 #if ( REMIN == 1 )
@@ -408,13 +462,13 @@
         my_neodymium143(:,:,:) = d_zero
         my_neodymium144(:,:,:) = d_zero
         my_epsNd(:,:,:) = d_zero
-#endif  
+#endif
 
 #if ( OCYCC == 1 )
         my_fPOC_clio(:,:,:) = d_zero
         my_fCAL_clio(:,:,:) = d_zero
-#endif        
-        
+#endif
+
 ! ajout par eclermont
 #if ( OOISO == 1 )
         my_phyto_clio(:,:,:) = d_zero
@@ -425,9 +479,9 @@
         my_FtotalO(:,:) = d_zero
         my_F17O(:,:) = d_zero
         my_F18O(:,:) = d_zero
-#endif 
+#endif
 
-#if ( ICEBERG > 0 )         
+#if ( ICEBERG > 0 )
         my_vol_icb(:,:) = d_zero
         my_heat_icb(:,:) = d_zero
         my_dvol_icb(:,:) = d_zero
@@ -436,8 +490,8 @@
         my_pond_class_icb(:,:,:) = d_zero
         my_uiceb_class_icb(:,:,:) = d_zero
         my_viceb_class_icb(:,:,:) = d_zero
-#endif        
-        
+#endif
+
 
       END SUBROUTINE YEARLY_RE_INIT
 
@@ -470,17 +524,17 @@
         use global_constants_mod, only: months_year_i, days_month360d_i, ip, days_year360d
 
 
-!--- Temporary 
+!--- Temporary
         use bloc0_mod, only: ks2, scal
         use ice_mod, only: fwruno
-        
+
 #if ( REMIN == 1 )
         use bloc0_mod, only: kremin_clio
 #endif
-        
-#if ( ICEBERG > 0 )                 
+
+#if ( ICEBERG > 0 )
         use iceberg_mod, only: vol_icb, dVol_icb, heat_icb, hiceb_class, wiceb_class, pond_icb_class, uiceb_class, viceb_class
-#endif        
+#endif
 
 #if ( OCYCC == 1 )
         use bloc0_mod, only: fPOC_flx_clio, fCAL_flx_clio
@@ -491,7 +545,7 @@
         use bloc0_mod, only: phyto_clio, respO2_clio, prodO2_clio, reminO2_clio, NCP_clio
         use marine_bio_mod, only: FOO2
 #endif
-                   
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       BY REFERENCE VARIABLES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -521,9 +575,9 @@
 !---     CLIO neodymium
          my_neodymium143(:,:,:) = my_neodymium143(:,:,:) + scal(2:UBOUND(scal,dim=1)-1,:,:,18)/days_year360d
          my_neodymium144(:,:,:) = my_neodymium144(:,:,:) + scal(2:UBOUND(scal,dim=1)-1,:,:,19)/days_year360d
-#endif 
+#endif
 
-#if ( ICEBERG > 0 )   
+#if ( ICEBERG > 0 )
 !---     ICEBERGS total iceberg volume
          my_vol_icb(:,:) = my_vol_icb(:,:) + vol_icb/days_year360d
 !---     ICEBERGS total iceberg heat to clio
@@ -541,13 +595,13 @@
 !---     ICEBERGS mean iceberg meridional velocity per class to clio
          my_viceb_class_icb(:,:,:) = my_viceb_class_icb(:,:,:) + viceb_class/days_year360d
 
-#endif         
+#endif
 
 
 #if ( OCYCC == 1 )
          my_fPOC_clio(:,:,:) = my_fPOC_clio(:,:,:) + fPOC_flx_clio(:,:,:)/days_year360d
          my_fCAL_clio(:,:,:) = my_fCAL_clio(:,:,:) + fCAL_flx_clio(:,:,:)/days_year360d
-#endif        
+#endif
 
 ! Ajout par eclermont
 #if ( OOISO == 1)
@@ -560,7 +614,7 @@
          my_FtotalO(:,:) = my_FtotalO(:,:) + TRANSPOSE(FOO2(2:UBOUND(FOO2,dim=1)-1,:,1))
          my_F18O(:,:) = my_F18O(:,:) + TRANSPOSE(FOO2(2:UBOUND(FOO2,dim=1)-1,:,4))
          my_F17O(:,:) = my_F17O(:,:) + TRANSPOSE(FOO2(2:UBOUND(FOO2,dim=1)-1,:,3))
-#endif   
+#endif
 
          if (iday == days_month360d_i) then
            c_month = (iyear-1)*months_year_i+imonth
@@ -568,7 +622,7 @@
          endif
 
          if (imonth == months_year_i .and. iday == days_month360d_i) then
-           c_year = iyear
+           c_year = iyear - nb_file * nbyearsinfile
            CALL DO_END_YEAR(c_year)
          endif
 
@@ -593,9 +647,9 @@
 
       SUBROUTINE DO_END_YEAR(nb_year)
 
-!--- Temporary 
+!--- Temporary
          use bloc0_mod, only: ks2, tms, kmax
-         
+
          use IO_NC_MOD, only: undef_dblp
 
 #if ( NEOD > 0 )
@@ -606,25 +660,25 @@
          INTEGER(KIND=ip) classes, k
 
          ! write out the yearly fields
-         
-!--- Temporary        
+
+!--- Temporary
          WHERE(tms(2:UBOUND(tms,dim=1)-1,:,ks2).LT.EPSILON(tms(1,1,ks2)))
 
             my_SST(:,:) = undef_dblp
             my_fwruno(:,:) = undef_dblp
-            
+
 #if ( OOISO == 1 )
             my_FtotalO(:,:)=undef_dblp
             my_F17O(:,:)=undef_dblp
             my_F18O(:,:)=undef_dblp
-#endif 
+#endif
 
-#if ( ICEBERG > 0 )              
+#if ( ICEBERG > 0 )
             my_vol_icb(:,:) = undef_dblp
             my_heat_icb(:,:) = undef_dblp
             my_dvol_icb(:,:) = undef_dblp
-#endif           
-            
+#endif
+
          ENDWHERE
 
          DO k=1,kmax
@@ -634,7 +688,7 @@
             my_3D_remin(:,:,k) = undef_dblp
 #endif
 
-! Ajouter par eclermont : 
+! Ajouter par eclermont :
 #if ( OOISO == 1 )
             my_phyto_clio(:,:,k) = undef_dblp
             my_respO2(:,:,k) = undef_dblp
@@ -647,7 +701,7 @@
          ENDDO
 
 
-#if ( ICEBERG > 0 )              
+#if ( ICEBERG > 0 )
          do classes=LBOUND(my_hiceb_class_icb,dim=3), UBOUND(my_hiceb_class_icb,dim=3)
             WHERE(tms(2:UBOUND(tms,dim=1)-1,:,ks2).LT.EPSILON(tms(1,1,ks2)))
                 my_hiceb_class_icb(:,:,classes) = undef_dblp
@@ -656,19 +710,19 @@
                 my_uiceb_class_icb(:,:,classes) = undef_dblp
                 my_viceb_class_icb(:,:,classes) = undef_dblp
             ENDWHERE
-         enddo            
-#endif            
+         enddo
+#endif
 
-#if ( NEOD > 0 ) 
-         my_epsNd(:,:,:) = epsilonNd(my_neodymium143(:,:,:),my_neodymium144(:,:,:))             
+#if ( NEOD > 0 )
+         my_epsNd(:,:,:) = epsilonNd(my_neodymium143(:,:,:),my_neodymium144(:,:,:))
          DO k=1,kmax
             WHERE(tms(2:UBOUND(tms,dim=1)-1,:,k).LT.EPSILON(tms(1,1,k)))
                 my_neodymium143(:,:,k) = undef_dblp
                 my_neodymium144(:,:,k) = undef_dblp
                 my_epsNd(:,:,k) = undef_dblp
             ENDWHERE
-         enddo            
-#endif            
+         enddo
+#endif
 
          call mu_SST%wrte(my_SST,nb_year)
          call mu_fwruno%wrte(my_fwruno,nb_year)
@@ -678,13 +732,13 @@
          call mu_3D_remin%wrte(my_3D_remin,nb_year)
 #endif
 
-#if ( NEOD > 0 ) 
+#if ( NEOD > 0 )
          call mu_neodymium143%wrte(my_neodymium143,nb_year)
          call mu_neodymium144%wrte(my_neodymium144,nb_year)
-         call mu_epsNd%wrte(my_epsNd,nb_year)         
-#endif 
+         call mu_epsNd%wrte(my_epsNd,nb_year)
+#endif
 
-#if ( ICEBERG > 0 )                       
+#if ( ICEBERG > 0 )
          call mu_vol_icb%wrte(my_vol_icb,nb_year)
          call mu_heat_icb%wrte(my_heat_icb,nb_year)
          call mu_dvol_icb%wrte(my_dvol_icb,nb_year)
@@ -693,10 +747,10 @@
          call mu_pond_class_icb%wrte(my_pond_class_icb,nb_year)
          call mu_uiceb_class_icb%wrte(my_uiceb_class_icb,nb_year)
          call mu_viceb_class_icb%wrte(my_viceb_class_icb,nb_year)
-         
-#endif         
 
-#if ( OCYCC == 1 ) 
+#endif
+
+#if ( OCYCC == 1 )
          call mu_fCAL_clio%wrte(my_fCAL_clio,nb_year)
          call mu_fPOC_clio%wrte(my_fPOC_clio,nb_year)
 #endif

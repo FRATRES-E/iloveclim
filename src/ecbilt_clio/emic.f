@@ -146,6 +146,7 @@
 #if ( CLIO_OUT_NEWGEN == 1 )
       USE GRID_IO_NC, ONLY: grid_io_reinit=>GLOBAL_RE_INIT
      &                    , daily_io_nc=>DAILYSTEP_IO_NC
+     &                    , nbyearsinfile
 #endif
 !!    USE OMP_LIB
 
@@ -488,7 +489,8 @@ cnb try to call first to have the date t update bathy
 #endif
 
 #if ( CLIO_OUT_NEWGEN == 1 )
-      CALL grid_io_reinit()
+!dmr&ec First initialization of first file, initialize with index zero
+      CALL grid_io_reinit(0)
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
@@ -912,6 +914,9 @@ c~ #endif /* LONG_SED_RUN*/
 
 #if ( CLIO_OUT_NEWGEN == 1 )
        call daily_io_nc()
+       if (mod(i,360*nbyearsinfile).eq.0) then
+          CALL grid_io_reinit(i/(360*nbyearsinfile))
+       endif
 #endif
 
 

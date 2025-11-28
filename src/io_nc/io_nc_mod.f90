@@ -93,7 +93,7 @@
           PRIVATE
           LOGICAL                 :: initialized       =.false.
           CHARACTER(LEN=uuid_size):: uuid_file
-          CHARACTER(LEN=15)       :: filename
+          CHARACTER(LEN=18)       :: filename
           CHARACTER(LEN=2)        :: country_code      = undef_cnco              ! alpha-2 in ISO 3166-1
           CHARACTER(LEN=str_len)  :: institution_name  = undef_str
           CHARACTER(LEN=str_len)  :: short_author_name = undef_str
@@ -131,6 +131,7 @@
 
             PROCEDURE, PUBLIC  :: init => init_io_grid_var
             PROCEDURE, PUBLIC  :: show => show_io_grid_var
+            PROCEDURE, PUBLIC  :: setf => set_NCfilename_io_grid_var
             GENERIC  , PUBLIC  :: wrte => write_io_grid_2Dvar_TIME, write_io_grid_3Dvar_noTIME, write_io_grid_3Dvar_TIME
             PROCEDURE, PRIVATE :: write_io_grid_2Dvar_TIME
             PROCEDURE, PRIVATE :: write_io_grid_3Dvar_noTIME
@@ -285,6 +286,22 @@
 
        END SUBROUTINE init_io_nc_file
 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      SUBROUTINE set_NCfilename_io_grid_var(this,nc_file)
+
+        CLASS(IO_GRID_VAR),         INTENT(INOUT) :: this
+        TYPE(IO_NC_FILE), TARGET,   INTENT(IN)  :: nc_file
+
+
+            ! nullify(this%nc_file)
+            this%nc_file => nc_file
+
+      END SUBROUTINE set_NCfilename_io_grid_var
+! ---
+       
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
