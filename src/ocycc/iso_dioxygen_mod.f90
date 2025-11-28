@@ -108,7 +108,7 @@
 
       ! ecl - Parameters of fractionation factor during photosynthesis
       real(kind=dblp), PARAMETER :: fphoto18 = 1.0_dblp !1.004 !Not defined =1.0
-      real(kind=dblp), PARAMETER :: fphoto17 = 1.0_dblp !1.002078 ! Not defined = 1.0
+      real(kind=dblp), PARAMETER :: theta_photo = 1.0_dblp !Not defined = 1.0
       contains
 
 
@@ -184,13 +184,16 @@
 !     Input variable : - NPPO2: the net primary production of oxygen.
 !                      - factor: to be adjust according to oxygen production.
 !                      - fphoto : fractionation during photosynthesis.
+!                      - theta_photo : fractionation between 17 and 18 during photosynthesis
 !                      - r18smow and r17smow: refer to the smow reference std for oxygen 17 and 18 conversaly.
 !                      - Rsum_iso_smow : sum of relative isotope abundances according to rsmow. 
 !     Output variable : GPP_O2.
 
        real(kind=dblp), intent(in)         :: NPPO2           ! [umolO2/kg]
        real(kind=dblp), dimension(nairiso) :: GPP_O2
-       real(kind=dblp)                     :: ratio
+       real(kind=dblp)                     :: fphoto17
+
+       fphoto17 = fphoto18**theta_photo
 
        GPP_O2(iair) = factor_GNPP_to_NPP*NPPO2
 
