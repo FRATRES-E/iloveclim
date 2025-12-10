@@ -1,0 +1,45 @@
+# make searchable 
+include make.macros.new
+
+# Local override due to local directory structure
+FFLAGS              = $(CMP_SPECF) $(F_OPTIM_HIGH) $(F_PRE_PROCESS) $(F_INIT_ZERO) $(F_SIGN_ZERO) $(F_DFLT_DBLE) $(F_NO_ALIGN) $(F_BIG_ENDIAN) $(F_REC_MARK)
+
+src = modstat.f90 \
+	procevolu.f90
+objs = $(src: .f90=.o .mod)
+
+all :  procevolu evo2graE evo2graE-nq evo2graE-nqm procevg procevg-nq procevg-nqm
+
+procevolu : $(objs)
+	$(FC) -o $@ $(objs) ${INCLUDES} ${LIBS}
+
+evo2graE : evo2graE.f
+	$(FC) evo2graE.f -o $@ ${FFLAGS}
+
+evo2graE-nq : evo2graE-noquestion.f
+	$(FC) evo2graE-noquestion.f -o $@ ${FFLAGS}
+
+evo2graE-nqm : evo2graE-noquestion-mon.f
+	$(FC) evo2graE-noquestion-mon.f -o $@ ${FFLAGS}
+
+procevg : procevg.f
+	$(FC) procevg.f -o $@ ${FFLAGS}
+
+procevg-nq : procevg-noquestions.f	
+	$(FC) procevg-noquestions.f -o $@ ${FFLAGS}
+
+procevg-nqm : procevg-noquestionsm.f	
+	$(FC) procevg-noquestionsm.f -o $@ ${FFLAGS}
+
+clean : 
+	$(ECHO) cleaning up evolu
+	-$(RM) -f *.o *.mod procevolu evo2graE evo2graE-nq evo2graE-nqm procevg procevg-nq procevg-nqm
+
+install: 
+	mv procevolu ../../bin/.
+	mv evo2graE ../../bin/.
+	mv evo2graE-nq ../../bin/.
+	mv evo2graE-nqm ../../bin/.
+	mv procevg ../../bin/.
+	mv procevg-nq ../../bin/.
+	mv procevg-nqm ../../bin/.
