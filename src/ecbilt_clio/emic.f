@@ -169,7 +169,7 @@
 
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: INITIALIZE_VAMP, GET_COUPLING_STEP
-     >                         , STEPFWD_VAMP
+     >                         , STEPFWD_VAMP, INITIALIZE_CARBON_STOCK
 
       use CPL2FROG_mod,    only: INIT_CPL2VAMP, GET_VAMPVARS
      &                          , DAILY_UPDATE_VAMPVARS 
@@ -486,6 +486,9 @@ cnb try to call first to have the date t update bathy
       endif
       well_done = INIT_CPL2VAMP(GET_COUPLING_STEP())
 
+      call DAILY_UPDATE_VAMPVARS()
+      well_done = INITIALIZE_CARBON_STOCK(GET_VAMPVARS())
+      call RESET_VAMPVARS_TIMER
 #endif
 
 #if ( CLIO_OUT_NEWGEN == 1 )
