@@ -211,9 +211,7 @@
         ALLOCATE(send_cpl_fields%Fv_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%fracgr_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%darea_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
-#if ( SNOW_EFFECT == 1 )
         ALLOCATE(send_cpl_fields%dsnow_thick(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2),UBOUND(temp2vamper,DIM=3)))
-#endif
 
         send_cpl_fields%TempForc(:,:,:) = REAL(temp2vamper(:,:,:),KIND=sp)
         !send_cpl_fields%B3_vegForc(:,:) = REAL(b3(:,:),KIND=sp)
@@ -221,9 +219,7 @@
         send_cpl_fields%Fv_vegForc(:,:) = REAL(Fv(:,:),KIND=sp)
         send_cpl_fields%fracgr_vegForc(:,:) = REAL(fracgr(:,:),KIND=sp)
         send_cpl_fields%darea_vegForc(:,:) = REAL(darea_2d(:,:),KIND=sp)
-#if ( SNOW_EFFECT == 1 )
         send_cpl_fields%dsnow_thick(:,:,:) = REAL(dsnow2vamper(:,:,:),KIND=sp)
-#endif
 
        !mise a 0 de Fv chaque annee apres envoi au permafrost
        Fv(:,:) = 0.0
