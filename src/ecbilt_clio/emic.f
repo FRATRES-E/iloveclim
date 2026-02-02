@@ -174,6 +174,8 @@
       use CPL2FROG_mod,    only: INIT_CPL2VAMP, GET_VAMPVARS
      &                          , DAILY_UPDATE_VAMPVARS 
      &                          , RESET_VAMPVARS_TIMER
+
+      use Carbon,          only: close_carbon_output
 #endif
 
 
@@ -941,6 +943,15 @@ c~ #endif /* LONG_SED_RUN*/
 #if ( CYCC >= 2 )
       CALL out_cycc(-2,fractn(1,1,nld),darea)
 #endif
+
+!-----|--1--------2---------3---------4---------5---------6---------7-|
+!     Fermeture du fichier 'C_permafrost.txt'
+!-----|--1--------2---------3---------4---------5---------6---------7-|
+
+#if ( FROG_EXP > 0 )
+      CALL close_carbon_output()
+#endif
+
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !     Fermeture de MEDUSA
