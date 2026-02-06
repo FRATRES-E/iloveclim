@@ -73,6 +73,7 @@
                     stock,st_moy,stR,sgR,sdR,snltR
 #if ( FROG_EXP > 0 )
       real(dblp), dimension(nlat,nlon) :: Fv, Fv_t, Fv_g
+      real(dblp), dimension(nlat,nlon) :: r_leaf !ratio of carbon in leaves/(leaves+wood)
 #endif
 
 !~ [DEPRECATED] -- variables for the LOCH model

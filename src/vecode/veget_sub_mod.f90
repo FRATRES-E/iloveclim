@@ -555,7 +555,7 @@
 #endif
 
 #if ( FROG_EXP > 0 )
-       use veget_mod, only : Fv, Fv_t, Fv_g
+       use veget_mod, only : Fv, Fv_t, Fv_g, r_leaf
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -622,6 +622,14 @@
 
 #if ( FROG_EXP > 0 )
         Fv(lat,lon)= Fv(lat,lon)+ Fv_t(lat,lon)*st(lat,lon)+Fv_g(lat,lon)*sg(lat,lon)
+        !nb ratio=leaf/(leaf+wood)
+        if ((b1(lat,lon)+b2(lat,lon)) .gt. 0.0) then 
+             r_leaf(lat,lon)=(b1(lat,lon)+b2g(lat,lon)*sg(lat,lon))/(b1(lat,lon)+b2(lat,lon))
+        else 
+             r_leaf(lat,lon)=0.0
+             write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
+        endif
+        !write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
 #endif
 
 #if ( CYCC ==2 )
