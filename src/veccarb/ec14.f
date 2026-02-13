@@ -1,3 +1,4 @@
+
 !dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:21 CET 2009
 #include "choixcomposantes.h"
 !dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:21 CET 2009
@@ -25,10 +26,15 @@
        USE carbone_co2, ONLY: PRODC14, MPRODC14, LIMC14MASSE, N14LIM    
      >                ,C14DEC
 
+#if ( KC14P == 1 )
+       use carbone_co2, only: NC14max, PC14M, KTIME, n, NC14, NYR, NYR0, NYR01, NYRSR, PC14VAR, TPSC14
+#endif
+
        IMPLICIT NONE
 
 !   INSERER ICI LES DECLARATIONS DES VARIABLES D'ENTREE / SORTIE
 
+       INTEGER :: bel10dat_id
 
 cvm --- be10.dat has to contains prodC14 in the PC14M column,
 cvm --- where the unit is so that prodC14 for preindustrial
@@ -36,13 +42,12 @@ cvm --- is equal to 1. In the TPSC14 column, years have to be
 cvm --- written with a minus, for example "21ka BP" has to be
 cvm --- written "-21000"
 #if ( KC14P == 1 )
-      open (newunit=bel10dat_id,file='be10.dat',STATUS='unknown')
-cvm      PRINT*,'lecture de be10.dat NC14max = ',NC14max
+      open (newunit=bel10dat_id,file='inputdata/prod_C14.dat',STATUS='unknown')
+      PRINT*,'lecture de prod_C14.dat NC14max = ',NC14max
       DO n=1,NC14max
-        READ(bel10dat_id,*,END=100) TPSC14(n),PC14M(n)
-cvm      PRINT*, n, TPSC14(n), PC14M(n)
+        READ(bel10dat_id,*) TPSC14(n),PC14M(n)
+      PRINT*, n, TPSC14(n), PC14M(n)
       END DO
- 100  CONTINUE
       NC14 = n-1
 cvm      PRINT*,'fichier be10.dat lu, NC14=',NC14
       close (bel10dat_id)
