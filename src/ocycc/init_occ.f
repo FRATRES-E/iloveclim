@@ -35,6 +35,10 @@ c********************************************************************
 #if ( CORAL == 1 )
        use coral_mod, only: ini_coral
 #endif
+#if ( OOISO_SCEN == 1 )
+       use iso_dioxygen_mod,  only : read_r_ISOO2
+#endif
+
 
       IMPLICIT NONE
 
@@ -253,6 +257,12 @@ c        RUNOC_WEAV_13BIC_oc(i,n)=0.25*RUNOC_WEAV_13BIC(l,n)
 c       endif
 c       enddo
 c      enddo
+
+#if ( OOISO_SCEN == 1 )
+      !read file for scenario of r values for oxygen isotopes  
+      call read_r_ISOO2
+#endif
+
 
       return
       END SUBROUTINE INIT_OCC

@@ -139,6 +139,7 @@
 
 #if ( BRINES >= 3 )
       use brines_mod, only: la_date_brines
+      use palaeo_timer_mod, only: palaeo_year
 #endif
 
       use file_libs, ONLY: fileDescriptor, open_f, close_f

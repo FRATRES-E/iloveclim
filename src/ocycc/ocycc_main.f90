@@ -150,7 +150,9 @@
        use mbiota_mod, only: oc_bottom_cell
        use mbiota_mod, only: PHYTO_M, ZOO_M, PHYTO_M13, ZOO_M13, &
                              TPP_ma, caco3_ma
-
+#if ( OOISO_SCEN == 1 )
+       use iso_dioxygen_mod,  only : modif_r_ISOO2
+#endif
 
 
        implicit none
@@ -184,6 +186,10 @@
 !     dmr   Integration du cycle du carbone ocean avant appel advection
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
                call sync_timer(day,month)
+
+#if ( OOISO_SCEN == 1 )
+               call modif_r_ISOO2 
+#endif
 
                call O2sat_in_photic_zone()
                call DICspeciation_surface()  !incche

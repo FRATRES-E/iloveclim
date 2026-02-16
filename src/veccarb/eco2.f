@@ -33,6 +33,11 @@
       use comunit,        only: iuo
       use newunit_mod,    only: carbon_emission_dat_id
 #endif
+#if ( PERM_SCEN ==1 )
+      use carbone_co2,    only: cemis_perm, nb_emis_perm
+      use comunit,        only: iuo
+      use newunit_mod,    only: permafrost_emission_dat_id
+#endif
 #if ( CARAIB > 0 )
       use ec_ca2lbm,      only: stock_carbon_caraib, veget_frac
       use comsurf_mod,    only: fractn, nld
@@ -47,7 +52,8 @@
      &             , cav_oc13, cav_oc14, cav_oc14_b, cav_oc2, cav_oc_b, cav_oc_p
      &             , coc_odoc, coc_odoc13, coc_odocs, coc_odocs13, dc13at_ini
      &             , fc14la, fc14oa
-     &             ,emis_cum, emis_c13_cum
+     &             , emis_cum, emis_c13_cum
+     &             , emis_perm_cum, emis_perm_c13_cum
 
       use loveclim_transfer_mod, only: KLSR
 
@@ -123,7 +129,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 
        real(kind=dblp) :: ca_beta, d_oc, d_la, PCO2D, PCO2VAR, sumflux
-#if ( CEMIS == 1 )
+#if ( CEMIS == 1 || PERM_SCEN == 1 )
        integer(kind=ip) :: ii
        integer(kind=ip) :: yy
 #endif
@@ -179,6 +185,7 @@ C.... initialization of global carbon pool, beginning of simulation
       endif
 
       ! PA0_C = PA0_C + 940.0
+      !PA0_C = PA0_C -722*ca_beta ! remove carbon in Permafrost
       PA_C=PA0_C
       PA_C_D=PA0_C
       WRITE(*,*) 'atmosphere PA_C, c13atm, c14atm'
@@ -206,6 +213,8 @@ C.... initialization of global carbon pool, beginning of simulation
       coc_odocs13=0
       emis_cum=0
       emis_c13_cum=0
+      emis_perm_cum=0
+      emis_perm_c13_cum=0
 
 #if ( CEMIS == 1 )
 !read input file for carbon emissions
@@ -216,10 +225,19 @@ C.... initialization of global carbon pool, beginning of simulation
          do ii=1,nb_emis
            !read(iuo+40,*) yy, cemis(ii)
            read(carbon_emission_dat_id,*) yy, cemis(ii)
-           print *, 'test emission ', ii,yy, cemis(ii)
+           !print *, 'test emission ', ii,yy, cemis(ii)
          enddo
         !close(iuo+40)
         close(carbon_emission_dat_id)
+#endif
+#if ( PERM_SCEN == 1 )
+!read input file for permafrost carbon emissions
+!First year in file is first year of simulation
+         do ii=1,nb_emis_perm
+           read(permafrost_emission_dat_id,*) yy, cemis_perm(ii)
+           !print *, 'test emission permafrost ', ii,yy, cemis_perm(ii)
+         enddo
+        close(permafrost_emission_dat_id)
 #endif
 
 #if ( OCYCC == 1 )
@@ -600,9 +618,20 @@ ccc        emis_c13_cum=emis_c13_cum + cemis(NYR)*(-25.)
          endif
 #endif
 
+#if ( PERM_SCEN == 1 )
+         if (kendy.eq.1) then !emissions at last day of year
+           !cemis in MtCO2
+           !emis_cum=emis_perm_cum + cemis_perm(NYR)*1e-3 / 3.67
+           !cemis in GtC
+           emis_perm_cum=emis_perm_cum + cemis_perm(NYR)
+           emis_perm_c13_cum=emis_perm_c13_cum + cemis_perm(NYR)*(-25.)
+          if (emis_perm_cum.ne.0) print*,'cemis_perm,emis_perm_cum',NYR, cemis_perm(NYR), emis_perm_cum
+         endif
+#endif
+
 
 #if ( CORAL == 0)
-        PA_C=PA0_C-(cav_oc-ca_oc_ini+cav_la-ca_la_ini-emis_cum)*ca_beta
+        PA_C=PA0_C-(cav_oc-ca_oc_ini+cav_la-ca_la_ini-emis_cum-emis_perm_cum)*ca_beta
 
 !nb test PA_C fixe
 !        PA_C=284 !ppm
@@ -612,7 +641,7 @@ ccc        emis_c13_cum=emis_c13_cum + cemis(NYR)*(-25.)
 
         !ca_car_a=C_car_a*SCANU/(TYER/TSTOC)*1e6*12*1.028 ! Pmol/day*1e-6/(360*TDAY/TDAY) 
         ca_car_a=C_car_a*SCANU*1e6*12 ! Pmol/day*1e-6*1e6*g/mol=1e15g/day=Pg/day
-        PA_C=PA0_C-(cav_oc-ca_oc_ini+cav_la-ca_la_ini-emis_cum+ca_car_a)*ca_beta !GtC *ca_beta
+        PA_C=PA0_C-(cav_oc-ca_oc_ini+cav_la-ca_la_ini-emis_cum-emis_perm_cum+ca_car_a)*ca_beta !GtC *ca_beta
         !write(*,*), 'ca_car_a et PA_C', ca_car_a, PA_C
 
 !nb [NOTA] Fait ailleurs ? 
@@ -682,16 +711,17 @@ ccc        emis_c13_cum=emis_c13_cum + cemis(NYR)*(-25.)
 !        WRITE(*,*), 'stocks carbon in eco2, PA_C', PA_C
 !        WRITE(*,*), 'cav_oc ', cav_oc, 'cav_la', cav_la
 
-      PA_C_D=PA0_C-(cav_oc2-ca_oc_ini+cav_la-ca_la_ini-emis_cum)*ca_beta
+      PA_C_D=PA0_C-(cav_oc2-ca_oc_ini+cav_la-ca_la_ini-emis_cum-emis_perm_cum)*ca_beta
 
         ODIC_diff = 0.0
 
 
-       c13atm=1000+(ca13_at_ini+emis_c13_cum-
+       c13atm=1000+(ca13_at_ini+emis_c13_cum+emis_perm_c13_cum-
      & (cav_oc13-ca13_oc_ini+cav_la13-ca13_la_ini))/(PA_C/ca_beta)
 
 !nb test valeur fixee dans atm
-!       c13atm=993.58
+!       c13atm=993.58 !PI
+!       c13atm=993.5 !LGM
 
 !       WRITE(*,*), 'carbon 13 eco2, c13atm ', c13atm, c13atm-1000
 !       WRITE(*,*) 'ca13_at_ini, cav_oc13, cav_la13',

@@ -105,6 +105,12 @@
        DOUBLE PRECISION vtmp_POC, vtmp_DOC
 #endif
 
+!nb for OOISO restart
+      REAL, PARAMETER ::                                     &
+           OO2_ini      = 250.,                                         &  ! mumol/kg
+           OO2_iso02    = 0.0959     ,                                  & ! mumol/kg
+           OO2_iso03    = 0.5121  ! mumol/kg
+
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Determination d'un numero de fichier libre ...
 !-----|--1--------2---------3---------4---------5---------6---------7-|
@@ -201,7 +207,7 @@
 !       nrecl = 13*SIZE(OPO4)+11*SIZE(FOPO4)+SIZE(PHYTO_M)+SIZE(ZOO_M)+  &
        nrecl = 13*SIZE(OPO4)+10*SIZE(FOPO4)+SIZE(PHYTO_M)+SIZE(ZOO_M)   &
                +3 ! PA0_C, PA_C, C13ATM
-
+!#if ( OOISO == 10 )
 #if ( OOISO == 1 )
        nrecl =3*SIZE(OPO4)+SIZE(OO2)+6*SIZE(OALK)                       &
                   +SIZE(PHYTO_M)+SIZE(ZOO_M)+3*SIZE(ODOCS)              &
@@ -256,7 +262,7 @@
 #if ( KC14 == 1 )
                      C14ATM0, cav_oc14_b, cav_oc_b,                     &
 #endif
-
+!#if ( OOISO == 10 )
 #if ( OOISO == 1 )
                      FODOCS13, OO2(:,:,:,2:NISOO2), FOO2(:,:,2:NISOO2)
 #else
@@ -268,6 +274,18 @@
 !nb later : add in restart
       PHYTO_M13(:,:,:)=PHYTO_M(:,:,:)*OC13(:,:,:)/ODIC(:,:,:)
       ZOO_M13(:,:,:)=ZOO_M(:,:,:)*OC13(:,:,:)/ODIC(:,:,:)
+
+!nb for OOISO restart
+!      !write(*,*) 'in restart_mb', OO2(:,:,:,1)
+!      !write(*,*) 'in restart_mb', OO2(:,:,:,2)
+!
+!      !OO2(:,:,:,iair)  = OO2_ini            ! mumol/kg
+!      OO2(:,:,:,iair17)  = OO2_iso02
+!      OO2(:,:,:,iair18)  = OO2_iso03
+!      OO2(:,:,:,iair16)  = OO2(:,:,:,iair)-OO2(:,:,:,iair18)-           &
+!                           OO2(:,:,:,iair17)
+!
+!      FOO2(:,:,:)= 0.0
 
 #if ( BATHY >=1 )
 !nb computes previous global values
@@ -356,6 +374,19 @@
        logic_elmt= mean_neighbours_with_mask_CC(ODOCs13(:,:,:),1) ! last argument 1 = tms2D
 
 
+#endif
+
+#if ( OOISO == 1 )
+!       do n=1,NOC_CBR
+!         do i=1,LT
+!           do j=1,JT
+!           if (MGT(i,j,n).eq.1) then
+!             OO2(i,j,n,4) = 0.52422
+!             OO2(i,j,n,4) = 0.52422/2
+!           endif
+!           enddo
+!         enddo
+!       enddo
 #endif
 !--- !cnb modif valeur oc13 globale (a supprimer ensuite)
 !       print*, 'Modification OC13 ini'
