@@ -121,6 +121,18 @@
         TYPE(IO_GRID_VAR)                       :: mu_neodymium144
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_neodymium144
 
+        TYPE(IO_GRID_VAR)                       :: mu_neoddiss143
+        REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_neoddiss143
+
+        TYPE(IO_GRID_VAR)                       :: mu_neoddiss144
+        REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_neoddiss144   
+        
+        TYPE(IO_GRID_VAR)                       :: mu_neodpart143
+        REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_neodpart143
+
+        TYPE(IO_GRID_VAR)                       :: mu_neodpart144
+        REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_neodpart144              
+
         TYPE(IO_GRID_VAR)                       :: mu_epsNd
         REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_epsNd
 #endif
@@ -243,10 +255,12 @@
           allocate(my_3D_remin(imax-2,jmax,kmax))
 #endif
 
-#if ( NEOD > 0 )
-          allocate(my_neodymium143(imax-2,jmax,kmax))
-          allocate(my_neodymium144(imax-2,jmax,kmax))
-          allocate(my_epsNd(imax-2,jmax,kmax))
+#if ( NEOD > 0 ) 
+        allocate(my_epsNd(imax-2,jmax,kmax))
+        allocate(my_neoddiss143(imax-2,jmax,kmax))
+        allocate(my_neoddiss144(imax-2,jmax,kmax))      
+        allocate(my_neodpart143(imax-2,jmax,kmax))
+        allocate(my_neodpart144(imax-2,jmax,kmax))               
 #endif
 
 #if ( OCYCC == 1 )
@@ -292,14 +306,18 @@
           call mu_3D_remin%show()
 #endif
 
-#if ( NEOD > 0 )
-          call mu_neodymium143%init("neodymium143",test_CLIO_file,"ptlon ptlat tdepth time")
-          call mu_neodymium143%show()
-          call mu_neodymium144%init("neodymium144",test_CLIO_file,"ptlon ptlat tdepth time")
-          call mu_neodymium144%show()
-          call mu_epsNd%init("epsNd",test_CLIO_file,"ptlon ptlat tdepth time")
-          call mu_epsNd%show()
-#endif
+#if ( NEOD > 0 )     
+        call mu_epsNd%init("epsNd",test_CLIO_file,"ptlon ptlat tdepth time")
+        call mu_epsNd%show()        
+        call mu_neoddiss143%init("neoddiss143",test_CLIO_file,"ptlon ptlat tdepth time")
+        call mu_neoddiss143%show()
+        call mu_neoddiss144%init("neoddiss144",test_CLIO_file,"ptlon ptlat tdepth time")
+        call mu_neoddiss144%show()   
+        call mu_neodpart143%init("neodpart143",test_CLIO_file,"ptlon ptlat tdepth time")
+        call mu_neodpart143%show()
+        call mu_neodpart144%init("neodpart144",test_CLIO_file,"ptlon ptlat tdepth time")
+        call mu_neodpart144%show()                    
+#endif   
 
 #if ( OCYCC == 1 )
           call mu_fPOC_clio%init("fPOC",test_CLIO_file,"ptlon ptlat tdepth time")
@@ -453,10 +471,13 @@
 #endif
 
 #if ( NEOD > 0 )
-        my_neodymium143(:,:,:) = d_zero
-        my_neodymium144(:,:,:) = d_zero
         my_epsNd(:,:,:) = d_zero
-#endif
+        my_neoddiss143(:,:,:) = d_zero
+        my_neoddiss144(:,:,:) = d_zero
+        my_neodpart143(:,:,:) = d_zero
+        my_neodpart144(:,:,:) = d_zero            
+#endif  
+
 
 #if ( OCYCC == 1 )
         my_fPOC_clio(:,:,:) = d_zero
@@ -532,6 +553,10 @@
         use bloc0_mod, only: fPOC_flx_clio, fCAL_flx_clio
 #endif
 
+#if ( NEOD > 0 )
+        use neodymium_mod, only: neod_part, neod_diss
+#endif        
+
 ! Ajout par eclermont
 #if ( OOISO == 1 )
         use bloc0_mod, only: phyto_clio, respO2_clio, prodO2_clio, reminO2_clio, NCP_clio
@@ -565,9 +590,11 @@
 
 #if ( NEOD > 0 )
 !---     CLIO neodymium
-         my_neodymium143(:,:,:) = my_neodymium143(:,:,:) + scal(2:UBOUND(scal,dim=1)-1,:,:,18)/days_year360d
-         my_neodymium144(:,:,:) = my_neodymium144(:,:,:) + scal(2:UBOUND(scal,dim=1)-1,:,:,19)/days_year360d
-#endif
+         my_neoddiss143(:,:,:) = my_neoddiss143(:,:,:) + neod_diss(2:UBOUND(scal,dim=1)-1,:,:,1)/days_year360d
+         my_neoddiss144(:,:,:) = my_neoddiss144(:,:,:) + neod_diss(2:UBOUND(scal,dim=1)-1,:,:,2)/days_year360d
+         my_neodpart143(:,:,:) = my_neodpart143(:,:,:) + neod_part(2:UBOUND(scal,dim=1)-1,:,:,1)/days_year360d
+         my_neodpart144(:,:,:) = my_neodpart144(:,:,:) + neod_part(2:UBOUND(scal,dim=1)-1,:,:,2)/days_year360d                  
+#endif 
 
 #if ( ICEBERG > 0 )
 !---     ICEBERGS total iceberg volume
@@ -704,13 +731,16 @@
          enddo
 #endif
 
-#if ( NEOD > 0 )
-         my_epsNd(:,:,:) = epsilonNd(my_neodymium143(:,:,:),my_neodymium144(:,:,:))
+#if ( NEOD > 0 ) 
+         !my_epsNd(:,:,:) = epsilonNd(my_neodymium143(:,:,:),my_neodymium144(:,:,:))     
+         my_epsNd(:,:,:) = epsilonNd(my_neoddiss143(:,:,:),my_neoddiss144(:,:,:))  
          DO k=1,kmax
             WHERE(tms(2:UBOUND(tms,dim=1)-1,:,k).LT.EPSILON(tms(1,1,k)))
-                my_neodymium143(:,:,k) = undef_dblp
-                my_neodymium144(:,:,k) = undef_dblp
                 my_epsNd(:,:,k) = undef_dblp
+                my_neoddiss143(:,:,k) = undef_dblp
+                my_neoddiss144(:,:,k) = undef_dblp    
+                my_neodpart143(:,:,k) = undef_dblp
+                my_neodpart144(:,:,k) = undef_dblp 
             ENDWHERE
          enddo
 #endif
@@ -723,11 +753,13 @@
          call mu_3D_remin%wrte(my_3D_remin,nb_year)
 #endif
 
-#if ( NEOD > 0 )
-         call mu_neodymium143%wrte(my_neodymium143,nb_year)
-         call mu_neodymium144%wrte(my_neodymium144,nb_year)
-         call mu_epsNd%wrte(my_epsNd,nb_year)
-#endif
+#if ( NEOD > 0 ) 
+         call mu_epsNd%wrte(my_epsNd,nb_year)      
+         call mu_neoddiss143%wrte(my_neoddiss143,nb_year)
+         call mu_neoddiss144%wrte(my_neoddiss144,nb_year)
+         call mu_neodpart143%wrte(my_neodpart143,nb_year)
+         call mu_neodpart144%wrte(my_neodpart144,nb_year)                     
+#endif 
 
 #if ( ICEBERG > 0 )
          call mu_vol_icb%wrte(my_vol_icb,nb_year)
