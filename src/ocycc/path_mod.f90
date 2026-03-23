@@ -155,7 +155,7 @@
         real(dp), dimension(120,65,20) :: opal_conc_field  ! in mmol/m3
 
 ! restart flag for the Pa/Th 
-        logical                                   :: restart_path = .true.
+        logical                                   :: restart_path = .false.
         character(len=str_len), parameter         :: restart_fnm  = "path_start_data.bin"        
         
         

@@ -15,6 +15,7 @@ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
 #if ( PATH >= 1 )
        use path_mod, only: sea_mask, epais, k_fond, k_surf
+       use bloc0_mod, only: kfs
 #endif
 
       USE declars_mod, only: LT, NOC_CBR, JT
