@@ -50,7 +50,7 @@
        use loveclim_transfer_mod, only: ZX
        use declars_mod, only: JX
        use dynami_mod, only: dxc1, dxc2
-       use global_constants_mod, only: dp, str_len
+       use global_constants_mod, only: dp, str_len, ip
        use bloc0_mod, only: fpoc => fPOC_flx_clio !TmolsC.m-2.timestep-1
        use bloc0_mod, only: fcaco3 => fCAL_flx_clio !TmolsC.m-2.timestep-1
        use ncio
@@ -203,6 +203,13 @@
        real(dp), dimension(imax_loc,jmax_loc,kmax_loc) :: bathy, boundary_source_Nd, boundary_source_144Nd, boundary_source_143Nd
        real(dp) :: boundary_source_Nd_tot
 
+
+        !dmr&tva --- To write the output text file
+        integer(ip) :: eNdinv_id
+        !dmr&tva --- To write the output text file
+
+
+
       contains
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
 ! INIT PART
@@ -215,6 +222,11 @@
         real(dp), dimension(:,:,:,:), intent(out) :: tracer_CLIO
         neodymium(:,:,:,:) = 0._dp
         tracer_CLIO(:,:,:,:) = neodymium(:,:,:,:)
+
+
+        open(newunit=eNdinv_id,file='outputdata/carbon/eNd_inventory.txt',form='formatted')
+
+
       end subroutine neodymium_init
       
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
@@ -899,6 +911,14 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       subroutine neodymium_step
+
+         !dmr&tkv --- To write the output text file
+         !dmr&tkv --- [NOTA] not clean to add things from an atmospheric module into the ocean part !!!
+         use comemic_mod, only: iyear, day, iatm
+         use comatm, only: dt
+         !dmr&tkv --- To write the output text file
+
+
          integer :: i,j,k,n
          call dust_source_calculation
          call river_source_calculation
@@ -971,20 +991,16 @@
           end do
         end do               
         
-!       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "TOTAL Nd inventory", Nd_inventory*0.000000000001, "Tg"
-!       write (*,*) "TOTAL Nd inventory", Nd_inventory*0.000000001, "Gg"
-!       write (*,*) "!!!!!!!!!!!!!!!"
 
-!       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "DISS Nd inventory", Nddiss_inventory*0.000000000001, "Tg"
-!       write (*,*) "DISS Nd inventory", Nddiss_inventory*0.000000001, "Gg"
-!       write (*,*) "!!!!!!!!!!!!!!!"      
-       
-!       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "PART Nd inventory", Ndpart_inventory*0.000000000001, "Tg"
-!       write (*,*) "PART Nd inventory", Ndpart_inventory*0.000000001, "Gg"
-!       write (*,*) "!!!!!!!!!!!!!!!"          
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
+        !dmr&tkv --- To write the output text file
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
+        write(eNdinv_id,110) iyear,int((day+0.5*dt)/(iatm*dt))+1,Nd_inventory, Nddiss_inventory, Ndpart_inventory, z_neod_SUM &
+                           , river_source_Nd_tot
+
+  110 format(i8,i8,f17.1,f17.1,f17.1,f17.1,f17.1)
+
+        !dmr&tkv --- To write the output text file
 
 !       write (*,*) "!!!!!!!!!!!!!!!"
 !       write (*,*) "Nd removal inventory", z_neod_SUM*0.000000000001, "Tg"
