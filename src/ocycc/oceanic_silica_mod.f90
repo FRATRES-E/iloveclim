@@ -60,41 +60,36 @@
        use loveclim_transfer_mod, only: ZZ
 
        implicit none
-       !private
-       public
+       
+       private
+       
 
        ! people -- PUBLIC variables, functions, subroutines.
 
        !dmr&nr --- Biogenic silica variables are carbon cycle, hence (LT,JT,NOC_CBR)
 
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: silice   ! traceur silice
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: opal     !traceur opal
+       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR), public :: silice   ! traceur silice
+       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR), public :: opal     !traceur opal
        
        REAL(kind=dblp) :: dremopal ! taux de dissolution de silice (à chercher vrai valeur)
        REAL(kind=dblp) :: ropal                      ! ratio Si:P (à chercher valeur à prendre)
-!~        REAL(kind=dblp) :: export                    ! biomasse exporté
        REAL(kind=dblp) :: wopal, wcal                         ! vitesse de chute opal et calcium
        REAL(kind=dblp) :: kremin_carb                         !taux remin car
        REAL(kind=dblp) :: bkopal
 
        
-       !variable à chercher dans iloveclim
-!! est passé en argument à l'appel       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: ptho    ! lambOpal (profil température)
-       REAL(kind=dblp) :: ecan                      ! fraction de mortalité réutilisé immédiatement
-       REAL(kind=dblp) :: eher                        ! fraction brouté qui est utilisé pour metabo (partie redissoute)
-       REAL(kind=dblp) :: phyto_senesc   ! phyto mort naturelle du à l'age (récupérer seulement phyto_senesc)
-       REAL(kind=dblp) :: zoo_mortal   !mortalité du zoo
-       REAL(kind=dblp) :: zoo_egest    !grazing to POC (ejection direct)
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: caco3_m, caco3_m_b_sh, caco3_dif !concentration de caco3 ajuster
        REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: SUE_ca_3D      !chute ca dans colonne d'eau (??)
               
+              
+              
+       public:: init_oceanic_silica, update_silice_opal_caco3
       contains
 
 
 ! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  SUBROUTINE PART >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 ! **********************************************************************************************************************************
-      SUBROUTINE init_oceanic_silica(silice,opal,dremopal,wopal,wcal,bkopal, kremin_carb)
+      SUBROUTINE init_oceanic_silica()
 ! **********************************************************************************************************************************
 
 !!      AUTHOR : Nathan Roquin (nr)
@@ -103,15 +98,6 @@
 !!      CALL : This subroutine is call in "module_file"
 
        implicit none
-
-       ! toutes est variables global
-       real(kind=dblp), DIMENSION(LT,JT,NOC_CBR), intent(inout)   :: silice     ! variablea [kmol/m3]
-       real(kind=dblp), DIMENSION(LT,JT,NOC_CBR), intent(out)   :: opal     ! variableb [kmol/m3]
-       real(kind=dblp), intent(out)  :: dremopal          ! variablec [unit] (de 0.01 à 0.0075)
-       real(kind=dblp), intent(out)  :: wopal !(m/j * fraction j? )
-       real(kind=dblp), intent(out)  :: wcal
-       real(kind=dblp), intent(out)  :: bkopal !(cst)
-       real(kind=dblp), intent(out)  :: kremin_carb !(cst)
 
        ! Local variables
        real(kind=dblp) :: sinkspeed_opal, sinkspeed_cal
