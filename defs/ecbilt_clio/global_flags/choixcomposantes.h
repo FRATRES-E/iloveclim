@@ -375,6 +375,12 @@
 !
 #define ARAG 0
 
+!
+! O no biogenic silica
+! 1 wih biogenic silica added
+!
+#define SILICA 0
+
 ! ################    CLIO OCEAN DEFINITIONS   ###############
 
 !

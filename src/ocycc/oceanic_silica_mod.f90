@@ -29,6 +29,8 @@
        !! display: public private protected
        !! proc_internals: true
 
+#if ( SILICA == 1 )
+
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: oceanic_silica_mod
@@ -70,14 +72,14 @@
        
        REAL(kind=dblp) :: dremopal ! taux de dissolution de silice (à chercher vrai valeur)
        REAL(kind=dblp) :: ropal                      ! ratio Si:P (à chercher valeur à prendre)
-       REAL(kind=dblp) :: export                    ! biomasse exporté
+!~        REAL(kind=dblp) :: export                    ! biomasse exporté
        REAL(kind=dblp) :: wopal, wcal                         ! vitesse de chute opal et calcium
        REAL(kind=dblp) :: kremin_carb                         !taux remin car
        REAL(kind=dblp) :: bkopal
 
        
        !variable à chercher dans iloveclim
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: ptho    ! lambOpal (profil température)
+!! est passé en argument à l'appel       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: ptho    ! lambOpal (profil température)
        REAL(kind=dblp) :: ecan                      ! fraction de mortalité réutilisé immédiatement
        REAL(kind=dblp) :: eher                        ! fraction brouté qui est utilisé pour metabo (partie redissoute)
        REAL(kind=dblp) :: phyto_senesc   ! phyto mort naturelle du à l'age (récupérer seulement phyto_senesc)
@@ -111,18 +113,6 @@
        real(kind=dblp), intent(out)  :: bkopal !(cst)
        real(kind=dblp), intent(out)  :: kremin_carb !(cst)
 
-
-!~        !variables à appeler dans iloveclim
-!~        REAL(kind=dblp), DIMENSION(ni,nj,nk),intent(out) :: ptho    ! lambOpal (profil température) (unit?)
-!~        REAL(kind=dblp), intent(out) :: ecan                      ! fraction de mortalité réutilisé immédiatement (cst)
-!~        REAL(kind=dblp), intent(out) :: eher                        ! fraction brouté qui est utilisé pour metabo (partie redissoute) (cst)
-!~        REAL(kind=dblp), intent(out) :: phyto_senesc   ! phyto mort naturelle du à l'age (récupérer seulement phyto_senesc) [unit?]
-!~        REAL(kind=dblp), intent(out) :: zoo_mortal   !mortalité du zoo [unit?]
-!~        REAL(kind=dblp), intent(out) :: zoo_egest    !grazing to POC (ejection direct) [unit?]
-!~        REAL(kind=dblp), DIMENSION(ni,nj,nk), intent(out) :: caco3_m, caco3_m_b_sh, caco3_dif !concentration de caco3 ajuster [kmol/m3]
-!~        REAL(kind=dblp), DIMENSION(ni,nj,nk), intent(out) :: SUE_ca_3D      !chute ca dans colonne d'eau (??)
-
-
        ! Local variables
        real(kind=dblp) :: sinkspeed_opal, sinkspeed_cal
        real(kind=dblp) :: silica0, silica0surf, opal0
@@ -132,12 +122,8 @@
        INTEGER :: rc,fu
        CHARACTER(len=18)  :: file_path ="oceanic_silica.nml"
 
-
-
-
        NAMELIST /silicaInit/silica0, silica0surf, opal0, dremopal, ropal, sinkspeed_opal, sinkspeed_cal, bkopal, kremin_carb
-  
-   
+     
        INQUIRE (file=file_path, iostat=rc)
 
        IF (rc /= 0) THEN
@@ -168,8 +154,8 @@
 ! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  FUNCTIONS PART >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 !===================================================================================================================================
-      SUBROUTINE update_silice_opal_caco3( dremopal, ptho, opal, silice, ropal, export, &
-      zoo_mortal, ecan, phyto_senesc, zoo_egest, caco3_m, caco3_m_b_sh, caco3_dif) !result(returnValue)
+      SUBROUTINE update_silice_opal_caco3(opalbio, silica, ptho, zoo_mortal, ecan, phyto_senesc, zoo_egest, caco3_m               &
+                                        , caco3_m_b_sh, caco3_dif)
 !===================================================================================================================================
 
 !>      AUTHOR : Nathan Roquin (nr)
@@ -189,64 +175,60 @@
        implicit none
 
        !variables globale
-       REAL(kind=dblp), intent(in) :: dremopal    ![unit]
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR), intent(in)   :: ptho
-       REAL(kind=dblp),DIMENSION(LT,JT,NOC_CBR), intent(inout) :: opal
-       REAL(kind=dblp),DIMENSION(LT,JT,NOC_CBR), intent(inout) :: silice
-       REAL(kind=dblp), intent(in) :: ropal
-       REAL(kind=dblp), intent(inout) :: export
-       REAL(kind=dblp), intent(in) :: zoo_mortal
-       REAL(kind=dblp), intent(in) :: ecan
-       REAL(kind=dblp), intent(in) :: phyto_senesc
-       REAL(kind=dblp), intent(in) :: zoo_egest
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR), intent(inout) :: caco3_m
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR), intent(inout) :: caco3_m_b_sh
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR), intent(inout) :: caco3_dif
+       REAL(kind=dblp), intent(inout) :: opalbio
+       REAL(kind=dblp), intent(inout) :: silica     
+       REAL(kind=dblp), intent(in)    :: ptho
+       REAL(kind=dblp), intent(in)    :: zoo_mortal
+       REAL(kind=dblp), intent(in)    :: ecan
+       REAL(kind=dblp), intent(in)    :: phyto_senesc
+       REAL(kind=dblp), intent(in)    :: zoo_egest
+       REAL(kind=dblp), intent(inout) :: caco3_m
+       REAL(kind=dblp), intent(inout) :: caco3_m_b_sh
+       REAL(kind=dblp), intent(inout) :: caco3_dif
 
 
        !variables locales
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: opalrem     ![unit]
+       REAL(kind=dblp) :: opalrem     ![unit]
        REAL(kind=dblp) :: fac_si
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: avsil
-       REAL(kind=dblp), DIMENSION(LT,JT,NOC_CBR) :: delsil
-
+       REAL(kind=dblp) :: avsil
+       REAL(kind=dblp) :: delsil
+       REAL(kind=dblp) :: export
+       
        INTEGER(kind=ip) :: i,j,k
 
        export = zoo_mortal * (1._dblp - ecan) + phyto_senesc + zoo_egest
 
-       DO i = 1, LT
-         DO k = 1, NOC_CBR
-           DO j = 1, JT
-             !remi de l'opal
-             ! opal a initialisé a 1.e-8_wp (kmol/m3)
-             opalrem(i,k,j) = dremopal * 0.1_dblp * (ptho(i,k,j)+3.0_dblp) * opal(i,k,j)
+!~        opalbio = opal(i,k,j)
+!~        silica  = silice(i,k,j)
 
-             !silice toujours positif
-             avsil(i,k,j) = MAX(0._dblp, silice(i,k,j))
+       !remi de l'opal
+       ! opal a initialisé a 1.e-8_wp (kmol/m3)
+       opalrem = dremopal * 0.1_dblp * (ptho+3.0_dblp) * opalbio !! PB pour i,k,j
 
-             !Michaelis Mentens
-             fac_si = avsil(i,k,j) / (avsil(i,k,j) + bkopal)
+       !silice toujours positif
+       avsil = MAX(0._dblp, silica)
 
-             !croissance opale
-             delsil(i,k,j) = MIN(ropal * fac_si * export, 0.5_dblp * avsil(i,k,j))
+       !Michaelis Mentens
+       fac_si = avsil / (avsil + bkopal)
 
-             !mise à jour silice et opal dans la maille
-             silice(i,k,j)=silice(i,k,j) - delsil(i,k,j) + opalrem(i,k,j)
-             opal(i,k,j)=opal(i,k,j) + delsil(i,k,j) - opalrem(i,k,j)
+       !croissance opale
+       delsil = MIN(ropal * fac_si * export, 0.5_dblp * avsil)
 
-             !-------------------------------------------------------------------------------------------------------
-             !ajout concurence entre caco3 et silice
-             !-------------------------------------------------------------------------------------------------------
+       !mise à jour silice et opal dans la maille
+       silica = silica - delsil + opalrem
+       opalbio = opalbio + delsil - opalrem
 
-             !mise à jour de terme caco3 de iloveclim
-             caco3_m(i,k,j)      = caco3_m(i,k,j)      * fac_si
-             caco3_m_b_sh(i,k,j) = caco3_m_b_sh(i,k,j) * fac_si
-             caco3_dif(i,k,j)    = caco3_dif(i,k,j)    * fac_si
+       !-------------------------------------------------------------------------------------------------------
+       !ajout concurence entre caco3 et silice
+       !-------------------------------------------------------------------------------------------------------
 
-             END DO
-           END DO
-         END DO
+       !mise à jour de terme caco3 de iloveclim
+       caco3_m      = caco3_m      * fac_si
+       caco3_m_b_sh = caco3_m_b_sh * fac_si
+       caco3_dif    = caco3_dif    * fac_si
 
+!~        opal(i,k,j) = opalbio
+!~        silice(i,k,j) = silica
 
       END SUBROUTINE update_silice_opal_caco3
 
@@ -303,6 +285,8 @@
 
       END SUBROUTINE sink_opal_caco3
 
+
+#endif
 !===================================================================================================================================
 
 end module oceanic_silica_mod

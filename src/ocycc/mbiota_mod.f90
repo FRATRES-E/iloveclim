@@ -188,6 +188,10 @@ contains
 
 
     use marine_bio_mod, only: JPROD
+    
+#if ( SILICA == 1 )
+    use oceanic_silica_mod, only: opal, silice, update_silice_opal_caco3
+#endif    
 
 #if ( OOISO == 1 )
     use para0_mod, ONLY: NISOO2     ! required to set the dimensions of the dummy argument OO2
@@ -701,6 +705,13 @@ contains
          caco3_d13C(im,nm)=caco3_d13C(im,nm)-caco3_dif*(OC13(im,J,nm)/ODIC(im,J,nm))*(DVOL(im,J,nm)*SCALE_B)
 
                                     ! [???] Not sure the following is correct
+                                    
+
+#if ( SILICA == 1 )
+        call update_silice_opal_caco3(opal(im,J,nm), silice(im,J,nm), watTemp, zoo_mortal, ecan, phyto_senesc &
+                                    , zoo_egest, caco3_m(im,nm), caco3_m_b_sh(im,nm), caco3_dif)                                     
+#endif                                    
+                                    
 #if ( ARAG == 1 )
 ! "juste une partie de CaCO3:"
 ! [???] Hmmm, je ne sais pas quelle est l'intention ici: "juste une partie de CaCO3"
