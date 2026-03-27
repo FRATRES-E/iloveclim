@@ -21,7 +21,10 @@
 #if ( NEOD >= 1 )
       use neodymium_mod, only: neodymium_init, 
      & scalstart_neodymium, scalend_neodymium, init_source_netcdf,
-     & coeff_init
+     & coeff_init,
+     & dust_source_calculation,
+     & sediment_flux_calculation,
+     & boundary_flux_calculation
 #endif
 
 
@@ -246,6 +249,9 @@ c~       dimension irn(imax,8), jrn(jmax,8)
         call neodymium_init(scal(:,:,:,scalstart_neodymium:scalend_neodymium))
         call init_source_netcdf
         call coeff_init
+        call dust_source_calculation
+        call boundary_flux_calculation ! tva: boundary_flux_calculation HAS TO BE CALLED becore sediment_flux_calculation
+        call sediment_flux_calculation
 #endif
 
 
