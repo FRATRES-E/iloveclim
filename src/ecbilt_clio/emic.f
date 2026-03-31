@@ -168,12 +168,12 @@
       USE OCEAN2COUPL_COM, only: ec_oc2co
 
 #if ( FROG_EXP > 0)
-      use main_lib_FROG, only: INITIALIZE_VAMP, GET_COUPLING_STEP
-     >                         , STEPFWD_VAMP, INITIALIZE_CARBON_STOCK
+      use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
+     >                         , STEPFWD_FROG, INITIALIZE_CARBON_STOCK
 
-      use CPL2FROG_mod,    only: INIT_CPL2VAMP, GET_VAMPVARS
-     &                          , DAILY_UPDATE_VAMPVARS 
-     &                          , RESET_VAMPVARS_TIMER
+      use CPL2FROG_mod,    only: INIT_CPL2FROG, GET_FROGVARS
+     &                          , DAILY_UPDATE_FROGVARS 
+     &                          , RESET_FROGVARS_TIMER
 
       use Carbon,          only: close_carbon_output
 #endif
@@ -482,15 +482,15 @@ cnb try to call first to have the date t update bathy
 
 
 #if ( FROG_EXP > 0 )
-      well_done = INITIALIZE_VAMP()
+      well_done = INITIALIZE_FROG()
       if (well_done) then
         WRITE(*,*) "FROG INITIALIZATION COMPLETE"
       endif
-      well_done = INIT_CPL2VAMP(GET_COUPLING_STEP())
+      well_done = INIT_CPL2FROG(GET_COUPLING_STEP())
 
-      call DAILY_UPDATE_VAMPVARS()
-      well_done = INITIALIZE_CARBON_STOCK(GET_VAMPVARS())
-      call RESET_VAMPVARS_TIMER
+      call DAILY_UPDATE_FROGVARS()
+      well_done = INITIALIZE_CARBON_STOCK(GET_FROGVARS())
+      call RESET_FROGVARS_TIMER
 #endif
 
 #if ( CLIO_OUT_NEWGEN == 1 )
@@ -572,7 +572,7 @@ c~ #endif
           if (j.eq.iatm) then ! dmr end of the day !
 
 #if ( FROG_EXP > 0)
-              call DAILY_UPDATE_VAMPVARS()
+              call DAILY_UPDATE_FROGVARS()
 #endif
 
 
@@ -686,9 +686,9 @@ c~ #endif
 #if ( FROG_EXP > 0)
       if (mod(i,days_year360d_i).eq.0) then
         !!!! FROG
-        well_done = STEPFWD_VAMP(GET_VAMPVARS())
+        well_done = STEPFWD_FROG(GET_FROGVARS())
         WRITE(*,*) "CALLED FROG !!!!"
-        call RESET_VAMPVARS_TIMER
+        call RESET_FROGVARS_TIMER
       endif
 
 #endif

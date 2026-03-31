@@ -627,7 +627,7 @@
              r_leaf(lat,lon)=(b1(lat,lon)+b2g(lat,lon)*sg(lat,lon))/(b1(lat,lon)+b2(lat,lon))
         else 
              r_leaf(lat,lon)=0.0
-             write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
+             !! write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
         endif
         !write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
 #endif

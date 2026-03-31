@@ -57,7 +57,7 @@
        implicit none
        private
 
-       public :: INIT_CPL2VAMP, DAILY_UPDATE_VAMPVARS, RESET_VAMPVARS_TIMER, GET_VAMPVARS
+       public :: INIT_CPL2FROG, DAILY_UPDATE_FROGVARS, RESET_FROGVARS_TIMER, GET_FROGVARS
 
 
        ! NOTE_avoid_public_variables_if_possible
@@ -88,7 +88,7 @@
 !       TODO_YYYY-MM-DD - TODO_describe_appropriate_changes to be done or discussed - TODO_name
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function INIT_CPL2VAMP(nb_days_coupling) result(returnValue)
+      function INIT_CPL2FROG(nb_days_coupling) result(returnValue)
 
 !~        use AnotherModule_mod, only: some_variable          ! brief_description [units]
 !~        use AnotherModule_mod, only: some_otherfunction     ! brief_description [units]
@@ -131,7 +131,7 @@
         returnValue = .true.
 
 
-      end function INIT_CPL2VAMP
+      end function INIT_CPL2FROG
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      End of the function someFunction here
@@ -139,7 +139,7 @@
 
 
 
-      SUBROUTINE DAILY_UPDATE_VAMPVARS()
+      SUBROUTINE DAILY_UPDATE_FROGVARS()
 
         use comoutlocal_mod, only: tsurf1
         use comland_mod,     only: dsnow
@@ -176,17 +176,17 @@
 
 
 
-      end subroutine DAILY_UPDATE_VAMPVARS
+      end subroutine DAILY_UPDATE_FROGVARS
 
 
-      SUBROUTINE RESET_VAMPVARS_TIMER()
+      SUBROUTINE RESET_FROGVARS_TIMER()
 
         storing_time_step = 0
 
-      end subroutine RESET_VAMPVARS_TIMER
+      end subroutine RESET_FROGVARS_TIMER
 
 
-      FUNCTION GET_VAMPVARS() result(send_cpl_fields)
+      FUNCTION GET_FROGVARS() result(send_cpl_fields)
 
         !use veget_mod, only: b3, b4
         use veget_mod, only: b4, Fv
@@ -227,7 +227,7 @@
        !mise a 0 de Fv chaque annee apres envoi au permafrost
        Fv(:,:) = 0.0
 
-      END FUNCTION GET_VAMPVARS
+      END FUNCTION GET_FROGVARS
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
