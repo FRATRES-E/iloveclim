@@ -169,13 +169,15 @@
 
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
-     >                         , STEPFWD_FROG, INITIALIZE_CARBON_STOCK
+     >                         , STEPFWD_FROG, INITIALIZE_FROGVARS
+     >                         , WRITE_FROGRESTART
 
       use CPL2FROG_mod,    only: INIT_CPL2FROG, GET_FROGVARS
-     &                          , DAILY_UPDATE_FROGVARS 
+     &                          , DAILY_UPDATE_FROGVARS
      &                          , RESET_FROGVARS_TIMER
 
-      use Carbon,          only: close_carbon_output
+
+c~       use Carbon,          only: close_carbon_output
 #endif
 
 
@@ -482,14 +484,19 @@ cnb try to call first to have the date t update bathy
 
 
 #if ( FROG_EXP > 0 )
+
       well_done = INITIALIZE_FROG()
+
       if (well_done) then
         WRITE(*,*) "FROG INITIALIZATION COMPLETE"
       endif
+
       well_done = INIT_CPL2FROG(GET_COUPLING_STEP())
 
       call DAILY_UPDATE_FROGVARS()
-      well_done = INITIALIZE_CARBON_STOCK(GET_FROGVARS())
+
+      well_done = INITIALIZE_FROGVARS(GET_FROGVARS())
+
       call RESET_FROGVARS_TIMER
 #endif
 
@@ -949,7 +956,8 @@ c~ #endif /* LONG_SED_RUN*/
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
 #if ( FROG_EXP > 0 )
-      CALL close_carbon_output()
+      CALL WRITE_FROGRESTART()
+c~       CALL close_carbon_output()
 #endif
 
 
