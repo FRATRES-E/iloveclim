@@ -51,9 +51,10 @@
      &             , cav_la13, cav_la14, cav_la14_b, cav_la_b, cav_la_p, cav_oc
      &             , cav_oc13, cav_oc14, cav_oc14_b, cav_oc2, cav_oc_b, cav_oc_p
      &             , coc_odoc, coc_odoc13, coc_odocs, coc_odocs13, dc13at_ini
-     &             , fc14la, fc14oa
+     &             , fc14la, fc14oa, cav_la14_b_rest, cav_oc14_b_rest
      &             , emis_cum, emis_c13_cum
      &             , emis_perm_cum, emis_perm_c13_cum
+     &             , cav_la14_b_rest, cav_oc14_b_rest
 
       use loveclim_transfer_mod, only: KLSR
 
@@ -299,6 +300,7 @@ cvm&dmr --- Change unit of ca14_oc_ini to be consistent in use for cav_oc14_b
 #if ( KC14 == 1 )
           WRITE(*,*) 'C14 ocean from restart ca14_oc_rest', ca14_oc_rest
           ca14_oc_ini=ca14_oc_rest ! overwrite initial value using restart
+          cav_oc14_b=cav_oc14_b_rest
 #endif
         endif
 
@@ -394,6 +396,7 @@ Carbone -> vm
           WRITE(*,*) 'C14 vegetation from restart ca14_la_rest' ,
      &    ca14_la_rest
           ca14_la_ini=ca14_la_rest ! overwrite initial value using restart
+          cav_la14_b=cav_la14_b_rest
 #endif
        endif
 
