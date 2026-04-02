@@ -329,7 +329,7 @@
        
        !quick check of crazy values
        write(*,*) "min max ir_sediment_transform 1", minval(ir_sediment_transform), maxval(ir_sediment_transform)
-       write(*,*) "min max seafloor_without_marge_mask_transform 1", minval(seafloor_without_marge_mask_transform), maxval(seafloor_without_marge_mask_transform)
+       ! write(*,*) "min max seafloor_without_marge_mask_transform 1", minval(seafloor_without_marge_mask_transform), maxval(seafloor_without_marge_mask_transform)
        
        !quick fix
        where (ir_sediment_transform > 1000._dp)
@@ -341,7 +341,7 @@
        end where
 
        write(*,*) "min max ir_sediment_transform 2", minval(ir_sediment_transform), maxval(ir_sediment_transform)
-       write(*,*) "min max seafloor_without_marge_mask_transform 2", minval(seafloor_without_marge_mask_transform), maxval(seafloor_without_marge_mask_transform)
+       ! write(*,*) "min max seafloor_without_marge_mask_transform 2", minval(seafloor_without_marge_mask_transform), maxval(seafloor_without_marge_mask_transform)
 
 
 !BOUNDARY CONTINENTAL MARGIN
@@ -626,11 +626,15 @@
               !WRITE(*,*) "sediment_source_Nd tot", minval(sediment_source_Nd), maxval(sediment_source_Nd)
        end if 
 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
        if (flag_sediment_eNd == 2 ) then 
               seafloor_without_marge_area =0._dp
               do i=1,imax_loc
                      do j=1,jmax_loc
-                            seafloor_without_marge_area = seafloor_without_marge_area + tms(i,j,kfs(i,j))*seafloor_without_marge_mask_transform(i,j)*dxc1(i,j)*dxc2(i,j)
+                            seafloor_without_marge_area = seafloor_without_marge_area + tms(i,j,kfs(i,j))& 
+                                    *seafloor_without_marge_mask_transform(i,j)*dxc1(i,j)*dxc2(i,j)
                      end do
               end do
 
@@ -655,7 +659,8 @@
               sediment_source_Nd_tot=sediment_source_Nd_tot+sediment_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)*tms(i,j,kfs(i,j))*86400*360
             end if 
             if (flag_sediment_eNd == 2 ) then
-              sediment_source_Nd_tot=sediment_source_Nd_tot+sediment_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)*seafloor_without_marge_mask_transform(i,j)*tms(i,j,kfs(i,j))*86400*360
+              sediment_source_Nd_tot=sediment_source_Nd_tot+sediment_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)&
+                      *seafloor_without_marge_mask_transform(i,j)*tms(i,j,kfs(i,j))*86400*360
             end if 
           end do
        end do
@@ -762,7 +767,10 @@
 
 
       
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Calculation of [Nd] in the dissolve phase for each isotope and each particle type
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
        do n=1,nb_trac
           do i=1,imax_loc       
              do j=1,jmax_loc
@@ -772,10 +780,10 @@
                    endif
 
                    if (flag_particule == 2) then
-                     denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)  * kcaco3(i,j,k,n))
+                     denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)*kcaco3(i,j,k,n))
                    end if
                    if (flag_particule == 1 .or. flag_particule == 3) then                   
-                     denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)  * kcaco3(i,j,k,n) +  opal(i,j,k)  * kdsi(i,j,k,n))
+                     denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)*kcaco3(i,j,k,n)+opal(i,j,k)*kdsi(i,j,k,n))
                    end if
 
                    neod_diss(i,j,k,n) = (neodymium(i,j,k,n) / denum(i,j,k,n))*tms(i,j,k)
@@ -784,8 +792,10 @@
              end do
           end do
        end do
-       
+        
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Calculation of [Nd] in the particulate phase for each isotope and each particle type
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
        do n=1,nb_trac
           do i=1,imax_loc       
              do j=1,jmax_loc
@@ -798,7 +808,7 @@
                      mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k) * kcaco3(i,j,k,n)))
                    end if
                    if (flag_particule == 1 .or. flag_particule == 3) then    
-                     mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k) * kcaco3(i,j,k,n))+  opal(i,j,k)  * kdsi(i,j,k,n))
+                     mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k)*kcaco3(i,j,k,n))+opal(i,j,k)*kdsi(i,j,k,n))
                    end if
 
                    neod_part(i,j,k,n) = neod_diss(i,j,k,n) * mult(i,j,k,n) *tms(i,j,k)
@@ -906,11 +916,12 @@
               neodymium(:,:,ks2,nd144) = neodymium(:,:,ks2,nd144) + ((river_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
          end if        
 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
          if (flag_dust_eNd == 1 .and. flag_river_eNd == 1) then 
               !call dust_source_calculation -> called in ini
               call river_source_calculation
-              neodymium(:,:,ks2,nd143) = neodymium(:,:,ks2,nd143) + ((dust_source_143Nd + river_source_143Nd)/dz(ks2))*tms(:,:,ks2)*86400
-              neodymium(:,:,ks2,nd144) = neodymium(:,:,ks2,nd144) + ((dust_source_144Nd + river_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
+              neodymium(:,:,ks2,nd143)=neodymium(:,:,ks2,nd143)+((dust_source_143Nd+river_source_143Nd)/dz(ks2))*tms(:,:,ks2)*86400
+              neodymium(:,:,ks2,nd144)=neodymium(:,:,ks2,nd144)+((dust_source_144Nd+river_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
          end if
 
          if (flag_boundary_eNd == 1) then 
@@ -918,19 +929,23 @@
               do i=1,imax_loc
                      do j=1,jmax_loc
                             do k = 1, kmax_loc
-                            neodymium(i,j,k,nd143) = neodymium(i,j,k,nd143) + (boundary_source_143Nd(i,j,k)/dz(k))*tms(i,j,k)*86400
-                            neodymium(i,j,k,nd144) = neodymium(i,j,k,nd144) + (boundary_source_144Nd(i,j,k)/dz(k))*tms(i,j,k)*86400 
+                            neodymium(i,j,k,nd143)=neodymium(i,j,k,nd143)+(boundary_source_143Nd(i,j,k)/dz(k))*tms(i,j,k)*86400
+                            neodymium(i,j,k,nd144)=neodymium(i,j,k,nd144)+(boundary_source_144Nd(i,j,k)/dz(k))*tms(i,j,k)*86400 
                             end do
                      end do
               end do   
          end if
 
          if (flag_sediment_eNd == 1 .or. flag_sediment_eNd == 2) then 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
               !call sediment_flux_calculation -> called in ini
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
               do i=1,imax_loc
                      do j=1,jmax_loc
-                            neodymium(i,j,kfs(i,j),nd143) = neodymium(i,j,kfs(i,j),nd143) + (sediment_source_143Nd(i,j)/dz(kfs(i,j)))*tms(i,j,kfs(i,j))*86400
-                            neodymium(i,j,kfs(i,j),nd144) = neodymium(i,j,kfs(i,j),nd144) + (sediment_source_144Nd(i,j)/dz(kfs(i,j)))*tms(i,j,kfs(i,j))*86400       
+                            neodymium(i,j,kfs(i,j),nd143) = neodymium(i,j,kfs(i,j),nd143) & 
+                                    + (sediment_source_143Nd(i,j)/dz(kfs(i,j)))*tms(i,j,kfs(i,j))*86400
+                            neodymium(i,j,kfs(i,j),nd144) = neodymium(i,j,kfs(i,j),nd144) &
+                                    + (sediment_source_144Nd(i,j)/dz(kfs(i,j)))*tms(i,j,kfs(i,j))*86400       
                      end do
               end do   
          end if
