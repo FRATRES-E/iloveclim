@@ -956,7 +956,7 @@ c~ #endif /* LONG_SED_RUN*/
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
 #if ( FROG_EXP > 0 )
-      CALL WRITE_FROGRESTART()
+      well_done = WRITE_FROGRESTART()
 c~       CALL close_carbon_output()
 #endif
 
