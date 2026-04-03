@@ -101,6 +101,11 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
       use coral_mod, only: restart_coral
 #endif
 
+
+#if ( FROG_EXP > 0)
+      use main_lib_FROG, only: WRITE_FROGRESTART
+#endif
+
       use newunit_mod, only: newunit_id, wisocpl_restart_id
       use landmodel_mod, only: ec_wrendland
 
@@ -124,7 +129,8 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 !     dmr ---
        CHARACTER*300 ::  REPERTOIRE, COMMANDE, file_move, file_dest
        INTEGER (KIND=4) :: ETAT
-       LOGICAL :: RESULT, existant
+       LOGICAL :: RESULT, existant, well_done
+       CHARACTER(len=256) :: the_file_name
 
 #if ( IFORT_USAGE == 0 )
        integer :: resultat
@@ -792,6 +798,14 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 #endif
 #endif
+
+#if ( FROG_EXP > 0 )
+            well_done = WRITE_FROGRESTART(0, filename=the_file_name)
+            COMMANDE='mv '//trim(the_file_name)//' '//TRIM(REPERTOIRE)//'/.'
+            call system(TRIM(COMMANDE))
+#endif
+
+
 
          endif
       endif
