@@ -36,8 +36,6 @@
       use comemic_mod, only: new_year_atm, new_year_veg, time_in_years
      &                     , current_int_atm, current_int_veg
 
-      use comemic_mod, only: pretty_print_exec_time
-
 ! dmr comsurf is needed for the variables:
 ! epss (epsilon, small?)
 ! nld  (n land = number for land in mixed arrays)
@@ -184,6 +182,8 @@ c~       use Carbon,          only: close_carbon_output
       use landmodel_mod, only: ec_la2co, ec_co2la, ec_lbm, ec_lae2co
 c~      >                       , ec_sumfluxland
 
+      use infodisplay_mod, only: write_em, write_im
+      use face, only: styles_samples, colors_samples
 
       implicit none
 
@@ -223,11 +223,13 @@ c~      >                       , ec_sumfluxland
 !       Main code of the program starts here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 
-      call pretty_print_exec_time("Start Execution")
+      call write_im("Execution started", "EMIC MAIN")
+c~       call styles_samples
+c~       call colors_samples
 
-!$OMP PARALLEL
-      WRITE(*,*) "ECHO OMP ..."
-!$OMP END PARALLEL
+c~ !$OMP PARALLEL
+c~       WRITE(*,*) "ECHO OMP ..."
+c~ !$OMP END PARALLEL
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
 ! dmr   Call of the different components of init => place in a general INIT routine?
@@ -488,7 +490,7 @@ cnb try to call first to have the date t update bathy
       well_done = INITIALIZE_FROG()
 
       if (well_done) then
-        WRITE(*,*) "FROG INITIALIZATION COMPLETE"
+        call write_im("FROG INITIALIZATION COMPLETE", "EMIC MAIN")
       endif
 
       well_done = INIT_CPL2FROG(GET_COUPLING_STEP())
@@ -510,6 +512,7 @@ cnb try to call first to have the date t update bathy
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
 
 !     *** OCEAN-SEAICE >>
+      call write_im("Finalized init", "EMIC MAIN")
 
 ! dmr  i = the counter of days in the integration
       do i=1,ntotday
@@ -989,7 +992,7 @@ c~ #endif /* LONG_SED_RUN*/
 !     Finalize the screen printing
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
-      call pretty_print_exec_time("End Execution")
+      call write_im("Execution ended", "EMIC MAIN")
 
 ! --- BdB 05-2019: deallocate array of output years
       deallocate(time_in_years)
