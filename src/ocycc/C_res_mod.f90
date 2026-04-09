@@ -62,8 +62,8 @@ REAL*8 :: c13atm, c13init
 #if ( KC14 == 1 )
 
 REAL(KIND=8) :: ca14_oc_ini, ca14_la_ini, cav_oc14_b, cav_oc14=0.0d0, cav_oc_b &
-, cav_la14_b, cav_la14=0.0d0, cav_la_b, ca14_oc_rest, ca14_la_rest             &
-, cav_la14_b_rest, cav_oc14_b_rest
+, cav_la14_b, cav_la14=0.0d0, cav_la_b, cav_oc14_rest, cav_la14_rest             &
+, cav_la14_b_rest, cav_oc14_b_rest, cav_oc_b_rest, cav_la_b_rest
 !dmr&vm --- Fluxes
 REAL(KIND=8) :: FC12OA,FC12LA,FC14OA, FC14LA
 

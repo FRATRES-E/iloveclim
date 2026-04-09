@@ -29,7 +29,7 @@
 #endif
 
 
-       INTEGER, PARAMETER :: new_run_c = 1
+       INTEGER, PARAMETER :: new_run_c = 0
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !       Declaration des CO2 initiaux et courant

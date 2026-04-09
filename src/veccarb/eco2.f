@@ -46,7 +46,7 @@
 
       use C_res_mod,      only: c13atm, ca13_at_ini, ca13_la_ini
      &             , ca13_la_rest, ca13_oc_ini, ca13_oc_rest, ca14_la_ini
-     &             , ca14_la_rest, ca14_oc_ini, ca14_oc_rest, ca_la_ini
+     &             , cav_la14_rest, ca14_oc_ini, cav_oc14_rest, ca_la_ini
      &             , ca_la_rest, ca_oc_ini, ca_oc_rest, ca_oc_vol, cav_la
      &             , cav_la13, cav_la14, cav_la14_b, cav_la_b, cav_la_p, cav_oc
      &             , cav_oc13, cav_oc14, cav_oc14_b, cav_oc2, cav_oc_b, cav_oc_p
@@ -55,6 +55,7 @@
      &             , emis_cum, emis_c13_cum
      &             , emis_perm_cum, emis_perm_c13_cum
      &             , cav_la14_b_rest, cav_oc14_b_rest
+     &             , cav_la_b_rest, cav_oc_b_rest
 
       use loveclim_transfer_mod, only: KLSR
 
@@ -298,9 +299,10 @@ cvm&dmr --- Change unit of ca14_oc_ini to be consistent in use for cav_oc14_b
           WRITE(*,*) 'C13 ocean from restart ca13_oc_rest', ca13_oc_rest
           ca13_oc_ini=ca13_oc_rest ! overwrite initial value using restart
 #if ( KC14 == 1 )
-          WRITE(*,*) 'C14 ocean from restart ca14_oc_rest', ca14_oc_rest
-          ca14_oc_ini=ca14_oc_rest ! overwrite initial value using restart
+          WRITE(*,*) 'C14 ocean from restart ca14_oc_rest', cav_oc14_rest
+          ca14_oc_ini=cav_oc14_rest ! overwrite initial value using restart
           cav_oc14_b=cav_oc14_b_rest
+          cav_oc_b=cav_oc_b_rest
 #endif
         endif
 
@@ -394,9 +396,10 @@ Carbone -> vm
           ca13_la_ini=ca13_la_rest ! overwrite initial value using restart
 #if ( KC14 == 1 )
           WRITE(*,*) 'C14 vegetation from restart ca14_la_rest' ,
-     &    ca14_la_rest
-          ca14_la_ini=ca14_la_rest ! overwrite initial value using restart
+     &    cav_la14_rest
+          ca14_la_ini=cav_la14_rest ! overwrite initial value using restart
           cav_la14_b=cav_la14_b_rest
+          cav_la_b=cav_la_b_rest
 #endif
        endif
 

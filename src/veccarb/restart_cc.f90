@@ -23,12 +23,14 @@
 !   INSERER ICI LES EVENTUELS "USE MODULE"
 !       USE declars_mod !cnb
        USE C_res_mod, ONLY: ca_oc_rest, ca_la_rest, cav_oc, cav_la      &
-                         ,ca13_oc_rest,ca13_la_rest,cav_oc13,cav_la13   &
-                         ,c13atm,c13atm_rest, alk_oc_rest
+                         , ca13_oc_rest,ca13_la_rest,cav_oc13,cav_la13  &
+                         , c13atm,c13atm_rest, alk_oc_rest
 #if ( KC14 == 1 )
-       use C_res_mod, only: ca14_oc_rest,ca14_la_rest,cav_oc14,cav_la14 &
-                         ,cav_oc14_b, cav_la14_b, cav_oc14_b_rest       &
-                         ,cav_la14_b_rest 
+       use C_res_mod, only: cav_oc14_rest,cav_la14_rest,cav_oc14,cav_la14 &
+                         , cav_oc14_b, cav_la14_b, cav_oc14_b_rest      &
+                         , cav_la14_b_rest                              &
+                         , cav_oc_b_rest, cav_la_b_rest                 &
+                         ,  cav_oc_b, cav_la_b
 #endif
 
        USE carbone_co2, ONLY: PA0_C, PA_C, C14ATM, C14ATM_rest
@@ -87,13 +89,15 @@
         c13atm_rest=c13atm
         alk_oc_rest=OALK_ini
 #if ( KC14 == 1 )
-       nrecl = 12 !nb of variables written
+       nrecl = 14 !nb of variables written
        nrecl = nrecl * KIND(PA0_C)
-        ca14_oc_rest=cav_oc14
-        ca14_la_rest=cav_la14
+        cav_oc14_rest=cav_oc14
+        cav_la14_rest=cav_la14
         c14atm_rest=c14atm
         cav_oc14_b_rest=cav_oc14_b
-        cav_la14_b_rest=cav_la14_b     
+        cav_la14_b_rest=cav_la14_b    
+        cav_oc_b_rest=cav_oc_b
+        cav_la_b_rest=cav_la_b 
 #endif
 
         OPEN(UNIT=fich_num, FILE=fich_res_name, STATUS='unknown',       &
@@ -104,8 +108,9 @@
                      ca_oc_rest, ca_la_rest, PA_C                       &
                      ,ca13_oc_rest, ca13_la_rest, c13atm_rest           &
                      ,alk_oc_rest                                       &
-                     ,ca14_oc_rest, ca14_la_rest, c14atm_rest           &
-                     ,cav_oc14_b_rest, cav_la14_b_rest          
+                     ,cav_oc14_rest, cav_la14_rest, c14atm_rest           &
+                     ,cav_oc14_b_rest, cav_la14_b_rest                  &
+                     ,cav_oc_b_rest, cav_la_b_rest
 #else
         WRITE(UNIT=fich_num, REC=1)                                     &
                      ca_oc_rest, ca_la_rest, PA_C                       &
@@ -115,9 +120,9 @@
 
         CLOSE(UNIT=fich_num)
 
-        write(*,*), "write carbon values in rest_cc.dat"
-        write(*,*), ca_oc_rest,ca_la_rest,ca13_oc_rest,ca13_la_rest
-        write(*,*), PA_C, c13atm_rest, alk_oc_rest
+        write(*,*) "write carbon values in rest_cc.dat"
+        write(*,*) ca_oc_rest,ca_la_rest,ca13_oc_rest,ca13_la_rest
+        write(*,*) PA_C, c13atm_rest, alk_oc_rest
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !       Cas ou l'on lit le restart
@@ -127,7 +132,7 @@
 !       nrecl = 9 !9 variables written
 !       nrecl = nrecl * KIND(PA0_C)
 #if ( KC14 == 1 )
-       nrecl = 10 !10 variables read (then 12)
+       nrecl = 14 !10 variables read (then 14)
        nrecl = nrecl * KIND(PA0_C)
 #endif
 
@@ -143,8 +148,9 @@
                      ca_oc_rest, ca_la_rest, PA_C                       &
                      ,ca13_oc_rest, ca13_la_rest, c13atm_rest           &
                      ,alk_oc_rest                                       &
-                     ,ca14_oc_rest, ca14_la_rest, c14atm_rest           !&
-                     !,cav_oc14_b_rest, cav_la14_b_rest   
+                     ,cav_oc14_rest, cav_la14_rest, c14atm_rest           &
+                     ,cav_oc14_b_rest, cav_la14_b_rest                  &
+                     ,cav_oc_b_rest, cav_la_b_rest
 #else
         READ(UNIT=fich_num,REC=1)                                       &
                      ca_oc_rest, ca_la_rest, PA_C                       &
@@ -157,10 +163,17 @@
        PA0_C = PA_C
        c13atm=c13atm_rest
 #if ( KC14 == 1 )
-       c14atm=c14atm_rest
+        c14atm=c14atm_rest
+        cav_oc14=cav_oc14_rest
+        cav_la14=cav_la14_rest
+        cav_oc14_b=cav_oc14_b_rest
+        cav_la14_b=cav_la14_b_rest
+        cav_oc_b=cav_oc_b_rest
+        cav_la_b=cav_la_b_rest
+
 #endif
-       write(*,*), "initialisation of atmospheric carbon"
-       write(*,*), PA0_C, c13atm, c14atm
+       write(*,*) "initialisation of atmospheric carbon"
+       write(*,*) PA0_C, c13atm, c14atm
 
 !alkalinity in ocean
        OALK_ini=alk_oc_rest
