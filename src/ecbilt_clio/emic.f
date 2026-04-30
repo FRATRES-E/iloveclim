@@ -168,11 +168,12 @@
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
      >                         , STEPFWD_FROG, INITIALIZE_FROGVARS
-     >                         , WRITE_FROGRESTART
+     >                         , WRITE_FROGRESTART, FEEDBACK_FROG
 
       use CPL2FROG_mod,    only: INIT_CPL2FROG, GET_FROGVARS
      &                          , DAILY_UPDATE_FROGVARS
      &                          , RESET_FROGVARS_TIMER
+     &                          , SET_FROG_FEEDBACK
 
 
 c~       use Carbon,          only: close_carbon_output
@@ -698,6 +699,7 @@ c~ #endif
         !!!! FROG
         well_done = STEPFWD_FROG(GET_FROGVARS())
         WRITE(*,*) "CALLED FROG !!!!"
+        well_done = SET_FROG_FEEDBACK(FEEDBACK_FROG())
         call RESET_FROGVARS_TIMER
       endif
 

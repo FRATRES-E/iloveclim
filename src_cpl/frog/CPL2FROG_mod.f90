@@ -52,12 +52,12 @@
 #if ( FROG_EXP > 0 )
 
        use global_constants_mod, only: sp
-       use main_lib_FROG,      only: cpl_fields
+       use main_lib_FROG,      only: cpl_fields, cpl_feedback
 
        implicit none
        private
 
-       public :: INIT_CPL2FROG, DAILY_UPDATE_FROGVARS, RESET_FROGVARS_TIMER, GET_FROGVARS
+       public :: INIT_CPL2FROG, DAILY_UPDATE_FROGVARS, RESET_FROGVARS_TIMER, GET_FROGVARS, SET_FROG_FEEDBACK
 
 
        ! NOTE_avoid_public_variables_if_possible
@@ -186,6 +186,20 @@
       end subroutine RESET_FROGVARS_TIMER
 
 
+      FUNCTION SET_FROG_FEEDBACK(receive_frog_fields) result(resulting_code)
+
+        type(cpl_feedback), intent(in) :: receive_frog_fields
+
+        logical :: resulting_code
+
+!dmr --- A remplir en fonction des besoins
+!~         variable_de_destination = receive_frog_fields%deep_C_sumtot
+
+        resulting_code = .TRUE.
+
+      END FUNCTION SET_FROG_FEEDBACK
+
+
       FUNCTION GET_FROGVARS() result(send_cpl_fields)
 
         !use veget_mod, only: b3, b4
@@ -200,8 +214,8 @@
         real, dimension(nlat, nlon) :: darea_2d
         real, dimension(nlat, nlon) :: fracgr
         integer :: j
- 
-        do j=1,nlon 
+
+        do j=1,nlon
           darea_2d(:,j)=darea(:)
         enddo
         fracgr(:,:)=fractn(:,:,nld) !fraction of land in grid cell
