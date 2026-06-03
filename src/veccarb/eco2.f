@@ -99,8 +99,9 @@
 ! dmr   VECODE carbon cycle variables
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 
-      use veget_mod,      only: carea, sg, b4g, st, b4t, b3g, b3t
+      use veget_mod,      only: sg, b4g, st, b4t, b3g, b3t
      &                        , b2g,b2t,b1g, b1t
+      use bio_mod, only: carea
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 ! dmr   CARAIB carbon cycle variables
