@@ -68,4 +68,8 @@
        real, dimension(nb_emis) :: cemis
 #endif
 
+#if ( FROG_EXP == 1 )
+       real deepC ! carbone from permafrost module that replaces b4
+#endif
+
        END MODULE carbone_co2

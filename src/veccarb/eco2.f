@@ -62,6 +62,9 @@
 #if ( IMSK == 1 )
       use input_icemask,  only: icemask
 #endif
+#if ( FROG_EXP ==1 )
+      use carbone_co2,    only: deepC ! carbon from permafrost (soil organic carbon)
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 ! dmr  Marine carbon cycle variables
@@ -140,6 +143,7 @@
 #if ( CORAL == 1 )
        real(kind=dblp) :: ca_car_a
 #endif
+       real(kind=dblp) :: b4t_temp, b4g_temp
 !dmr&nb [TODO] !!
 !tbd #if ( MEDUSA == 1 )
 !       real(kind=dblp) :: delta_carb_MEDUSA
@@ -319,10 +323,16 @@ cvm&dmr --- Change unit of ca14_oc_ini to be consistent in use for cav_oc14_b
             !write(*,*) 'carea', i,k, carea(i,k), veget_frac(i,k)
 #endif
 #if ( CARAIB == 0 )
+         b4t_temp=b4t(i,k)
+         b4g_temp=b4g(i,k)
+#if ( FROG_EXP == 1 )
+         b4t_temp=0.0
+         b4g_temp=0.0
+#endif
 #if ( IMSK == 1 )
             ca_la_ini=ca_la_ini+(b1t(i,k)*st(i,k)+b1g(i,k)*sg(i,k)
      <  +b2t(i,k)*st(i,k)+b2g(i,k)*sg(i,k)+b3t(i,k)*st(i,k)
-     <  +b3g(i,k)*sg(i,k)+b4t(i,k)*st(i,k)+b4g(i,k)*sg(i,k))
+     <  +b3g(i,k)*sg(i,k)+b4t_temp*st(i,k)+b4g_temp*sg(i,k))
      <  *carea(i,k)*(1.-icemask(i,k))
             ca13_la_ini=ca13_la_ini+((b1t13(i,k)+b2t13(i,k)+b3t13(i,k)
      >  +b4t13(i,k))*st(i,k)+(b1g13(i,k)+b2g13(i,k)+
@@ -338,7 +348,7 @@ cvm&dmr --- Change unit of ca14_oc_ini to be consistent in use for cav_oc14_b
 #else /* IMSK != 1 */
             ca_la_ini=ca_la_ini+(b1t(i,k)*st(i,k)+b1g(i,k)*sg(i,k)
      <  +b2t(i,k)*st(i,k)+b2g(i,k)*sg(i,k)+b3t(i,k)*st(i,k)
-     <  +b3g(i,k)*sg(i,k)+b4t(i,k)*st(i,k)+b4g(i,k)*sg(i,k))
+     <  +b3g(i,k)*sg(i,k)+b4t_temp*st(i,k)+b4g_temp*sg(i,k))
      <  *carea(i,k)*(1.)                              !Giga Tonnes Carbone -> vm
             ca13_la_ini=ca13_la_ini+((b1t13(i,k)+b2t13(i,k)+b3t13(i,k)
      >  +b4t13(i,k))*st(i,k)+(b1g13(i,k)+b2g13(i,k)+
@@ -379,6 +389,11 @@ Carbone -> vm
            endif
           enddo
         enddo
+
+#if ( FROG_EXP == 1 )
+       !write(*,*) 'deepC ini ', deepC
+       ca_la_ini=ca_la_ini+deepC ! add soil carbon when FROG is activated
+#endif
 
         ca13_la_ini=ca13_la_ini-1000.*ca_la_ini
 
@@ -538,11 +553,18 @@ cvm continentale pour chaque isotope du carbone
 #endif
 
 #if ( CARAIB == 0 )
+         b4t_temp=b4t(i,k)
+         b4g_temp=b4g(i,k)
+#if ( FROG_EXP == 1 )
+         b4t_temp=0.0
+         b4g_temp=0.0
+#endif
 #if ( IMSK == 1 )
             cav_la=cav_la+(b1t(i,k)*st(i,k)+b1g(i,k)*sg(i,k)
      <  +b2t(i,k)*st(i,k)+b2g(i,k)*sg(i,k)+b3t(i,k)*st(i,k)
-     <  +b3g(i,k)*sg(i,k)+b4t(i,k)*st(i,k)+b4g(i,k)*sg(i,k))
+     <  +b3g(i,k)*sg(i,k)+b4t_temp*st(i,k)+b4g_temp*sg(i,k))
      <  *carea(i,k)*(1.-icemask(i,k))
+
 
             cav_la13=cav_la13+((b1t13(i,k)+b2t13(i,k)+b3t13(i,k)
      >  +b4t13(i,k))*st(i,k)+(b1g13(i,k)+b2g13(i,k)+
@@ -558,7 +580,7 @@ cvm continentale pour chaque isotope du carbone
 #else /* IMSK != 1 */
             cav_la=cav_la+(b1t(i,k)*st(i,k)+b1g(i,k)*sg(i,k)
      <  +b2t(i,k)*st(i,k)+b2g(i,k)*sg(i,k)+b3t(i,k)*st(i,k)
-     <  +b3g(i,k)*sg(i,k)+b4t(i,k)*st(i,k)+b4g(i,k)*sg(i,k))
+     <  +b3g(i,k)*sg(i,k)+b4t_temp*st(i,k)+b4g_temp*sg(i,k))
      <  *carea(i,k)*(1.)
             cav_la13=cav_la13+((b1t13(i,k)+b2t13(i,k)+b3t13(i,k)
      >  +b4t13(i,k))*st(i,k)+(b1g13(i,k)+b2g13(i,k)+
@@ -602,6 +624,11 @@ cvm continentale pour chaque isotope du carbone
            endif
           enddo
         enddo
+
+#if ( FROG_EXP == 1 )
+       !write(*,*) 'deepC ', deepC
+       cav_la=cav_la+deepC ! add soil carbon when FROG is activated
+#endif
 
 #if ( CARAIB > 0 )
       cav_la=stock_carbon_caraib*1e-15 !in PgC

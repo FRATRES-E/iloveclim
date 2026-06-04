@@ -188,12 +188,15 @@
 
       FUNCTION SET_FROG_FEEDBACK(receive_frog_fields) result(resulting_code)
 
+        use carbone_co2, only: deepC
+
         type(cpl_feedback), intent(in) :: receive_frog_fields
 
         logical :: resulting_code
 
 !dmr --- A remplir en fonction des besoins
 !~         variable_de_destination = receive_frog_fields%deep_C_sumtot
+         deepC = receive_frog_fields%deep_C_sumtot * 1e-15 ! from gC to GtC 
 
         resulting_code = .TRUE.
 
