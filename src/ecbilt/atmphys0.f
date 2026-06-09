@@ -2973,24 +2973,16 @@ c~ #endif
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       USE comatm
       USE comdyn
       USE comphys
       use comrunlabel_mod, only: irunlabelf
-c~ #endif
 
       USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       INTEGER :: i,j,k
@@ -3680,17 +3672,11 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       use comdyn, only: nlon,nlat,pw
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j
@@ -3733,18 +3719,11 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       use comphys, only: temp0g,temp2g,temp4g,tempm
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
 
@@ -3772,22 +3751,14 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       use comatm, only: rgas
       USE comdyn, only: ntl,geopg
       USE comphys, only: nlon,nlat,temp2g,temp4g,tempm
       !use comrunlabel_mod, only: irunlabelf
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,l
@@ -3840,23 +3811,15 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       use comatm, only: om,cosfi
       USE comdyn, only: pp,psi,for,dfor1,dfor2,forcgg1,rinhel,iartif,
      &                  ipvf1,ipvf2,ipvf3,ipvf4,ipvf5
       USE comphys, only: nlon,nlat,nvl,nsh2,vfor1,vfor2,vfor3,vforg1,
      &                   vforg1,vforg2,vforg3,vhforg1,vhforg2
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,k,l
@@ -3979,21 +3942,13 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       USE comatm, only: fzero, radius, om, rgas, sinfi, dp
       USE comdyn, only: pp, rrdef1,rrdef2
       USE comphys, only: nlon,nlat,nvl,nsh2,vhforg1,vhforg2
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,k,l
@@ -4050,21 +4005,13 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       USE comatm, only: om,cosfi,radius
       USE comdyn, only: vdivg
       USE comphys, only: nlon,nlat,nvl
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,k,l
@@ -4092,20 +4039,12 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       USE comdyn, only: divg
       USE comphys, only: nlon,nlat,nvl
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,k,l
@@ -4132,21 +4071,13 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       USE comatm, only: radius,cosfi
       USE comdyn, only: pp,pd,udivg,vdivg
       USE comphys, only: nlon,nlat,nvl,nsh2
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,k,l
@@ -4182,21 +4113,13 @@ c~ [DEPRECATED]
 !-----------------------------------------------------------------------
 
 
-c~ #if ( COMATM == 1 )
       USE comatm, only: radius,om,cosfi,sinfi,fzero
       USE comdyn, only: pp,pd,psi,udivg,vdivg,rrdef1,rrdef2
       USE comphys, only: nlon,nlat,nvl,nsh2
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comrunlabel.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,k,l
@@ -4291,13 +4214,11 @@ c~ [DEPRECATED]
 ! ***                             the surface
 !-----------------------------------------------------------------------
 
-c~ #if ( COMATM == 1 )
       use comphys, only: nlon,nlat,irn,ipl,tncep,dtemp,qancep,tcc,expir,
      &                   ghgscen,ghgipcc,lwrt,lwrts,lwrqa,lwrref,lwrghg,
      &                   lwrqts
       use comemic_mod, only: iyear, imonth
       use comsurf_mod, only: nse,noc,nld,tsurfn,fractn,lwrmois
-c~ #endif
 
       use ipcc_output_mod, only: moc,tmc,tmc0,tsurfmean,cland,thex
       use commons_mod,     only: ulrad0nz,ulrad1nz,ulrad0nT,ulrad1nT
@@ -4307,14 +4228,6 @@ c~ #endif
            implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comemic.h"
-c~ #include "comsurf.h"
-c~ #include "comunit.h"
-c~ #endif
 
 
 
@@ -4479,26 +4392,16 @@ c~ !$OMP END PARALLEL
 ! *** linearization of RCM with ISCCP D2 1990 clouds
 !-----------------------------------------------------------------------
 
-c~ #if ( COMATM == 1 )
       use comphys, only: nlon,nlat,irn,dayfr,solarf,solarm,solardref,
      &                   kosz,costref,swrref,swrcost,dso4,tcc,salbref,
      &                   swrsalb,fswdsfc
       use comemic_mod, only: imonth
       use comsurf_mod, only: nse,noc,nld,fractn,albesn,alb2esn,heswsn,
      &                       hesw0n,hesw1n,hesw2n
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comdyn.h"
-c~ #include "comphys.h"
-c~ #include "comemic.h"
-c~ #include "comsurf.h"
-c~ #include "comunit.h"
-c~ #endif
 c~ [DEPRECATED]
 
 
@@ -4701,15 +4604,9 @@ c~ [DEPRECATED]
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE rad_forc_add(loc_year)
 
-c~ #if ( COMATM == 1 )
       use global_constants_mod, only: dblp=>dp, ip     
-c~ #endif
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comunit.h"
-c~ #endif
 c~ [DEPRECATED]
 
 c~ [TODO] Update radforc to a Fortran90 module or deprecate!!

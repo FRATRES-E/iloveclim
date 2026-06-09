@@ -22,17 +22,11 @@
        USE iso_param_mod, ONLY : ieau, neauiso
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comphys
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comphys.h"
-#endif
 
       integer :: wisoatm_restartdat_id
 

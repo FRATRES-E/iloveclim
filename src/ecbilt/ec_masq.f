@@ -120,7 +120,6 @@
 
       SUBROUTINE update_masq
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
       use comphys
@@ -128,22 +127,12 @@
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only:
       use comunit
-#endif
 
       USE input_icemask
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#include "comemic.h"
-#include "comrunlabel.h"
-#include "comsurf.h"
-#include "comunit.h"
-#endif
 
       INTEGER i,j
       REAL(KIND=4) ::  outdata(64,32)
@@ -216,19 +205,13 @@ cdmr --- lgmv9.1 : le masque glaciaire ne doit pas etre si c est une case oean
      &              , topoECB, topo_trans, topoECB_ti, time_max
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 ! fl added indx_topo to disentangle the effect of ice sheets topo & albedo
       use palaeo_timer_mod, only: indx_masq, indx_topo
 
        IMPLICIT NONE
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 ! dmr deprecated replaced by indx_masq       INTEGER, INTENT(IN) :: timer
        LOGICAL, INTENT(IN) :: init

@@ -87,24 +87,17 @@
 ! ***
 !-------------------------------------------------------------------------------
 
-c~ #if ( COMATM == 1 )
       USE comatm,          only:
       use comphys,         only:
       use comemic_mod,     only: iyear, iatm
       use ECBiltTimer_mod, only: ec_mdldate
       use atmrad_mod,      only: ec_solar
-c~ #endif
 
       implicit none
 
       logical :: success
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comphys.h"
-c~ #include "comemic.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer ist,jst,istep
@@ -125,18 +118,12 @@ c~ [DEPRECATED]
 ! *** this routine performs checks on the model formulation
 !-----------------------------------------------------------------------
 
-c~ #if ( COMATM == 1 )
       USE comatm
       use comemic_mod, only: iatm, day
-c~ #endif
 
       implicit none
 
 c~ [DEPRECATED]
-c~ #if ( COMATM == 0 )
-c~ #include "comatm.h"
-c~ #include "comemic.h"
-c~ #endif
 c~ [DEPRECATED]
 
       integer i,j,istep

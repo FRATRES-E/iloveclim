@@ -466,19 +466,11 @@
 !1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
       SUBROUTINE ec_addperturb
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
       USE comphys
       use comemic_mod, only:
-#endif
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#include "comemic.h"
-#endif
 
       real*8 qpgg1(nlat,nlon),qpgg2(nlat,nlon),qpgg3(nlat,nlon)
 
@@ -527,18 +519,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -588,18 +574,12 @@
 !----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       integer i,j,k
@@ -647,18 +627,12 @@
 !----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -743,18 +717,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -798,18 +766,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -849,18 +811,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -888,18 +844,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -956,18 +906,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1023,18 +967,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1097,18 +1035,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1147,17 +1079,11 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       integer k
@@ -1180,17 +1106,11 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1227,17 +1147,11 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1274,17 +1188,11 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       real*8  qin(nsh2,nvl),tus(nsh2,ntl), r3,sfout(nsh2,nvl)
@@ -1316,16 +1224,11 @@
 
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 1 )
       USE comatm
-#endif
 !sript <<<
       implicit none
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 0 )
-#include "comatm.h"
-#endif
 !sript <<<
 
       integer   m,n,k,indx,l
@@ -1359,16 +1262,11 @@
 
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 1 )
       USE comatm
-#endif
 !sript <<<
       implicit none
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 0 )
-#include "comatm.h"
-#endif
 !sript <<<
 
       integer   m,n,k,indx,i,l,ntr
@@ -1409,18 +1307,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1472,17 +1364,11 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       real*8  y(nsh2,nvl),dydt(nsh2,nvl)
@@ -1506,20 +1392,13 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
       USE comphys
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#endif
 
 
 
@@ -1612,20 +1491,13 @@
 ! ***        omegg at gaussian grid
 !-----------------------------------------------------------------------
 
-#if ( COMATM == 1 )
       USE comatm, only: fzero,om,pi,radius,tlevel,rgas,dp
       USE comdyn
       use comemic_mod, only:
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comemic.h"
-#endif
 
       integer i,j,k,l
       real*8  adoro(nsh2),adpsit(nsh2,ntl),dpsitdt(nsh2,ntl)
@@ -1741,18 +1613,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm, only: nsh2, dp
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       integer k,l
@@ -1781,18 +1647,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1840,18 +1700,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
       integer i,j,k,l
       real*8  facwin2
@@ -1912,18 +1766,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1974,18 +1822,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -2010,17 +1852,11 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
-#endif
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -2041,22 +1877,14 @@
 ! *** of the year
 !-----------------------------------------------------------------------
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdyn
       USE comphys
       use comemic_mod, only: day
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#include "comemic.h"
-#endif
 
 
       integer i,j

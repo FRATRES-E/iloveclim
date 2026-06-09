@@ -7,13 +7,11 @@
       use uuid_module, only: generate_uuid
       use global_constants_mod, only: uuid_size
 
-#if ( COMATM == 1 )
       USE comatm
       USE comdiag
       use comemic_mod, only: iyear, imonth, iday, fini, irunlabel, irunlabeld
      &               , globalatt
       use comunit
-#endif
 
 ! --- BdB 05-2019: added variables for writing time
       use comemic_mod, only: nwrskip, new_year_atm
@@ -25,12 +23,6 @@
 ! TODO replace netcdf.inc with "use netcdf"
 #include "netcdf.inc"
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdiag.h"
-#include "comemic.h"
-#include "comunit.h"
-#endif
 
 
 !     ----------------------------------------------------------------------------
