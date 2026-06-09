@@ -435,7 +435,7 @@
 ! dmr   Use of external modules variables
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-
+      use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use global_constants_mod, only: dblp=>dp, ip
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
       use comdyn, only: omegg,pp

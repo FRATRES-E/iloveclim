@@ -38,6 +38,7 @@
 ! *** ixout: frequency for output instantanous fields in days.
 ! *** written by xueli wang.
 !-----------------------------------------------------------------------
+      use atmdyn_mod, only: ec_sptogg
       use Atmosphere_Output
 
       USE comatm,  only: radius, om, nlat, nlon, iwater

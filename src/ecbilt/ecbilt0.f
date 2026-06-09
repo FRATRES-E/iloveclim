@@ -19,9 +19,9 @@
 ! ***               Xueli Wang
 ! ***               Nanne Weber
 !-----------------------------------------------------------------------
-      use atmdyn_mod, only: ec_ddl, ec_diver, ec_divwin, ec_forcdaily,
-     &                      ec_forward, ec_geowin, ec_ggtosp, ec_omega3,
-     &                      ec_psitogeo, ec_qtopsi, ec_sptogg, ec_totwind
+
+      USE atmdyn_mod, only: ec_forcdaily, ec_forward
+
       USE comatm
       USE comdyn
       use comphys
@@ -214,6 +214,10 @@ c~ [DEPRECATED]
 ! *** calculates atmospheric fields from potential vorticity
 ! *** field, mean atmospheric temperatures and the moisture field
 !-----------------------------------------------------------------------
+
+      use atmdyn_mod, only: ec_ddl, ec_diver, ec_divwin,
+     &                      ec_forward, ec_geowin, ec_ggtosp, ec_omega3,
+     &                      ec_psitogeo, ec_qtopsi, ec_sptogg, ec_totwind
 
       use atmmois_mod, only: ec_moisfields
 

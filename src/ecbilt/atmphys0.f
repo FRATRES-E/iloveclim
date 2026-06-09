@@ -2260,6 +2260,7 @@ c~ #endif
 ! *** advection of tracer field
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_sptogg, ec_rggtosp
 
       USE comatm, only: dtime
       USE comdyn, only: pp
@@ -2618,6 +2619,7 @@ c~ #endif
 !-----------------------------------------------------------------------
 
 
+      USE atmdyn_mod, only: ec_ddl, ec_sptogg, ec_rggtosp
 
       USE comatm, only: cosfi,radius
       USE comdyn, only: pp,pd,u800,v800,divg,udivg,vdivg
@@ -2674,6 +2676,7 @@ c~ #endif
 ! *** computes horizontal divergence
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_ddl, ec_sptogg, ec_rggtosp
 
       USE comatm, only: cosfi, radius
       USE comdyn, only: pp, pd
@@ -2720,6 +2723,7 @@ c~ #endif
 ! *** horizontal diffusion of moisture
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_sptogg, ec_lap
 
       USE comdyn,  only: pp
       USE comphys, only: nlon,nlat,nsh2,tdifq
@@ -3132,6 +3136,7 @@ c~ [DEPRECATED]
 ! *** 2*diffusiontimescale/462(=21*22) fe 10 days, 1 hour timestep
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_sptogg, ec_ggtosp
 
       USE comatm,  only: dtime
       USE comdyn,  only: rinhel,pp
@@ -3810,6 +3815,7 @@ c~ [DEPRECATED]
 ! *** computes vorticity forcing
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_sptogg, ec_rggtosp, ec_ggtosp
 
       use comatm, only: om,cosfi
       USE comdyn, only: pp,psi,for,dfor1,dfor2,forcgg1,rinhel,iartif,
@@ -3941,6 +3947,7 @@ c~ [DEPRECATED]
 ! *** the adiabatic heating
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_ddl, ec_sptogg, ec_rggtosp
 
       USE comatm, only: fzero, radius, om, rgas, sinfi, dp
       USE comdyn, only: pp, rrdef1,rrdef2
@@ -4070,6 +4077,7 @@ c~ [DEPRECATED]
 ! *** zeta by the divergent wind
 !-----------------------------------------------------------------------
 
+      USE atmdyn_mod, only: ec_ddl, ec_sptogg
 
       USE comatm, only: radius,cosfi
       USE comdyn, only: pp,pd,udivg,vdivg
@@ -4116,6 +4124,7 @@ c~ [DEPRECATED]
       USE comatm, only: radius,om,cosfi,sinfi,fzero
       USE comdyn, only: pp,pd,psi,udivg,vdivg,rrdef1,rrdef2
       USE comphys, only: nlon,nlat,nvl,nsh2
+      USE atmdyn_mod, only: ec_ddl, ec_sptogg
 
       implicit none
 
