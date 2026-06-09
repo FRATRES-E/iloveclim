@@ -6,7 +6,7 @@
 !-----------------------------------------------------------------------
 ! *** initializes variables used in SUBROUTINEs of atmphys.f
 !-----------------------------------------------------------------------
-
+      use atmdyn_mod, only: ec_ddl, ec_ggtosp, ec_lap, ec_rggtosp, ec_sptogg
       use comatm, only: iwater,phi,p0,initfield
       use comdyn, only: rmount,geopg
       use comphys, only: nlon,nlat,irn,tzero,tempm,temp0g,temp2g,temp4g,

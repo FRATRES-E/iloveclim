@@ -3,8 +3,7 @@
 !dmr -- Added optional components choice - Fri Oct 28 11:02:20 CEST 2011
 !23456789012345678901234567890123456789012345678901234567890123456789012
       subroutine ec_atmout(istep)
-
-
+      use atmdyn_mod, only: ec_sptogg
       USE comatm, only: 
       use comemic_mod, only: iatm
 

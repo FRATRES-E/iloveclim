@@ -74,7 +74,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Use of external modules variables
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
+  use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use comatm,      only: nlat, nlon, iwater
       use comphys,     only: relhum, rmoisg
       use comsurf_mod, only: q10, q10n, nld, ntyps, lwrmois, pgroundn, tempsgn

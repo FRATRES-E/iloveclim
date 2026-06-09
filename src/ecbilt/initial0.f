@@ -7,8 +7,7 @@
 !-----------------------------------------------------------------------
 ! *** initialisation of ECBilt
 !-----------------------------------------------------------------------
-
-
+      use atmdyn_mod, only: ec_iatmdyn
       USE comatm,  only: nlat, nlon
       use comphys, only: iscencel
       use comemic_mod, only: fini

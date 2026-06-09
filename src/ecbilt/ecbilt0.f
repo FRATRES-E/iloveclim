@@ -19,7 +19,9 @@
 ! ***               Xueli Wang
 ! ***               Nanne Weber
 !-----------------------------------------------------------------------
-
+      use atmdyn_mod, only: ec_ddl, ec_diver, ec_divwin, ec_forcdaily,
+     &                      ec_forward, ec_geowin, ec_ggtosp, ec_omega3,
+     &                      ec_psitogeo, ec_qtopsi, ec_sptogg, ec_totwind
       USE comatm
       USE comdyn
       use comphys
