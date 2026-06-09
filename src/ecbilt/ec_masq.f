@@ -41,9 +41,9 @@
        IMPLICIT NONE
 
        LOGICAL, INTENT(IN) :: init
-       REAL(KIND=4), DIMENSION(32,64) :: localmasq
+       REAL(KIND=4), DIMENSION(nlat,nlon) :: localmasq
 #if ( NC_IMSK >= 1 )       
-       REAL(KIND=4), DIMENSION(64,32) :: localmasqT
+       REAL(KIND=4), DIMENSION(nlon,nlat) :: localmasqT
 #endif       
 #if ( NC_IMSK == 2 )
       character*30 name_file
@@ -69,7 +69,7 @@
        open(251,CONVERT='BIG_ENDIAN',file='inputdata/icemask.dat'
      &  ,form='unformatted'
      &  ,access='direct',
-     &   recl=32*64*4)
+     &   recl=nlat*nlon*KIND(localmasq(1,1)))
        read(251, REC=1) ((localmasq(i,j),j=1,64),i=1,32)
        close(251)
 #endif       
@@ -135,7 +135,7 @@
 
 
       INTEGER i,j
-      REAL(KIND=4) ::  outdata(64,32)
+      REAL(KIND=4) ::  outdata(nlon,nlat)
 
 ! afq -- icemask cannot be 1 over the ocean (model crashes), so
 !        we keep the info, only for the albedo (used in ec_co2oc)
@@ -221,7 +221,7 @@ cdmr --- lgmv9.1 : le masque glaciaire ne doit pas etre si c est une case oean
 
        INTEGER :: indx, ios, t, i, j
        REAL(KIND=4) :: dummy
-       REAL(KIND=4) ::  outdata(64,32)
+       REAL(KIND=4) ::  outdata(nlon,nlat)
 
 
        INTEGER, PARAMETER :: lim_sud_sico_ECB = 20

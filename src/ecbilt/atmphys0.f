@@ -81,7 +81,7 @@ comphys.f90:      real(silp), dimension(0:iqmtab,0:jqmtab,0:kqmtab):: qmtabel
       real(silp), dimension(27,12)        :: z500ncep_silp
       real(silp), dimension(27)           :: pisccp_silp
       real(silp), dimension(17)           :: pncep_silp
-      real(silp), dimension(32,64,12)     :: ccisccp_silp
+      real(silp), dimension(nlat,nlon,12) :: ccisccp_silp
       real(silp), dimension(7,27,4,0:1)   :: lwrref_silp
       real(silp), dimension(7,18,27,4,0:1):: lwrt_silp
       real(silp), dimension(7,4,27,4,0:1) :: lwrts_silp
