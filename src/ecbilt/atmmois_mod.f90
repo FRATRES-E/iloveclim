@@ -41,8 +41,8 @@
 
       module atmmois_mod
 
-!~        use AnotherModule_mod, only: some_variable
-!~        use AnotherModule_mod, only: some_otherfunction
+       use global_constants_mod, only: dblp=>dp, silp=>sp, ip
+       use atm_thermo_mod,       only: ec_qsat, ec_levtempgp
 
        implicit none
        private
@@ -50,7 +50,7 @@
 !~ #if (ISOATM >= 1 )
 !~        public :: ec_moisfields, ec_surfmois, ec_convec_r332, ec_moisture_r332
 !~ #else
-       public :: ec_moisfields, ec_surfmois, ec_moisture !ec_convec defined elsewhere
+       public :: ec_moisfields, ec_moisture !ec_convec defined elsewhere
 !~ #endif
 
       ! NOTE_avoid_public_variables_if_possible
@@ -74,7 +74,8 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Use of external modules variables
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-  use atmdyn_mod, only: ec_rggtosp, ec_sptogg
+      use atmphys_mod, only: ec_ptmoisgp
+      use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use comatm,      only: nlat, nlon, iwater
       use comphys,     only: relhum, rmoisg
       use comsurf_mod, only: q10, q10n, nld, ntyps, lwrmois, pgroundn, tempsgn
@@ -120,7 +121,7 @@
        logical         :: returnValue
 
        integer          :: i,j,nn ! indices
-       double precision :: ec_qsat,pmount,tmount,qmax,dqmdt
+       real(kind=dblp) :: pmount,tmount,qmax,dqmdt
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
@@ -202,7 +203,7 @@
 
           q10(i,j)= 0.d0
           do nn=1,ntyps
-            q10n(i,j,nn)=relhum(i,j) * ec_qsat(pgroundn(i,j,nn),tempsgn(i,j,nn))
+            q10n(i,j,nn)=relhum(i,j)*ec_qsat(pgroundn(i,j,nn),tempsgn(i,j,nn))
           enddo
 
 
@@ -278,7 +279,7 @@
           q10_d(i,j,:)= 0.d0
 
             do nb_down = 1, nb_levls
-              q10n_d(i,j,nn,nb_down)=relhum_d(i,j,nb_down) * ec_qsat(pground_d(i,j,nb_down),tempsg_d(i,j,nb_down))
+              q10n_d(i,j,nn,nb_down)=relhum_d(i,j,nb_down)*ec_qsat(pground_d(i,j,nb_down),tempsg_d(i,j,nb_down))
             enddo ! on nb_ipoints
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -319,100 +320,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ec_surfmois(nn)
-!
-!>     @brief calculates specific humidity at the surface
-!
-!      DESCRIPTION:
-!
-!>
-!
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      function ec_surfmois(nn) result(returnValue)
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   Use of external modules variables
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      use global_constants_mod, only: dblp=>dp, ip
-      use comatm,               only: nlat, nlon
-      use comphys,              only:
-      use comrunlabel_mod,      only: irunlabelf
-      use comsurf_mod,          only: qsurfn, pgroundn, tsurfn
-
-!~ #if ( DOWNSTS == 1 )
-!~       use comemic_mod, only:
-!~ #endif
-
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   Downscaling input variables for the sub-grid computations
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#if ( DOWNSTS == 1 )
-      use comsurf_mod,         only: nld
-      use vertDownsc_mod,      only: pground_d, tsurfn_d, qsurfn_d
-      use ecbilt_topography,   only: nb_levls
-#endif
-
-      implicit none
-
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in] nn land surface type
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       integer(kind=ip), intent(in) :: nn
-
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical         :: returnValue
-
-       integer(kind=ip):: i, j, nb_down ! loop indice over nb_ipoints
-       real(kind=dblp) :: ec_qsat
-
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-
-        do j=1,nlon
-          do i=1,nlat
-
-            qsurfn(i,j,nn)=ec_qsat(pgroundn(i,j,nn),tsurfn(i,j,nn))
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Downscaling section
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#if ( DOWNSTS == 1 )
-
-!     --- The other two surface types (sea-ice and ocean) do not admit sub-grid orography.
-! dmr --- Moreover, flag_down should only exist if ntyp == nland ...
-! dmr --- This section of code is called only if nn == nld anyhow
-
-            if (nn.eq.nld) then
-              do nb_down = 1, nb_levls
-                 qsurfn_d(i,j,nn,nb_down)= ec_qsat(pground_d(i,j,nb_down),tsurfn_d(i,j,nn,nb_down))
-              enddo
-            endif ! on nn == nld
-#endif
-
-         enddo ! on the spatial loops ...
-        enddo
-
-        returnValue = .true.
-
-        return
-
-      end function ec_surfmois
-
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      End of the function here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -435,6 +342,7 @@
 ! dmr   Use of external modules variables
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+      use atmphys_mod, only: ec_trafluxdiv, ec_hdiff, ec_moisbalance
       use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use global_constants_mod, only: dblp=>dp, ip
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
@@ -517,7 +425,7 @@
       integer(kind=ip)                       ::  i,j
       real(kind=dblp), dimension(nlat,nlon)  ::  d1, d3, d2
       real(kind=dblp)                        ::  ec_globalmean, qstar
-      real(kind=dblp)                        ::  ec_levtempgp, factemv, factems, omegg500, t500, ec_qsat, gm1, gm2
+      real(kind=dblp)                        :: factemv, factems, omegg500, t500, gm1, gm2
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Local variables with pre-processing dependence

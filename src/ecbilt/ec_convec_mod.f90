@@ -35,6 +35,8 @@
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod
       use comunit
+      use atm_thermo_mod, only: ec_qsat
+      use atmphys_mod, only: ec_ptmoisgp
 
 
 
@@ -79,7 +81,7 @@
 
       real*8  qsatcr,tsatcr,pref,t500,qsat500,pot2g,pot4g
       real*8  fachulp,facteta,factemv,factems,pmount,tmount
-      real*8  qmax,ec_qsat,hulp,redrain
+      real*8  qmax,hulp,redrain
       real*8  temp2go,temp4go,ec_levtempgp
       real*8  ec_detqmax,drainm,crainm,dqmdt
 

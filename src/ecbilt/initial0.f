@@ -11,6 +11,7 @@
       USE comatm,  only: nlat, nlon
       use comphys, only: iscencel
       use comemic_mod, only: fini
+      use atmphys_mod, only: ec_iatmphys
       
 c~ #if ( ISOATM >= 1 )
 c~       use comsurf_mod, only: fractoc

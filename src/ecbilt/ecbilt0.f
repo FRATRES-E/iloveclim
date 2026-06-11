@@ -27,6 +27,7 @@
       use comphys
       use comemic_mod, only: iyear, iatm, day
       use comsurf_mod
+      use atmphys_mod, only: ec_atmphyszero, ec_sensrad, ec_fortemp, ec_meantemp
 
 #if ( ISOATM == 0 )      
       use ec_convec_mod, only: ec_convec_two
@@ -94,6 +95,7 @@
       use comemic_mod,     only: iyear, iatm
       use ECBiltTimer_mod, only: ec_mdldate
       use atmrad_mod,      only: ec_solar
+      use atmphys_mod,      only: ec_ghgupdate, ec_vortfor
 
       implicit none
 
@@ -155,11 +157,12 @@ c~ [DEPRECATED]
       use comunit
       use newunit_mod, only: book_id, error_id, info_id
       use ipcc_output_mod, only: moc,tmc,tmc0,tsurfmean,cland,thex
+      use atmphys_mod, only: ec_globalmean
 
       implicit none
 
       integer i,j,istep
-      real*8  ec_globalmean,dum1,dum2
+      real*8  dum1,dum2
       character*12 chts
 !~      real*8  moc,tmc,tmc0,cland,thex
 !~      common/IPCC_out2/moc,tmc,tmc0,tsurfmean,cland,thex
@@ -220,6 +223,8 @@ c~ [DEPRECATED]
      &                      ec_psitogeo, ec_qtopsi, ec_sptogg, ec_totwind
 
       use atmmois_mod, only: ec_moisfields
+      use atmphys_mod, only: ec_dyntemp, ec_tempprofile, ec_totwind10,
+     &                       ec_cloud
 
       implicit none
 

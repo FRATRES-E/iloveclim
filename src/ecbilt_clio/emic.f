@@ -43,6 +43,7 @@
 ! nse  (n sea ice, idem)
       use comsurf_mod, only: noc, nse, nld, epss, fractn, tempsgn
 
+      use atmphys_mod, only: ec_fluxes
 
 #if ( ISM == 2 || ISM == 3 )
 !     dmr FLAG AJOUT GRISLI

@@ -469,6 +469,7 @@
 
 !- Calculate Atlantic average salinity for Atlantic salt budget
 !calculations
+#if ( 0 )
       saltatlantic=0.0
       volatlantic=0.0
        do j=1,imax
@@ -481,6 +482,7 @@
         enddo
       enddo
       saltatlantic=saltatlantic/volatlantic !m3*g/kg/m3 -> g/kg
+#endif
 !      write(mouchard_id,*) 'Atlantic mean
 !     &                       salinity [g/kg]',saltatlantic
 
@@ -654,6 +656,7 @@
 !     &            vinfor(nv)/1e9
 
 ! Atlantic salt content tendency
+#if ( 0 )
       saltatlantic_new = 0.0
       saltatlantic_dt = 0.0
       do j=1,imax
@@ -670,7 +673,7 @@
 !     &                    ,saltatlantic_dt/1e9
       nv = nv + 1
       vinfor(nv) = saltatlantic_dt
-
+#endif
 
 !- Mov parameter at 30 S (meridional freshwater flux at 30S related to overturning circulation)
       yy = -30.0 ! Set latitude
