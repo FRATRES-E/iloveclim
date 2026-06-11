@@ -49,7 +49,7 @@
                      tot_nit_prev,                                      &
 !nb                     Oeta,                                              &
                      OetaC_POMoxid, OetaC_DOMoxid_1D,                   &
-                     OetaN_POMoxid, OetaN_DOMoxid_1D
+                     OetaN_POMoxid, OetaN_DOMoxid_1D,                   &
 #endif
 
                      FODOCS, FOC13, FODOC13, FODOCS13 
@@ -323,7 +323,7 @@
 !nb          tot_phos_prev=tot_phos_prev+vtmp/Oeta(j,4)+OPO4(i,j,n)        &
 !nb                      *DVOL_prev(i,j,n)
           tot_phos_prev=tot_phos_prev+vtmp_POC/OetaC_POMoxid(i,j,n)     &
-          +vtmp_DOC/OetaC_DOMoxid_1D(j)+OPO4(i,j,n)*                    &
+          +vtmp_DOC/OetaC_DOMoxid_1D(j)+OPO4(i,j,n)                     &
                       *DVOL_prev(i,j,n)
 
 !nb          tot_nit_prev=tot_nit_prev+vtmp/Oeta(j,4)*Oeta(j,1)+ONO3(i,j,n)&

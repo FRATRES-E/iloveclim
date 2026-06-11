@@ -62,7 +62,7 @@
 #if ( IMSK == 1 )
       use input_icemask,  only: icemask
 #endif
-#if ( FROG_EXP ==1 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
       use carbone_co2,    only: deepC ! carbon from permafrost (soil organic carbon)
 #endif
 
@@ -99,9 +99,8 @@
 ! dmr   VECODE carbon cycle variables
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 
-      use veget_mod,      only: sg, b4g, st, b4t, b3g, b3t
+      use veget_mod,      only: carea, sg, b4g, st, b4t, b3g, b3t
      &                        , b2g,b2t,b1g, b1t
-      use bio_mod, only: carea
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 ! dmr   CARAIB carbon cycle variables
@@ -326,7 +325,7 @@ cvm&dmr --- Change unit of ca14_oc_ini to be consistent in use for cav_oc14_b
 #if ( CARAIB == 0 )
          b4t_temp=b4t(i,k)
          b4g_temp=b4g(i,k)
-#if ( FROG_EXP == 1 )
+#if ( FROG_EXP > 0 && CARBON_FROG > 0 )
          b4t_temp=0.0
          b4g_temp=0.0
 #endif
@@ -391,7 +390,7 @@ Carbone -> vm
           enddo
         enddo
 
-#if ( FROG_EXP == 1 )
+#if ( FROG_EXP > 0 && CARBON_FROG > 0 )
        !write(*,*) 'deepC ini ', deepC
        ca_la_ini=ca_la_ini+deepC ! add soil carbon when FROG is activated
 #endif
@@ -556,7 +555,7 @@ cvm continentale pour chaque isotope du carbone
 #if ( CARAIB == 0 )
          b4t_temp=b4t(i,k)
          b4g_temp=b4g(i,k)
-#if ( FROG_EXP == 1 )
+#if ( FROG_EXP > 0 && CARBON_FROG > 0 )
          b4t_temp=0.0
          b4g_temp=0.0
 #endif
@@ -626,7 +625,7 @@ cvm continentale pour chaque isotope du carbone
           enddo
         enddo
 
-#if ( FROG_EXP == 1 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
        !write(*,*) 'deepC ', deepC
        cav_la=cav_la+deepC ! add soil carbon when FROG is activated
 #endif
