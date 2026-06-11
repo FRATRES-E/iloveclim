@@ -7,6 +7,7 @@
 !-----------------------------------------------------------------------
 ! *** initialisation of ECBilt
 !-----------------------------------------------------------------------
+      use error0_mod, only: ec_inierror
       use atmdyn_mod, only: ec_iatmdyn
       USE comatm,  only: nlat, nlon
       use comphys, only: iscencel
@@ -176,6 +177,7 @@ c~      &                     ieau17,ieaud)
       SUBROUTINE ec_iatmpar
 
 
+      use error0_mod, only: ec_error
       USE comatm, only: pi, radius, rgas, plevel, tlevel, om, p0, rdtime
      &  , fzero, grav, phi, dt, dtime, alogpl2tl2, alogtl12, alogtl1pl2
      &  , rlogtl12, dtt, nlat, nlon, nvl, nsh2, dp, cosfi, sinfi, tanfi
@@ -726,7 +728,6 @@ c~ #endif
 
       USE comatm,  only: nlat, nlon
       use comdiag
-      use comemic_mod, only:
       use comunit, only: iuo
 
 
@@ -1005,9 +1006,9 @@ c~ #endif
 !-----------------------------------------------------------------------
 
 
+       use error0_mod, only: ec_error
        use comatm
        use comdiag
-       use comemic_mod, only:
        use comunit
 
 

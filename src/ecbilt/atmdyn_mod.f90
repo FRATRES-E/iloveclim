@@ -29,17 +29,22 @@ contains
 ! *** initialise parameters and operators and read initial state
 !-----------------------------------------------------------------------
 
-      USE comatm
-      USE comdyn
-      USE comphys
+      use comatm, only: pi
+      use comdyn, only: addish, addisl, ddisdx, ddisdy, diss, divg, dorodl, &
+                        dorodm, for, forcggs1, forcggw1, h0, iartif, idif, &
+                        ipert, lgdiss, ll, nlat, nlon, nm, nsh, nsh2, nshm, &
+                        ntl, nvl, orog, pd, pp, psi, psit, pw, qprime, rdiss, &
+                        relt1, relt2, rinhel, rl1, rl2, rm, rmount, rrdef1, &
+                        rrdef2, tdif, tdis, trel, trigd, trigi, u200, u500, &
+                        u800, udivg, utot, wgg, ws
+      use comphys, only: utot10, uv10, uvw10, vtot10, iens, numens
       use comsurf_mod, only: fractn, nld, epss ! afq, topo=0 over the oceans
 #if ( F_PALAEO_FWF == 2 )
       use comsurf_mod, only: thi_chge
 #endif
       use newunit_mod, only: coef_dat_id, berg_dat_id, win_dat_id, sum_dat_id
       use comemic_mod, only: fini, irunlabel
-      use comcoup_mod
-      use comunit
+      use comcoup_mod                ! external coupler — only: not available
 #if ( NC_BERG >= 1 )      
       use ncio, only: nc_read
 #endif      
@@ -49,8 +54,8 @@ contains
 
 #if ( ISM == 2 )
 ! dmr FLAG AJOUT GRISLI
-      USE input_flagsGRIS
-      USE output_ECBilt
+      USE input_flagsGRIS, only: nord_GRIS, sud_GRIS, masqueECB, topoECB
+      USE output_ECBilt              ! external GRISLI — only: not available
 ! dmr FLAG AJOUT GRISLI
 #endif
 
@@ -486,10 +491,7 @@ contains
 !1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
       SUBROUTINE ec_addperturb
 
-      USE comatm
-      USE comdyn
-      USE comphys
-      use comemic_mod, only:
+      use comdyn, only: ipert, nlat, nlon, pp, qprime
 
 
       real(kind=dblp) qpgg1(nlat,nlon),qpgg2(nlat,nlon),qpgg3(nlat,nlon)
@@ -537,8 +539,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: diss, dqprdt, for, nsh2, psi, psit, qprime, relt1, relt2
 
       implicit none
 
@@ -591,8 +592,7 @@ contains
 !----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nlat, nlon, nsh2, pd, pp
 
       implicit none
 
@@ -643,8 +643,9 @@ contains
 !----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comatm, only: sinfi
+      use comdyn, only: ddisdx, ddisdy, diss, dorodl, dorodm, gekdis, lgdiss, &
+                        nlat, nlon, nsh2, pd, pp, psi, rdiss
 
       implicit none
 
@@ -732,8 +733,7 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nlat, nlon, nsh2, pd, pp
 
       implicit none
 
@@ -780,8 +780,8 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comatm, only: sinfi
+      use comdyn, only: dorodl, dorodm, nlat, nlon, nsh2, pd, pp
 
       implicit none
 
@@ -824,8 +824,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh, rm
 
       implicit none
 
@@ -856,8 +855,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nlat, nlon, nm, nsh, nshm, trigi, wgg
 
       implicit none
 
@@ -917,8 +915,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
 
       implicit none
 
@@ -977,8 +974,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
 
       implicit none
 
@@ -1044,8 +1040,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, psi, psit, qprime, rinhel, ws
 
       implicit none
 
@@ -1087,8 +1082,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, psi, psit, qprime, rinhel, rl1, rl2
 
       implicit none
 
@@ -1113,8 +1107,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, nvl, rinhel, rl1, rl2
 
       implicit none
 
@@ -1153,8 +1146,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, ntl, nvl, rinhel, ws
 
       implicit none
 
@@ -1193,8 +1185,7 @@ contains
 
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, ntl, nvl, rinhel, ws
 
       implicit none
 
@@ -1228,8 +1219,8 @@ contains
 
 
 !script >>> Les declarations suivantes ont ete faite par un script
-      USE comatm
 !sript <<<
+      use comdyn, only: nsh, nsh2, nvl, nm
       implicit none
 
 !script >>> Les declarations suivantes ont ete faite par un script
@@ -1263,10 +1254,11 @@ contains
 ! *** output z spectral coefficients in franco's format
 !-----------------------------------------------------------------------
 
+      use comdyn, only: nsh, nsh2, nvl, nm
 
 !script >>> Les declarations suivantes ont ete faite par un script
-      USE comatm
 !sript <<<
+      use comdyn, only: nsh, nsh2, nvl, nm
       implicit none
 
 !script >>> Les declarations suivantes ont ete faite par un script
@@ -1309,8 +1301,8 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comatm, only: dtt
+      use comdyn, only: nm, nsh2, nvl, qprime
 
       implicit none
 
@@ -1365,8 +1357,7 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: dqprdt, nm, nsh2, nvl, qprime
 
       implicit none
 
@@ -1392,9 +1383,9 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
-      USE comphys
+      use comatm, only: om, radius, sinfi
+      use comdyn, only: divs, geopg, nlat, nlon, nsh2, ntl, nvl, pd, pp, psi, &
+                        rinhel
 
       implicit none
 
@@ -1494,8 +1485,8 @@ contains
 !-----------------------------------------------------------------------
 
       USE comatm, only: fzero,om,pi,radius,tlevel,rgas,dp
-      USE comdyn
-      use comemic_mod, only:
+      use comdyn, only: dfor1, dfor2, dqprdt, gekdis, nlat, nlon, nsh2, ntl, nvl, &
+                        omegg, omegs, pp, psi, psit, rrdef1, rrdef2, trel
 
       implicit none
 
@@ -1615,7 +1606,7 @@ contains
 
 
       USE comatm, only: nsh2, dp
-      USE comdyn
+      use comdyn, only: divg, divs, nsh2, nvl, omegs, pp
 
       implicit none
 
@@ -1647,8 +1638,9 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comatm, only: cosfi, radius
+      use comdyn, only: chi, chig, divs, nlat, nlon, nsh2, nvl, pd, pp, &
+                        rinhel, udivg, vdivg
 
       implicit none
 
@@ -1699,8 +1691,9 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comatm, only: cosfi, om, radius
+      use comdyn, only: nlat, nlon, nsh2, nvl, pd, pp, psi, u200, u500, u800, &
+                        v200, v500, v800
 
       implicit none
 
@@ -1764,8 +1757,8 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nlat, nlon, nvl, u200, u500, u800, udivg, utot, v200, &
+                        v500, v800, vdivg, vtot
 
       implicit none
 
@@ -1819,8 +1812,7 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, rinhel
 
       implicit none
 
@@ -1848,8 +1840,7 @@ contains
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
+      use comdyn, only: nsh2, rinhel
 
       implicit none
 
@@ -1872,9 +1863,7 @@ contains
 ! *** of the year
 !-----------------------------------------------------------------------
 
-      USE comatm
-      USE comdyn
-      USE comphys
+      use comdyn, only: forcgg1, forcggs1, forcggw1, nlat, nlon
       use comemic_mod, only: day
 
       implicit none

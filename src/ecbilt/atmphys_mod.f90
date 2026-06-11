@@ -2535,6 +2535,8 @@ contains
       USE comphys, only: tzero,rowat,cc1,cc2,cc3,temp2g,temp4g
       use newunit_mod, only: error_id
 
+      use error0_mod, only: ec_error
+
       implicit none
 
 
@@ -3527,6 +3529,7 @@ contains
       USE comphys, only: temp4g, hmoisr, gpm500, qmount, temp2g
       use ec_detqmax_mod, only: ec_detqmax      
       use newunit_mod, only: error_id
+      use error0_mod, only: ec_error
 
       implicit none
 

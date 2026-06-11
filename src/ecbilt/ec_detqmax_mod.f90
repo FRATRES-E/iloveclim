@@ -20,14 +20,16 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 
-      use comatm, only: alogpl2tl2, nlat, nlon, nsh2, nvl, alogtl12, alogtl1pl2, grav, nsh, nm, ntl, rgas, rlogtl12
+      use comatm, only: alogpl2tl2, nlat, nlon, nsh2, nvl, &
+                        alogtl12, alogtl1pl2, grav, nsh, nm, &
+                        ntl, rgas, rlogtl12
       use comdyn, only: geopg
-      use comphys, only: tqmi, tqmj, tqmk, iqmtab, jqmtab, kqmtab, tqmimin, tqmjmin, tqmkmin, qmtabel, rdtqmi, rdtqmj, rdtqmk   &
-                 , gpm500, hmoisr, temp4g, temp2g, qmount
+      use comphys, only: tqmi, tqmj, tqmk, iqmtab, jqmtab, kqmtab, &
+                         tqmimin, tqmjmin, tqmkmin, qmtabel, &
+                         rdtqmi, rdtqmj, rdtqmk, &
+                         gpm500, hmoisr, temp4g, temp2g, qmount
       
-      use comunit
 
-      use OMP_LIB
 
       implicit none
 
@@ -107,7 +109,7 @@
     
       qmax = qmtabel(ii,jj,kk) + (ti-tqmi(ii))*dqmdi + (tj-tqmj(jj))*dqmdj + (tk-tqmk(kk))*dqmdk
 
-      qmax = min(max(qmax,0d0),0.2d0)
+      qmax = min(max(qmax,0e0_dblp),0.2e0_dblp)
 
 !~ c~       if (qmax.lt.0d0) qmax=0d0
 
@@ -131,7 +133,7 @@
       dtgdt=(rgas*t500*alogtl1pl2 + (hmount-geopg(i,j,2)-z500))/(rgas*tmount*alogtl12)
 
 
-      dqmdt=dqmdi + dqmdj * (dtgdt - 1d0) + dqmdk
+      dqmdt=dqmdi + dqmdj * (dtgdt - 1e0_dblp) + dqmdk
 
 
       ec_detqmax=0.9*qmax

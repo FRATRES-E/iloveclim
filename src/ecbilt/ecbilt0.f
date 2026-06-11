@@ -158,6 +158,7 @@ c~ [DEPRECATED]
       use newunit_mod, only: book_id, error_id, info_id
       use ipcc_output_mod, only: moc,tmc,tmc0,tsurfmean,cland,thex
       use atmphys_mod, only: ec_globalmean
+      use error0_mod, only: ec_error
 
       implicit none
 

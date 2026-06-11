@@ -324,6 +324,7 @@
 !     open
 
       SUBROUTINE open(file)
+      use error0_mod, only: ec_error
       INTEGER, INTENT(in) :: file
 
       CHARACTER(len=256) :: output_filename
@@ -391,6 +392,7 @@
 !     close
 
       SUBROUTINE close()
+      use error0_mod, only: ec_error
 
       IF (initialize_module) CALL initializeModule
 
@@ -404,6 +406,7 @@
       END SUBROUTINE close
 
       SUBROUTINE incretime(N_num)
+      use error0_mod, only: ec_error
 
       INTEGER             :: varid,i
       INTEGER             :: start(2)
@@ -466,6 +469,7 @@
       END SUBROUTINE incretime
 
       SUBROUTINE write(numid,D_data)
+      use error0_mod, only: ec_error
 
       INTEGER, INTENT(in) :: numid
       INTEGER             :: tab_dim(5)
@@ -837,6 +841,7 @@ c~          globalatt(22,2)=trim(longdata)
       CONTAINS
 
       SUBROUTINE initdim(I_num,N_num,Is_time,Is_pressure,D_data)
+      use error0_mod, only: ec_error
 
       TYPE(info), INTENT(in)  :: I_num
       INTEGER,    INTENT(in)  :: N_num
@@ -916,6 +921,7 @@ c~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exi
       END SUBROUTINE initdim
 
       SUBROUTINE initbnds(name,I_num,tab_dimid,D_data)
+      use error0_mod, only: ec_error
 
       character*120, INTENT(in) :: name
       INTEGER                   :: varid, start(2), count(2)
@@ -942,6 +948,7 @@ c~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exi
       END SUBROUTINE initbnds
 
       SUBROUTINE initvar(N_num,tab_c,tab_dimid)
+      use error0_mod, only: ec_error
 
       character*60, INTENT(in)  :: tab_c(5)
       INTEGER                   :: varid

@@ -80,6 +80,7 @@ contains
       function ec_expint(n,x) result(res)
 
       use newunit_mod, only: error_id
+      use error0_mod, only: ec_error
 
       implicit none
 

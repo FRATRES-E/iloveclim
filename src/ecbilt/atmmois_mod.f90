@@ -105,7 +105,7 @@
 #endif
 
 #if ( DOWNSTS == 1 )
-      use comdyn
+      use comdyn, only: geopg
 #endif
 
 
@@ -132,7 +132,7 @@
 
        logical                                 :: success = .false.
        integer                                 :: nb_down ! loop indice over nb_ipoints
-       double precision, dimension(nb_levls)   :: tmount_d,qmax_d,dqmdt_d
+       real(kind=dblp), dimension(nb_levls) :: tmount_d, qmax_d, dqmdt_d
 
 #endif
 
@@ -147,7 +147,7 @@
 
       do j=1,nlon
         do i=1,nlat
-          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.d0))then
+          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
            write(*,*) "PB RMOISG ec_moisfields0 !! ", rmoisg(i,j,ieau), rmoisg(i,j,ieau18),i,j
            write(*,*) "valeur ieau18, iconvn = ", ieau18
            read(*,*)
@@ -185,23 +185,23 @@
 ! dmr  New relative humidity computations on the normal surface
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-          if (qmax.gt.0d0) then
+          if (qmax.gt.0e0_dblp) then
 
 !~ #if (ISOATM >= 1 )
 !~             relhum(i,j)=min(1d0,rmoisg(i,j,ieau)/qmax)
 !~ #else
-            relhum(i,j)=min(1d0,rmoisg(i,j,iwater)/qmax)
+            relhum(i,j)=min(1e0_dblp,rmoisg(i,j,iwater)/qmax)
 !~ #endif
 
           else
-            relhum(i,j)=0d0
+            relhum(i,j)=0e0_dblp
           endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  New "q10n" calculations by surface type on normal surface
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-          q10(i,j)= 0.d0
+          q10(i,j)= 0.e0_dblp
           do nn=1,ntyps
             q10n(i,j,nn)=relhum(i,j)*ec_qsat(pgroundn(i,j,nn),tempsgn(i,j,nn))
           enddo
@@ -259,15 +259,15 @@
 
           do nb_down = 1, nb_levls
 
-            if (qmax_d(nb_down).gt.0.0d0) then
+            if (qmax_d(nb_down).gt.0.0e0_dblp) then
 
 !~ #if (ISOATM >= 1 )
 !~               relhum_d(i,j,nb_down)=min(1.0d0,rmoisg(i,j,ieau)/qmax_d(nb_down))
 !~ #else
-              relhum_d(i,j,nb_down)=min(1.0d0,rmoisg(i,j,iwater)/qmax_d(nb_down))
+              relhum_d(i,j,nb_down)=min(1.0e0_dblp,rmoisg(i,j,iwater)/qmax_d(nb_down))
 !~ #endif
             else
-              relhum_d(i,j,nb_down)=0d0
+              relhum_d(i,j,nb_down)=0e0_dblp
             endif ! on qmax_d(nb_down) > 0.0d0
 
           enddo ! on nb_levls
@@ -276,7 +276,7 @@
 ! dmr  New "q10n" calculations by surface type on virtual surfaces
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-          q10_d(i,j,:)= 0.d0
+          q10_d(i,j,:)= 0.e0_dblp
 
             do nb_down = 1, nb_levls
               q10n_d(i,j,nn,nb_down)=relhum_d(i,j,nb_down)*ec_qsat(pground_d(i,j,nb_down),tempsg_d(i,j,nb_down))
@@ -299,7 +299,7 @@
 #if (ISOATM >= 1 )
       do j=1,nlon
         do i=1,nlat
-          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.d0))then
+          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
            write(*,*) "PB RMOISG ec_moisfields9 !! ", rmoisg(i,j,ieau),rmoisg(i,j,ieau18),i,j
            write(*,*) "valeur ieau18, iconvn = ", ieau18
            read(*,*)
@@ -507,7 +507,7 @@
 #if (ISOATM >= 1 )
       do j=1,nlon
         do i=1,nlat
-          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.d0))then
+          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
            write(*,*) "PB RMOISG ec_moisture0 !! ", rmoisg(i,j,ieau),dysnow(i,j,ieau18),i,j
            write(*,*) "snow_sum", dysnow(i,j,ieau)+cosnow(i,j,ieau)
            write(*,*) "rain_sum", dyrain(i,j,ieau)+corain(i,j,ieau)
@@ -586,10 +586,10 @@
       do j=1,nlon
         do i=1,nlat
 
-          cormois(i,j,iwater)=0d0
-          if (rmoisg(i,j,iwater).lt.0d0) then
+          cormois(i,j,iwater)=0e0_dblp
+          if (rmoisg(i,j,iwater).lt.0e0_dblp) then
             cormois(i,j,iwater)=cormois(i,j,iwater)-rmoisg(i,j,iwater)
-            rmoisg(i,j,iwater)= 0d0
+            rmoisg(i,j,iwater)= 0e0_dblp
           endif
 
         enddo
@@ -623,10 +623,10 @@
 !       (except 16O so far?) may be zero, then to avoid fractionation,
 !       we set everybody to zero for each that is negative
 
-          cormois(i,j,k) = 0.d0
-          if (rmoisg(i,j,k).lt.0d0) then
+          cormois(i,j,k) = 0.e0_dblp
+          if (rmoisg(i,j,k).lt.0e0_dblp) then
             cormois(i,j,ieau+2:neauiso)=cormois(i,j,ieau+2:neauiso)-rmoisg(i,j,ieau+2:neauiso)
-            rmoisg(i,j,ieau+2:neauiso)= rmoisg(i,j,1)*(datmini(ieau+2:neauiso)+1.0d0)*rsmow(ieau+2:neauiso)
+            rmoisg(i,j,ieau+2:neauiso)= rmoisg(i,j,1)*(datmini(ieau+2:neauiso)+1.0e0_dblp)*rsmow(ieau+2:neauiso)
           endif
 
         enddo
@@ -658,22 +658,22 @@
 !~           vemoisg(i,j,ieau)=0d0
 !~           ! [????] init of vemoisg(i,j,ieau+1:neauiso) ?
 !~ #else
-          vemoisg(i,j,iwater)=0d0
+          vemoisg(i,j,iwater)=0e0_dblp
 !~ #endif
 
 #if ( DOWNSTS == 1 )
-      vemoisg_d(:)     = 0.0d0
+      vemoisg_d(:)     = 0.0e0_dblp
 #endif
 
 #if ( DOWNSCALING == 2 )
-      tsurf_grisli(:)  = 0.0d0
-      dyrain_grisli    = 0.0d0
-      dysnow_grisli    = 0.0d0
+      tsurf_grisli(:)  = 0.0e0_dblp
+      dyrain_grisli    = 0.0e0_dblp
+      dysnow_grisli    = 0.0e0_dblp
 #endif
 
-          omegg500=(omegg(i,j,1)+omegg(i,j,2))/2.d0
+          omegg500=(omegg(i,j,1)+omegg(i,j,2))/2.e0_dblp
 
-          if (omegg500.lt.0.d0) then
+          if (omegg500.lt.0.e0_dblp) then
 
             t500=ec_levtempgp(plevel(2),i,j)
 
@@ -707,7 +707,7 @@
 #endif /* On DOWNSTS == 1 */
 
 #if ( DOWNSCALING == 2 )
-         if ( sub_grid_notflat(i,j) > 0.0d0 ) then ! sub-grid is rough ...
+         if ( sub_grid_notflat(i,j) > 0.0e0_dblp ) then ! sub-grid is rough ...
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Start loop on sub-grid cells ...
@@ -725,9 +725,9 @@
             ind_low = index_low_sg(i,j,n_point)
             weight_low = weights_low_sg(i,j,n_point)
 
-            vemoisg_grisli(n_point) = vemoisg_d(ind_low)*weight_low + vemoisg_d(ind_low+1)*(1.d0 - weight_low)
+            vemoisg_grisli(n_point) = vemoisg_d(ind_low)*weight_low + vemoisg_d(ind_low+1)*(1.e0_dblp - weight_low)
             tsurf_grisli(n_point) = tsurf_d_interp_sg(ind_low,i,j,n_point)*weight_low+ tsurf_d_interp_sg(ind_low+1,i,j,n_point)  &
-                                    *(1.d0 - weight_low)
+                                    *(1.e0_dblp - weight_low)
             tsurf_sg(i,j,n_point) = tsurf_grisli(n_point)
 
 ! afq -- [TODO] To account for elevation desertification we would need to change rmoisg,
@@ -751,7 +751,7 @@
              ! The partitioning of available moisture on the sub-grid between rain and snow
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-                if (tsurf_grisli(n_point) .ge. tzero + 0.1d0 ) then
+                if (tsurf_grisli(n_point) .ge. tzero + 0.1e0_dblp ) then
                    dyrain_grisli = dyrain_grisli + vemoisg_grisli(n_point)*area_sg(i,j,n_point)
 ! dmr&aq Adding the accumulation of snow/rain on the GRISLI grid, using global variable
                    dyrain_sg(i,j,n_point)=dyrain_sg(i,j,n_point) + vemoisg_grisli(n_point)
@@ -802,7 +802,7 @@
 
 !       Temperatures are positive, we are dealing with rain ...
 
-            if (tsurf(i,j).ge.tzero + 0.1d0 ) then
+            if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then
 
 !~ #if ( ISOATM >= 1 )
 
@@ -840,7 +840,7 @@
 ! dmr&afq --- Addition of vertically discretized rainout / snowout
             do nl = 1, nb_levls
 !       Temperatures are positive, we are dealing with rain ...
-            if (tsurf_d(i,j,nl).ge.tzero + 0.1d0 ) then
+            if (tsurf_d(i,j,nl).ge.tzero + 0.1e0_dblp ) then
               dyrain_d(i,j,nl) = dyrain_d(i,j,nl) + vemoisg_d(nl)
             else ! tsurf < tzero
               dysnow_d(i,j,nl) = dysnow_d(i,j,nl) + vemoisg_d(nl)
@@ -918,9 +918,9 @@
           rmoisg(i,j,iwater) = rmoisg(i,j,iwater) + dtime*(              &
                  -ihavm*hdivmg(i,j,iwater) - ivavm*vemoisg(i,j,iwater) + hdmoisg(i,j,iwater) + imsink*evap(i,j,iwater) )
 
-          if (rmoisg(i,j,iwater).lt.0d0) then
+          if (rmoisg(i,j,iwater).lt.0e0_dblp) then
             cormois(i,j,iwater)=cormois(i,j,iwater)-rmoisg(i,j,iwater)
-            rmoisg(i,j,iwater)= 0d0
+            rmoisg(i,j,iwater)= 0e0_dblp
           endif
 !~ #endif /* on water isotopes */
 
@@ -957,15 +957,15 @@
       do j=1,nlon
         do i=1,nlat
 
-         if (vemoisg(i,j,ieau).gt.0.0d0) then ! there is snow or rain (or both in Downscaling)
+         if (vemoisg(i,j,ieau).gt.0.0e0_dblp) then ! there is snow or rain (or both in Downscaling)
 
 #if ( DOWNSCALING == 2 )
-         if ( sub_grid_notflat(i,j) > 0.0d0 ) then ! sub-grid is rough ...
+         if ( sub_grid_notflat(i,j) > 0.0e0_dblp ) then ! sub-grid is rough ...
 
            rmoisg_startstep(:) = rmoiseauav(i,j,:)
 
          ! two semi-steps: one for rain, one for snow
-         if (fract_rain(i,j).gt.0.0d0) then ! there is rain ...
+         if (fract_rain(i,j).gt.0.0e0_dblp) then ! there is rain ...
 
 !       Compute fraction of remaining water in the cell after the partial snow/rain step
 !        used by all water isotopes
@@ -1003,16 +1003,16 @@
 
          endif! on fract_rain
 
-         if (1.0d0-fract_rain(i,j).gt.0.0d0) then ! there is snow (also or not ...)
+         if (1.0e0_dblp-fract_rain(i,j).gt.0.0e0_dblp) then ! there is snow (also or not ...)
 
 !       Compute fraction of remaining water in the cell after the partial snow/rain step
 !        used by all water isotopes
-          rmoisg_semistep = rmoisg_startstep(ieau)-ivavm*dtime*vemoisg(i,j,ieau)*(1.0d0-fract_rain(i,j))
+          rmoisg_semistep = rmoisg_startstep(ieau)-ivavm*dtime*vemoisg(i,j,ieau)*(1.0e0_dblp-fract_rain(i,j))
           fract = rmoisg_semistep / rmoisg_startstep(ieau)
 
 !dmr --- Pathetic case: fract < 0 !
           if (fract.LT.0.0) then
-           fract = 0.0d0
+           fract = 0.0e0_dblp
           endif
 
           do k=ieau+2, neauiso ! skipping useless O16 ...
@@ -1062,7 +1062,7 @@
 
 !        Determine fractionnation factor type
 
-           if (tsurf(i,j).ge.tzero + 0.1d0 ) then ! rain, use alpha_lv
+           if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then ! rain, use alpha_lv
             alpha_rayl = alpha_lv(temp4g(i,j),k)
            else ! snow, use alpha_sv or alpha_sve
 #if ( FRAC_KINETIK == 0 )
@@ -1080,7 +1080,7 @@
            rmoisg(i,j,k) = rmoisg_semistep * ratio_ap
 
 !       Compute the dyrain and dysnow values for the water isotopes
-           if (tsurf(i,j).ge.tzero + 0.1d0 ) then ! rain, use alpha_lv
+           if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then ! rain, use alpha_lv
              dyrain(i,j,k) = (rmoiseauav(i,j,k)-rmoisg(i,j,k)) / (ivavm*dtime)
            else
              dysnow(i,j,k) = (rmoiseauav(i,j,k)-rmoisg(i,j,k)) / (ivavm*dtime)
@@ -1115,9 +1115,9 @@
 !       we set everybody to zero for each that is negative
 
 
-          if (rmoisg(i,j,k).lt.0d0) then
+          if (rmoisg(i,j,k).lt.0e0_dblp) then
             cormois(i,j,ieau+2:neauiso)=cormois(i,j,ieau+2:neauiso)-rmoisg(i,j,ieau+2:neauiso)
-            rmoisg(i,j,ieau+2:neauiso)= rmoisg(i,j,1)*(datmini(ieau+2:neauiso)+1.0d0)*rsmow(ieau+2:neauiso)
+            rmoisg(i,j,ieau+2:neauiso)= rmoisg(i,j,1)*(datmini(ieau+2:neauiso)+1.0e0_dblp)*rsmow(ieau+2:neauiso)
           endif
 
           enddo ! on isotopes types
@@ -1128,14 +1128,14 @@
 ! dmr   STD concistency check
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-          if ((dysnow(i,j,ieau).GT.EPSILON(dysnow(i,j,ieau))).and.(dysnow(i,j,ieau18).EQ.0.d0))then
+          if ((dysnow(i,j,ieau).GT.EPSILON(dysnow(i,j,ieau))).and.(dysnow(i,j,ieau18).EQ.0.e0_dblp))then
            write(*,*) "PB dysnow ec_moisture9 !! ", rmoisg(i,j,ieau),dysnow(i,j,ieau18),i,j
            write(*,*) "snow_sum", dysnow(i,j,ieau)
            write(*,*) "rain_sum", dyrain(i,j,ieau)
            write(*,*) "valeur down = ", sub_grid_notflat(i,j)
            read(*,*)
           endif
-          if ((dyrain(i,j,ieau).GT.EPSILON(dyrain(i,j,ieau))).and.(dyrain(i,j,ieau18).EQ.0.d0))then
+          if ((dyrain(i,j,ieau).GT.EPSILON(dyrain(i,j,ieau))).and.(dyrain(i,j,ieau18).EQ.0.e0_dblp))then
            write(*,*) "PB dyrain ec_moisture9 !! ", rmoisg(i,j,ieau),dyrain(i,j,ieau18),i,j
            write(*,*) "snow_sum", dysnow(i,j,ieau)
            write(*,*) "rain_sum", dyrain(i,j,ieau)
@@ -1216,7 +1216,7 @@
       
       DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)
         DO j=LBOUND(humidae,dim=2), UBOUND(humidae,dim=2)
-           personae(i,j) = humidae(i,j,ieau).ge.epsilon(0.0d0)        !this is where the water is zero
+           personae(i,j) = humidae(i,j,ieau).ge.epsilon(0.0e0_dblp)        !this is where the water is zero
         ENDDO
       ENDDO
       

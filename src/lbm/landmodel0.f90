@@ -341,6 +341,7 @@
       use newunit_mod, only: error_id
 
       use comunit, only: iuo
+      use error0_mod, only: ec_error
 
       implicit none
 

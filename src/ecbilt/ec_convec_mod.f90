@@ -8,6 +8,7 @@
       
 
       use global_constants_mod, only: dblp=>dp, ip
+      use atm_thermo_mod,       only: ec_levtempgp
       use newunit_mod, only: error_id
 
       implicit none
@@ -28,16 +29,16 @@
 
       use comatm, only: dtime, grav, rgas, plevel, nlat, nlon, iwater
       use comdyn, only: geopg
-      use comphys,only: cpair, dp1, dp2, gamd, ivavm, potfac1, potfac2, rainmax, relhmax, rkappa, rlatsub, rlatvap, rowat, tzero  &
-                 , rmoisg, temp2g, temp4g, temp2g, rmoisg, rmoisg, rmoisg, rmoisg, dyrain, dyrain, dysnow, dysnow, corain, corain &
-                 , cosnow, cosnow, rmoisg, temp4g, corain, cosnow, thforg2, temp2g, temp4g, vhforg1, vhforg2, rmoisg, temp4g      &
-                 , tetacr, tetacr, temp2g, temp4g, dyrain, corain, dysnow, cosnow, temp2g, temp4g, gams, teta, torain, tosnow
+      use comphys, only: cpair, dp1, dp2, gamd, ivavm, potfac1, potfac2, &
+                         rainmax, relhmax, rkappa, rlatsub, rlatvap, rowat, &
+                         tzero, rmoisg, temp2g, temp4g, dyrain, dysnow, &
+                         corain, cosnow, thforg2, vhforg1, vhforg2, tetacr, &
+                         gams, teta, torain, tosnow
       use comrunlabel_mod, only: irunlabelf
-      use comsurf_mod
-      use comunit
+      use comsurf_mod, only: tsurf
       use atm_thermo_mod, only: ec_qsat
       use atmphys_mod, only: ec_ptmoisgp
-
+      use error0_mod, only: ec_error
 
 
 #if ( DOWNSTS == 1 )
@@ -66,7 +67,8 @@
 #endif /* DOWNSTS == 1 */
 
 #if ( DOWNSTS == 1 )
-      use vertDownsc_mod, only: dyrain_d, dysnow_d, corain_d, cosnow_d, torain_d, tosnow_d
+      use vertDownsc_mod, only: dyrain_d, dysnow_d, corain_d, cosnow_d, &
+                               torain_d, tosnow_d
 #endif
 
 !!    USE OMP_LIB
@@ -76,14 +78,14 @@
 
       integer ncmax,iconvn,i,j
 
-      double precision  :: dcmoisg
+      real(kind=dblp)  :: dcmoisg
 
 
-      real*8  qsatcr,tsatcr,pref,t500,qsat500,pot2g,pot4g
-      real*8  fachulp,facteta,factemv,factems,pmount,tmount
-      real*8  qmax,hulp,redrain
-      real*8  temp2go,temp4go,ec_levtempgp
-      real*8  ec_detqmax,drainm,crainm,dqmdt
+      real(kind=dblp)  qsatcr,tsatcr,pref,t500,qsat500,pot2g,pot4g
+      real(kind=dblp)  fachulp,facteta,factemv,factems,pmount,tmount
+      real(kind=dblp)  qmax,hulp,redrain
+      real(kind=dblp)  temp2go,temp4go
+      real(kind=dblp)  ec_detqmax,drainm,crainm,dqmdt
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  New variables for vertical downscaling on nb_ipoints virtual surfaces
@@ -92,13 +94,13 @@
 #if ( DOWNSTS == 1 )
 
       logical                                 :: success = .false.
-      double precision, dimension(nb_levls)   :: tmount_d,qmax_d,dqmdt_d,dcmoisg_d
+      real(kind=dblp), dimension(nb_levls) :: tmount_d, qmax_d, dqmdt_d, dcmoisg_d
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Series of variables for looping over the pertaining sub-grid points
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      double precision                          :: weight_low
+      real(kind=dblp)                          :: weight_low
       integer                                   :: ind_low, I_did_something
 
 #if ( DOWNSCALING == 2 )
@@ -108,24 +110,28 @@
 ! dmr        Same story for temp2g_grisli, temp4g_grisli, thforg2_grisli, vhforg1_grisli, vhforg2_grisli
 
 ! dmr The cluster below hence represents all variables providing a feedback from small to large scale
-      double precision, dimension(max_nb_points):: dyrain_grisli , dysnow_grisli , corain_grisli , cosnow_grisli, thforg2_grisli  &
+      real(kind=dblp), dimension(max_nb_points) :: dyrain_grisli, dysnow_grisli, &
+                        corain_grisli, cosnow_grisli, thforg2_grisli, &
                      , vhforg1_grisli, vhforg2_grisli, temp2g_grisli , temp4g_grisli, rmoisg_grisli
 ! dmr Those two below are used only once as a transfer matrix. Not much I can do for them
-      double precision, dimension(max_nb_points):: temp2g_grisli_diag, temp4g_grisli_diag
+      real(kind=dblp), dimension(max_nb_points) :: temp2g_grisli_diag, &
+                                                   temp4g_grisli_diag
 
-      double precision :: qmax_hr, dqmdt_hr, tsurf_hr, dcmoisg_hr, rmoisg_hr
+      real(kind=dblp) :: qmax_hr, dqmdt_hr, tsurf_hr, dcmoisg_hr, rmoisg_hr
 
-      double precision :: dcmoisg_accum
-      double precision :: drainm_grisli, crainm_grisli
-      double precision :: teta_grisli, tetacr_grisli,gams_grisli
-      double precision, parameter :: fact_humid = 1.0
+      real(kind=dblp) :: dcmoisg_accum
+      real(kind=dblp) :: drainm_grisli, crainm_grisli
+      real(kind=dblp) :: teta_grisli, tetacr_grisli,gams_grisli
+      real(kind=dblp), parameter :: fact_humid = 1.0
 
-      double precision,dimension(sgnxm,sgnym,sgd)   :: rmoisg_interp,temp2g_interp,temp4g_interp,tsurf_d_interp
+      real(kind=dblp), dimension(sgnxm,sgnym,sgd) :: rmoisg_interp, &
+                        temp2g_interp, temp4g_interp, tsurf_d_interp
 
-      double precision,dimension(nlat,nlon,max_nb_points) :: rmoisg_interp_sg,temp2g_interp_sg,temp4g_interp_sg
+      real(kind=dblp), dimension(nlat,nlon,max_nb_points) :: &
+                        rmoisg_interp_sg, temp2g_interp_sg, temp4g_interp_sg
 
 !     ,tsurf_interp_sg_tmp  !! now in vertDownsc_mod
-!     double precision, dimension(nlat,nlon,nb_levls,max_nb_points) ::
+!     real(kind=dblp), dimension(nlat,nlon,nb_levls,max_nb_points) ::
 !     &  tsurf_d_interp_sg  !! now in vertDownsc_mod
       logical :: stability_coarse
 
@@ -142,7 +148,7 @@
       integer :: n_point, lokaal_npoints, nbd
 
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
-      double precision :: rain_cg, snow_cg, rain_part
+      real(kind=dblp) :: rain_cg, snow_cg, rain_part
 
 #endif /* DOWNSTS */
 
@@ -161,8 +167,8 @@
 ! dmr [TODO] those computations could be moved to a common, no need to do this at every
 !      call !
 ! This is to be checked in the STD SVN VERSION ...
-      fachulp=0.622d0*(rlatvap**2)/(cpair*rgas)
-      facteta=0.6d0*rgas*(2.d0**rkappa)/grav
+      fachulp=0.622e0_dblp*(rlatvap**2)/(cpair*rgas)
+      facteta=0.6e0_dblp*rgas*(2.e0_dblp**rkappa)/grav
       factemv=rlatvap*grav*rowat/cpair
       factems=rlatsub*grav*rowat/cpair
       ncmax=0
@@ -173,7 +179,7 @@
 #if ( DOWNSCALING == 2 )
 ! afq, it is possible to rain more/less in subgrid:
       crainm_grisli=crainm*1.d0
-      drainm_grisli=drainm*1.d0
+      drainm_grisli=drainm*1.e0_dblp
 #endif
 
 
@@ -250,7 +256,7 @@
 
          qmax_d(:) = relhmax*qmax_d(:)
 
-         dcmoisg_d(:)=0d0
+         dcmoisg_d(:)=0e0_dblp
 
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 ! dmr&afq  Vertical downscaling on vertical levs for precip
@@ -261,7 +267,7 @@
             if (rmoisg(i,j,iwater).gt.qmax_d(nl)) then
 
 ! redrain is dependent on dqmdt ...
-              redrain=1d0+dqmdt_d(nl)*relhmax*rowat*rlatvap*grav/(cpair*dp2)
+              redrain=1e0_dblp+dqmdt_d(nl)*relhmax*rowat*rlatvap*grav/(cpair*dp2)
 
               dcmoisg_d(nl) = (rmoisg(i,j,iwater)-qmax_d(nl))/(redrain*dtime)
 
@@ -278,7 +284,7 @@
 !       Temperatures are positive, we are dealing with rain ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
-                if (tsurf_d(i,j,nl).ge.tzero + 0.1d0 ) then
+                if (tsurf_d(i,j,nl).ge.tzero + 0.1e0_dblp ) then
                   dyrain_d(i,j,nl)= dyrain_d(i,j,nl)+ dcmoisg_d(nl)
 
                   if (dyrain_d(i,j,nl).gt.drainm) then
@@ -306,7 +312,7 @@
 !       Temperatures are positive, we are dealing with rain ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
-                if (tsurf_d(i,j,nl).ge.tzero + 0.1d0 ) then
+                if (tsurf_d(i,j,nl).ge.tzero + 0.1e0_dblp ) then
 
                   corain_d(i,j,nl)=corain_d(i,j,nl) + dcmoisg_d(nl)
 
@@ -346,7 +352,7 @@
 
 #if ( DOWNSCALING == 2 )
 
-         if (sub_grid_notflat(i,j) <= 0.0d0 .or. stability_coarse) then ! grid is flat ... normal procedure!
+         if (sub_grid_notflat(i,j) <= 0.0e0_dblp .or. stability_coarse) then ! grid is flat ... normal procedure!
 
 #if ( SYS_CLOCK > 0 )
            call system_clock(count=count_strt)
@@ -366,18 +372,18 @@
 
             pot2g=temp2g(i,j)/potfac1
             pot4g=temp4g(i,j)/potfac2
-            teta(i,j)=0.5d0*(pot2g-pot4g)
+            teta(i,j)=0.5e0_dblp*(pot2g-pot4g)
 ! ***       dry adiabatic lapse rate
-            tetacr(i,j)=0d0
+            tetacr(i,j)=0e0_dblp
 
-            dcmoisg=0d0
+            dcmoisg=0e0_dblp
 
             if (rmoisg(i,j,iwater).gt.qmax) then
 
 ! ***     calculate rain reduction factor to account for increased
 ! ***     moisture capacity due to latent heat release
 
-              redrain=1d0+dqmdt*relhmax*rowat*rlatvap*grav/(cpair*dp2)
+              redrain=1e0_dblp+dqmdt*relhmax*rowat*rlatvap*grav/(cpair*dp2)
 
               dcmoisg=(rmoisg(i,j,iwater)-qmax)/(redrain*dtime)
 
@@ -392,7 +398,7 @@
 !       Temperatures are positive, we are dealing with rain ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
-                if (tsurf(i,j).ge.tzero + 0.1d0 ) then
+                if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then
 
                   dyrain(i,j,iwater)=dyrain(i,j,iwater) + dcmoisg
                   if (dyrain(i,j,iwater).gt.drainm) then
@@ -421,7 +427,7 @@
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 !       Temperatures are positive, we are dealing with rain ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
-                if (tsurf(i,j).ge.tzero + 0.1d0 ) then
+                if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then
 
                   corain(i,j,iwater)=corain(i,j,iwater)+ dcmoisg
                   if (corain(i,j,iwater).gt.crainm) then
@@ -459,8 +465,8 @@
 
             rmoisg(i,j,iwater)=rmoisg(i,j,iwater)-ivavm*dcmoisg*dtime
 
-              if (rmoisg(i,j,iwater).lt.0d0) then
-                rmoisg(i,j,iwater)= 0d0
+              if (rmoisg(i,j,iwater).lt.0e0_dblp) then
+                rmoisg(i,j,iwater)= 0e0_dblp
               endif
               ! [TODO] -> pas conservatif ajout à cormois?
 
@@ -468,19 +474,19 @@
 
               pot2g=temp2g(i,j)/potfac1
               pot4g=temp4g(i,j)/potfac2
-              teta(i,j)=0.5d0*(pot2g-pot4g)
+              teta(i,j)=0.5e0_dblp*(pot2g-pot4g)
 
 !              t500 = ec_levtempgp(plevel(2),i,j)
-              t500 = 0.5d0 * (temp2g(i,j) + temp4g(i,j))
+              t500 = 0.5e0_dblp * (temp2g(i,j) + temp4g(i,j))
 
               qsat500=ec_qsat(plevel(2),t500)
 
-              hulp=1d0 + fachulp*qsat500/(t500**2)
+              hulp=1e0_dblp + fachulp*qsat500/(t500**2)
               gams(i,j)=gamd*(1+(rlatvap*qsat500)/(rgas*t500))/hulp
-              tetacr(i,j)=0.5d0*t500*facteta*(gamd-gams(i,j))
+              tetacr(i,j)=0.5e0_dblp*t500*facteta*(gamd-gams(i,j))
 
 #if ( DOWNSCALING == 2 )
-              if (sub_grid_notflat(i,j) > 0.0d0) then ! or stability_coarse==T
+              if (sub_grid_notflat(i,j) > 0.0e0_dblp) then ! or stability_coarse==T
 !!                 write(*,*) "stability_coarse", i,j,corain(i,j)
 !!     &            , corain_sg(i,j,1), corain_sg(i,j,2)
 !!     &            , corain_sg(i,j,3), corain_sg(i,j,4)
@@ -507,17 +513,17 @@
 !dmr&afq --- [???] Are the following lines really useful? (also for the non-downscaled version)
           pot2g=temp2g(i,j)/potfac1
           pot4g=temp4g(i,j)/potfac2
-          teta(i,j)=0.5d0*(pot2g-pot4g)
+          teta(i,j)=0.5e0_dblp*(pot2g-pot4g)
 
 ! ***       dry adiabatic lapse rate
-          tetacr(i,j)=0d0
+          tetacr(i,j)=0e0_dblp
 
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 ! dmr   Reset work variables ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
-          dcmoisg = 0d0
-          dcmoisg_accum = 0d0
+          dcmoisg = 0e0_dblp
+          dcmoisg_accum = 0e0_dblp
 
 ! afq -- sub-grid cells initialised to coarse-grid values
 ! afq -- at the end we do a sum, so we need to fill up only the effective subgrid
@@ -525,11 +531,11 @@
 
 ! dmr I have modified the sum so that it operates only on the effective one ...
 !     [TODO] --- remove this init?
-          thforg2_grisli(:) = 0d0
-          temp2g_grisli(:) = 0d0
-          temp4g_grisli(:) = 0d0
-          vhforg1_grisli(:) = 0d0
-          vhforg2_grisli(:) = 0d0
+          thforg2_grisli(:) = 0e0_dblp
+          temp2g_grisli(:) = 0e0_dblp
+          temp4g_grisli(:) = 0e0_dblp
+          vhforg1_grisli(:) = 0e0_dblp
+          vhforg2_grisli(:) = 0e0_dblp
 ! dmr    --- until here
 
           lokaal_npoints = nbpointssg(i,j)
@@ -545,13 +551,13 @@
           temp2g_grisli_diag(1:lokaal_npoints) = temp2g_interp_sg(i,j,1:lokaal_npoints)
           temp4g_grisli_diag(1:lokaal_npoints) = temp4g_interp_sg(i,j,1:lokaal_npoints)
 
-          dyrain_grisli(:)  = 0.0d0
-          dysnow_grisli(:)  = 0.0d0
-          corain_grisli(:)  = 0.0d0
-          cosnow_grisli(:)  = 0.0d0
+          dyrain_grisli(:)  = 0.0e0_dblp
+          dysnow_grisli(:)  = 0.0e0_dblp
+          corain_grisli(:)  = 0.0_dblp
+          cosnow_grisli(:)  = 0.0_dblp
 
-          rain_cg = 0.0d0
-          snow_cg = 0.0d0
+          rain_cg = 0.0e0_dblp
+          snow_cg = 0.0e0_dblp
 
           I_did_something = 0
 
@@ -568,11 +574,11 @@
 ! afq, need to be recomputed for each convective loop:
             pot2g=temp2g_grisli(n_point)/potfac1
             pot4g=temp4g_grisli(n_point)/potfac2
-            teta_grisli=0.5d0*(pot2g-pot4g)
+            teta_grisli=0.5e0_dblp*(pot2g-pot4g)
 ! ***       dry adiabatic lapse rate
-            tetacr_grisli=0d0
+            tetacr_grisli=0e0_dblp
 
-            dcmoisg_hr = 0.0d0
+            dcmoisg_hr = 0.0e0_dblp
 
             ind_low = index_low_sg(i,j,n_point)
             weight_low = weights_low_sg(i,j,n_point)
@@ -587,11 +593,11 @@
 ! [REPLACE] with:    qmax_hr    , dqmdt_hr    , tsurf_hr
 
             ! ... but we only use two of them ... can spare 9 levels computation!
-            qmax_hr =  qmax_d(ind_low)*weight_low + qmax_d(ind_low+1) * (1.d0 - weight_low)
-            dqmdt_hr = dqmdt_d(ind_low)*weight_low +  dqmdt_d(ind_low+1)*(1.d0 - weight_low)
+            qmax_hr =  qmax_d(ind_low)*weight_low + qmax_d(ind_low+1) * (1.e0_dblp - weight_low)
+            dqmdt_hr = dqmdt_d(ind_low)*weight_low +  dqmdt_d(ind_low+1)*(1.e0_dblp - weight_low)
 
             tsurf_hr = tsurf_d_interp_sg(ind_low,i,j,n_point)*weight_low                                                        &
-                     + tsurf_d_interp_sg(ind_low+1,i,j,n_point)*(1.d0 - weight_low)
+                     + tsurf_d_interp_sg(ind_low+1,i,j,n_point)*(1.e0_dblp - weight_low)
 
             tsurf_sg(i,j,n_point) = tsurf_hr
 
@@ -612,7 +618,7 @@
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
 ! redrain is dependent on dqmdt ...
-              redrain=1d0+dqmdt_hr*relhmax*rowat*rlatvap*grav/(cpair*dp2)
+              redrain=1e0_dblp+dqmdt_hr*relhmax*rowat*rlatvap*grav/(cpair*dp2)
 
               dcmoisg_hr = (rmoisg_grisli(n_point)-qmax_hr)/(redrain*dtime)
 
@@ -630,7 +636,7 @@
 !       Temperatures are positive, we are dealing with rain ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
-                if (tsurf_hr.ge.tzero + 0.1d0 ) then
+                if (tsurf_hr.ge.tzero + 0.1e0_dblp ) then
                   dyrain_grisli(n_point)= dyrain_grisli(n_point) + dcmoisg_hr
 
                   if (dyrain_grisli(n_point).gt.drainm_grisli) then
@@ -665,7 +671,7 @@
 !       Temperatures are positive, we are dealing with rain ...
 !-----|--1---------2---------3---------4---------5---------6---------7---------8---------9---------0---------1---------2---------3-|
 
-                if (tsurf_hr.ge.tzero + 0.1d0 ) then
+                if (tsurf_hr.ge.tzero + 0.1e0_dblp ) then
 
 
                   corain_grisli(n_point)=corain_grisli(n_point) + dcmoisg_hr
@@ -707,23 +713,23 @@
 
               rmoisg_grisli(n_point)=rmoisg_grisli(n_point)-ivavm*dcmoisg_hr*dtime
 
-              if (rmoisg_grisli(n_point).lt.0d0) then
+              if (rmoisg_grisli(n_point).lt.0e0_dblp) then
 
-                 rmoisg_grisli(n_point) = 0d0
+                 rmoisg_grisli(n_point) = 0e0_dblp
 ! afq -- not a problem: the var. used for water cons. is rmoisg, not rmoisg_grisli
               endif
 
               pot2g=temp2g_grisli(n_point)/potfac1
               pot4g=temp4g_grisli(n_point)/potfac2
-              teta_grisli=0.5d0*(pot2g-pot4g)
+              teta_grisli=0.5e0_dblp*(pot2g-pot4g)
 
-              t500 = 0.5d0 * (temp2g_grisli(n_point) + temp4g_grisli(n_point))
+              t500 = 0.5e0_dblp * (temp2g_grisli(n_point) + temp4g_grisli(n_point))
 
               qsat500=ec_qsat(plevel(2),t500)
 
-              hulp=1d0 + fachulp*qsat500/(t500**2)
+              hulp=1e0_dblp + fachulp*qsat500/(t500**2)
               gams_grisli=gamd*(1+(rlatvap*qsat500)/(rgas*t500))/hulp
-              tetacr_grisli=0.5d0*t500*facteta*(gamd-gams_grisli)
+              tetacr_grisli=0.5e0_dblp*t500*facteta*(gamd-gams_grisli)
 
            endif    ! on rmoisg_grisli > qmax_grisli
 
@@ -732,7 +738,7 @@
 
                pot2g=(dp1*temp2g_grisli(n_point)+dp2*temp4g_grisli(n_point)+dp2*potfac2*2.*tetacr_grisli)/(potfac1*dp1+potfac2*dp2)
 
-               pot4g=pot2g - 2.d0*tetacr_grisli
+               pot4g=pot2g - 2.e0_dblp*tetacr_grisli
                temp2go=temp2g_grisli(n_point)
                temp4go=temp4g_grisli(n_point)
                temp2g_grisli(n_point)=pot2g*potfac1
@@ -816,15 +822,15 @@
 
             pot2g=temp2g(i,j)/potfac1
             pot4g=temp4g(i,j)/potfac2
-            teta(i,j)=0.5d0*(pot2g-pot4g)
+            teta(i,j)=0.5e0_dblp*(pot2g-pot4g)
 
-            t500 = 0.5d0 * (temp2g(i,j) + temp4g(i,j))
+            t500 = 0.5e0_dblp * (temp2g(i,j) + temp4g(i,j))
 
             qsat500=ec_qsat(plevel(2),t500)
 
-            hulp=1d0 + fachulp*qsat500/(t500**2)
+            hulp=1e0_dblp + fachulp*qsat500/(t500**2)
             gams(i,j)=gamd*(1+(rlatvap*qsat500)/(rgas*t500))/hulp
-            tetacr(i,j)=0.5d0*t500*facteta*(gamd-gams(i,j))
+            tetacr(i,j)=0.5e0_dblp*t500*facteta*(gamd-gams(i,j))
 
 ! dmr should be moved above (sub grid) !!!             endif ! on rmoisg > qmax
             endif ! on I_did_something
@@ -846,7 +852,7 @@
 
               pot2g=(dp1*temp2g(i,j)+dp2*temp4g(i,j)+dp2*potfac2*2.*tetacr(i,j))/(potfac1*dp1+potfac2*dp2)
 
-              pot4g=pot2g - 2.d0*tetacr(i,j)
+              pot4g=pot2g - 2.e0_dblp*tetacr(i,j)
               temp2go=temp2g(i,j)
               temp4go=temp4g(i,j)
               temp2g(i,j)=pot2g*potfac1
@@ -880,7 +886,7 @@
 
 #if ( DOWNSCALING == 2 )
 ! afq -- with the downscaling we can not improve large scale stability...
-              if ( (sub_grid_notflat(i,j)>0.0d0).and.(I_did_something.gt.0) ) then
+              if ( (sub_grid_notflat(i,j)>0.0e0_dblp).and.(I_did_something.gt.0) ) then
                  stability_coarse = .True.
               endif
 #endif
