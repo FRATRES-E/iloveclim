@@ -1,21 +1,21 @@
 !dmr -- Added optional components choice - Fri Oct 28 10:57:45 CEST 2011
 #include "choixcomposantes.h"
 !dmr -- Added optional components choice - Fri Oct 28 10:57:45 CEST 2011
-      MODULE Atmosphere_Output
+      module atmoutp_mod
 
 !      USE uuid_fort_wrap, ONLY: UUID_V4, uuid_size
       use uuid_module, only: generate_uuid
-      use global_constants_mod, only: uuid_size
+      use global_constants_mod, only: uuid_size, dblp=>dp, ip
 
-      USE comatm
-      USE comdiag
-      use comemic_mod, only: iyear, imonth, iday, fini, irunlabel, irunlabeld
-     &               , globalatt
-      use comunit
+      USE comatm, only: dp, nlat, nlon, phi, pi
+      USE comdiag, only: fill_value, missing_value, &
+                         nametotvar, newtotvar, numtotvar, thirdd
+      use comemic_mod, only: iyear, imonth, iday, fini, irunlabel, irunlabeld &
+                    , globalatt
 
 ! --- BdB 05-2019: added variables for writing time
-      use comemic_mod, only: nwrskip, new_year_atm
-     &               , time_in_years, current_int_atm
+      use comemic_mod, only: nwrskip, new_year_atm &
+                    , time_in_years, current_int_atm
 
       use newunit_mod, only: error_id
       
@@ -45,7 +45,8 @@
       PUBLIC :: Yearly_Means
 
 !     Codes for one dimensional fields
-      REAL*8, ALLOCATABLE, DIMENSION(:) :: lon_bounds, lat_bounds, time_bounds
+      real(kind=dblp), allocatable, dimension(:) :: lon_bounds, &
+                                                    lat_bounds, time_bounds
 
 !     Codes for one dimensional fields
       PUBLIC :: lon
@@ -165,31 +166,31 @@
       INTEGER, PARAMETER :: Yearly_Means              =  6
 
 !     Grid coordinates
-      TYPE(Info), PARAMETER ::
-     & I_info           = Info("name",  "standard_name", "long_name",
-     &          "units",                            "axis", ""),
-     & I_longitude      = Info("lon",   "longitude",     "Longitude",
-     &          "degrees_east",                     "X",    ""),
-     & I_latitude       = Info("lat",   "latitude",      "Latitude",
-     &          "degrees_north",                    "Y",    ""),
-     & I_pressure_T2    = Info("P_T2",  "pressure",      "Air Pressure",
-     &          "Pa",                               "Z",    "down"),
-     & I_pressure_T3    = Info("P_T3",  "pressure",      "Air Pressure",
-     &          "Pa",                               "Z",    "down"),
-     & I_pressure_T4    = Info("P_T4",  "pressure",      "Air Pressure",
-     &          "Pa",                               "Z",    "down"),
-     & I_pressure_U3    = Info("P_U3",  "pressure",      "Air Pressure",
-     &          "Pa",                               "Z",    "down"),
-     & I_time_in_days   = Info("time",  "time",          "Model Time",
-     &          "days",   "T",    "360_day"),
-     & I_time_in_months = Info("time",  "time",          "Model Time",
-     &          "months", "T",    "360_day"),
-     & I_time_in_years  = Info("time",  "time",          "Model Time",
-     &          "years",  "T",    "360_day")
+      TYPE(Info), PARAMETER :: &
+      I_info           = Info("name",  "standard_name", "long_name", &
+               "units",                            "axis", ""), &
+      I_longitude      = Info("lon",   "longitude",     "Longitude", &
+               "degrees_east",                     "X",    ""), &
+      I_latitude       = Info("lat",   "latitude",      "Latitude", &
+               "degrees_north",                    "Y",    ""), &
+      I_pressure_T2    = Info("P_T2",  "pressure",      "Air Pressure", &
+               "Pa",                               "Z",    "down"), &
+      I_pressure_T3    = Info("P_T3",  "pressure",      "Air Pressure", &
+               "Pa",                               "Z",    "down"), &
+      I_pressure_T4    = Info("P_T4",  "pressure",      "Air Pressure", &
+               "Pa",                               "Z",    "down"), &
+      I_pressure_U3    = Info("P_U3",  "pressure",      "Air Pressure", &
+               "Pa",                               "Z",    "down"), &
+      I_time_in_days   = Info("time",  "time",          "Model Time", &
+               "days",   "T",    "360_day"), &
+      I_time_in_months = Info("time",  "time",          "Model Time", &
+               "months", "T",    "360_day"), &
+      I_time_in_years  = Info("time",  "time",          "Model Time", &
+               "years",  "T",    "360_day")
 !     Grid coordinates
-      TYPE(Infovar), PARAMETER ::
-     & I_infovar        = Infovar("name",  "standard_name", "long_name",
-     &          "units",                 "_FillValue", "missing_value")
+      TYPE(Infovar), PARAMETER :: &
+      I_infovar        = Infovar("name",  "standard_name", "long_name", &
+               "units",                 "_FillValue", "missing_value")
 
 !     One dimensional fields
       INTEGER, PARAMETER :: lon  = 1
@@ -232,7 +233,8 @@
       INTEGER, PARAMETER :: Drag_Coefficient_W          = 29
       INTEGER, PARAMETER :: Drag_Coefficient_V          = 30
       INTEGER, PARAMETER :: Total_Snow_Fall             = 31
-      INTEGER, PARAMETER :: Surface_Shortwave_Radiation = 32 !mohr, the value must be 32 in case ISOATM < 1
+      ! mohr: Surface_Shortwave_Radiation must be 32 when ISOATM < 1
+      INTEGER, PARAMETER :: Surface_Shortwave_Radiation = 32
       INTEGER, PARAMETER :: Surface_Longwave_Radiation  = 33 !mohr
       INTEGER, PARAMETER :: num_noiso_var               = 33
 #if ( ISOATM >= 1 )
@@ -329,7 +331,7 @@
 
       CHARACTER(len=256) :: output_filename
       LOGICAL            :: existe
-      CHARACTER*6, SAVE  :: finichf
+      character(len=6), SAVE  :: finichf
 
 
 ! --- BdB 05-2019: update name every nwrskip (the restart output interval)
@@ -412,8 +414,8 @@
       INTEGER             :: start(2)
       INTEGER             :: count(2)
       INTEGER, INTENT(in) :: N_num
-      REAL*8              :: D_data(N_num)
-      REAL*8              :: D_data2(2,N_num)
+      real(kind=dblp)              :: D_data(N_num)
+      real(kind=dblp)              :: D_data2(2,N_num)
     
 !     Output data for Variable
       start(:) = 1
@@ -477,8 +479,8 @@
       INTEGER             :: l,k,varid,dimid
       LOGICAL             :: write_test
 
-      REAL*8, DIMENSION(:,:,:,:), allocatable :: tmp
-      REAL*8, DIMENSION(:,:,:), INTENT(in)    :: D_data
+      real(kind=dblp), DIMENSION(:,:,:,:), allocatable :: tmp
+      real(kind=dblp), DIMENSION(:,:,:), INTENT(in)    :: D_data
 
       write_test = .FALSE.
       start(:)   = 1
@@ -561,7 +563,7 @@
 
       FUNCTION output(flag) RESULT(result)
 
-      REAL*8, INTENT(in) :: flag
+      real(kind=dblp), INTENT(in) :: flag
       LOGICAL            :: result
 
       result = ( flag /= 0 )
@@ -594,13 +596,12 @@
 
       SUBROUTINE initializeModule
 
-      use global_constants_mod, only: dblp=>dp, ip
 
-      REAL*8, PARAMETER :: pi               = 2*acos(0.)
-      REAL*8, PARAMETER :: radian_to_degree = 180.0/pi
+      real(kind=dblp), PARAMETER :: pi               = 2*acos(0.)
+      real(kind=dblp), PARAMETER :: radian_to_degree = 180.0/pi
 
-      REAL*8, ALLOCATABLE, DIMENSION(:)   :: templon, templat
-      REAL*8, ALLOCATABLE, DIMENSION(:,:) :: temp
+      real(kind=dblp), ALLOCATABLE, DIMENSION(:)   :: templon, templat
+      real(kind=dblp), ALLOCATABLE, DIMENSION(:,:) :: temp
 
       integer tab_dimid(5)
       integer tab_dim(5)
@@ -612,24 +613,24 @@
       CHARACTER(len=uuid_size) :: uuid_obt
 
       integer,dimension(8) :: cvalues
-      REAL*8 :: realmonth
+      real(kind=dblp) :: realmonth
 
       integer(kind=ip):: phi_lat_dat_id
 
-      realmonth=1.0d0
-      if ( irunlabeld /= 360 ) realmonth=(irunlabeld/30)+1.0d0
+      realmonth=1.0e0_dblp
+      if ( irunlabeld /= 360 ) realmonth=(irunlabeld/30)+1.0e0_dblp
 
       IF (initialize_module) THEN
 !     -----------------------------------------------------------------------
 !     1. Setup two- and three-dimensional grids.
 
 	     allocate(templon(nlon))
-	     templon = (/ ((360.0d0*l)/nlon,l=0,nlon-1) /)
+	     templon = (/ ((360.0e0_dblp*l)/nlon,l=0,nlon-1) /)
 	     allocate(templat(nlat))
 #if ( PMIP == 1 )
 !mab
-         open(newunit=phi_lat_dat_id,
-     &    file='phi_lat.dat',form='unformatted',status='old')
+         open(newunit=phi_lat_dat_id, &
+         file='phi_lat.dat',form='unformatted',status='old')
          read(phi_lat_dat_id) (phi(i),i=1,nlat)
          close(phi_lat_dat_id)
 !         print*, 'nach einlesen!!! phi',phi
@@ -641,15 +642,15 @@
            lat_bounds(i) = templat(i-1) - (templat(i-1) - templat(i))/2
          enddo
          lat_bounds(1) = templat(1) - (lat_bounds(3) -lat_bounds(2))/2.
-         lat_bounds(nlat+1) = templat(nlat) +
-     &                         (lat_bounds(nlat)-lat_bounds(nlat-1))/2.
+         lat_bounds(nlat+1) = templat(nlat) + &
+                              (lat_bounds(nlat)-lat_bounds(nlat-1))/2.
          allocate(lon_bounds(nlon+1))
          DO i = 2, nlon
            lon_bounds(i) = templon(i-1) - (templon(i-1) - templon(i))/2
          enddo
          lon_bounds(1) = templon(1) - (lon_bounds(3) -lon_bounds(2))/2.
-         lon_bounds(nlon+1) = templon(nlon) +
-     &                         (lon_bounds(nlon)-lon_bounds(nlon-1))/2.
+         lon_bounds(nlon+1) = templon(nlon) + &
+                              (lon_bounds(nlon)-lon_bounds(nlon-1))/2.
          allocate(time_bounds(2))
          time_bounds(1) = 0.5
          time_bounds(2) = 1.5
@@ -685,35 +686,36 @@
          deallocate(temp)
          deallocate(lat_bounds)
 
-         IF ( thirdd(1)==1 )
-     &   CALL initdim(I_pressure_T2,2,.FALSE.,.TRUE.,
-     &                (/350.0d2, 650.0d2/))
-         IF ( thirdd(2)==1 )
-     &   CALL initdim(I_pressure_T3,3,.FALSE.,.TRUE.,
-     &                (/100.0d2, 350.0d2, 650.0d2/))
-         IF ( thirdd(3)==1 )
-     &   CALL initdim(I_pressure_T4,4,.FALSE.,.TRUE.,
-     &                (/100.0d2, 350.0d2, 650.0d2, 1000.0d2/))
-         IF ( thirdd(4)==1 )
-     &   CALL initdim(I_pressure_U3,3,.FALSE.,.TRUE.,
-     &                (/200.0d2, 500.0d2, 800.0d2/))
+         IF ( thirdd(1)==1 ) &
+        CALL initdim(I_pressure_T2,2,.FALSE.,.TRUE., &
+                     (/350.0e2_dblp, 650.0e2_dblp/))
+         IF ( thirdd(2)==1 ) &
+        CALL initdim(I_pressure_T3,3,.FALSE.,.TRUE., &
+                     (/100.0e2_dblp, 350.0e2_dblp, 650.0e2_dblp/))
+         IF ( thirdd(3)==1 ) &
+        CALL initdim(I_pressure_T4,4,.FALSE.,.TRUE., &
+                     (/100.0e2_dblp, 350.0e2_dblp, &
+                       650.0e2_dblp, 1000.0e2_dblp/))
+         IF ( thirdd(4)==1 ) &
+        CALL initdim(I_pressure_U3,3,.FALSE.,.TRUE., &
+                     (/200.0e2_dblp, 500.0e2_dblp, 800.0e2_dblp/))
 
 !     -----------------------------------------------------------------------
 !     2. Time coordinate axes
 
          SELECT CASE (how_to_compute_time)
          CASE (Compute_Time_in_Days)
-            CALL initdim(I_time_in_days,NF_UNLIMITED,.TRUE.,.FALSE.,
-     &                (/1.0d0/))
+            CALL initdim(I_time_in_days,NF_UNLIMITED,.TRUE.,.FALSE., &
+                     (/1.0e0_dblp/))
          CASE (Compute_Time_in_Years_Months)
-            CALL initdim(I_time_in_months,NF_UNLIMITED,.TRUE.,.FALSE.,
-     &                (/1.0d0/))
+            CALL initdim(I_time_in_months,NF_UNLIMITED,.TRUE.,.FALSE., &
+                     (/1.0e0_dblp/))
          CASE (Compute_Time_in_Months_Only)
-            CALL initdim(I_time_in_months,NF_UNLIMITED,.TRUE.,.FALSE.,
-     &                (/realmonth/))
+            CALL initdim(I_time_in_months,NF_UNLIMITED,.TRUE.,.FALSE., &
+                     (/realmonth/))
          CASE (Compute_Time_in_Years_Only)
-            CALL initdim(I_time_in_years,NF_UNLIMITED,.TRUE.,.FALSE.,
-     &                (/1.0d0/))
+            CALL initdim(I_time_in_years,NF_UNLIMITED,.TRUE.,.FALSE., &
+                     (/1.0e0_dblp/))
          END SELECT
 
          allocate(temp(2,1))
@@ -803,7 +805,7 @@
 !~ !         call system('rm -rf uuidgen_file')
          uuid_obt = generate_uuid(4)
          globalatt(22,2)=trim(uuid_obt)
-c~          globalatt(22,2)=trim(longdata)
+!~          globalatt(22,2)=trim(longdata)
          globalatt(24,1)="frequency"
          SELECT CASE (how_to_compute_time)
 	      CASE (Compute_Time_in_Days)
@@ -817,16 +819,17 @@ c~          globalatt(22,2)=trim(longdata)
 	     END SELECT
 	     call date_and_time(VALUES=cvalues)
 	     longdata=''
-             write(longdata,999) cvalues(1), cvalues(2), cvalues(3), cvalues(5), 
-     &                           cvalues(6), cvalues(7)
+             write(longdata,999) cvalues(1), cvalues(2), &
+                                cvalues(3), cvalues(5), &
+                                cvalues(6), cvalues(7)
  999     format(i4.4,'-',i2.2,'-',i2.2,'T',i2.2,':',i2.2,':',i2.2,'Z')
          globalatt(25,1)="creation_date"
          globalatt(25,2)=trim(longdata)
          globalatt(26,1)="modeling_realm"
          globalatt(26,2)="atmos"
 	     do i=1,26
-                status=NF_PUT_ATT_TEXT(ncid,NF_GLOBAL,globalatt(i,1),
-     &                  len_trim(globalatt(i,2)),trim(globalatt(i,2)))
+                status=NF_PUT_ATT_TEXT(ncid,NF_GLOBAL,globalatt(i,1), &
+                       len_trim(globalatt(i,2)),trim(globalatt(i,2)))
 	     enddo
          status=NF_ENDDEF(ncid)
 
@@ -850,7 +853,7 @@ c~          globalatt(22,2)=trim(longdata)
       INTEGER                 :: dimid,varid
       INTEGER                 :: start(1)
       INTEGER                 :: count(1)
-      REAL*8,     INTENT(in)  :: D_data(N_num)
+      real(kind=dblp),     INTENT(in)  :: D_data(N_num)
       CHARACTER(len=256)      :: string,tmpstri,tmpstr
       INTEGER                 :: realmonth
 
@@ -867,46 +870,46 @@ c~          globalatt(22,2)=trim(longdata)
          write(tmpstri,*) irunlabel
          SELECT CASE (I_num%unit)
          CASE ("years")
-           string=              
-     &  "years since 1-"//trim(adjustl(tmpstr))//"-"//trim(adjustl(tmpstri))
+           string= &
+       "years since 1-"//trim(adjustl(tmpstr))//"-"//trim(adjustl(tmpstri))
          CASE ("months")
-           string=       
-     &  "months since 1-"//trim(adjustl(tmpstr))//"-"//trim(adjustl(tmpstri))
+           string= &
+       "months since 1-"//trim(adjustl(tmpstr))//"-"//trim(adjustl(tmpstri))
          CASE ("days")
-           string=       
-     &  "days since 1-"//trim(adjustl(tmpstr))//"-"//trim(adjustl(tmpstri))     
+           string= &
+       "days since 1-"//trim(adjustl(tmpstr))//"-"//trim(adjustl(tmpstri))     
          END SELECT
       END IF
 
 !     Define the attributes
-      status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_info%std,len_trim(I_num%std),trim(I_num%std))
-      status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_info%long,len_trim(I_num%long),trim(I_num%long))
-      status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_info%axis,len_trim(I_num%axis),trim(I_num%axis))
+      status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_info%std,len_trim(I_num%std),trim(I_num%std))
+      status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_info%long,len_trim(I_num%long),trim(I_num%long))
+      status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_info%axis,len_trim(I_num%axis),trim(I_num%axis))
       IF (I_num%std=="time") THEN
-         status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_info%unit,len_trim(string),trim(string))
+         status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_info%unit,len_trim(string),trim(string))
       ELSE
-         status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_info%unit,len_trim(I_num%unit),trim(I_num%unit))
+         status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_info%unit,len_trim(I_num%unit),trim(I_num%unit))
       END IF
 
-      IF (Is_pressure) status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      'positive',len_trim(I_num%more),trim(I_num%more))
-      IF (Is_time) status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      'calendar',len_trim(I_num%more),trim(I_num%more))
+      IF (Is_pressure) status=NF_PUT_ATT_TEXT(ncid,varid, &
+           'positive',len_trim(I_num%more),trim(I_num%more))
+      IF (Is_time) status=NF_PUT_ATT_TEXT(ncid,varid, &
+           'calendar',len_trim(I_num%more),trim(I_num%more))
 
       status=NF_ENDDEF(ncid)
 !     Output data for Variable
       start(1) = 1
       count(1)   = N_num
-c~       IF (Is_time) count(1)   = 1
-c~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exist!
+!~       IF (Is_time) count(1)   = 1
+!~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exist!
       IF (I_num%std=="time") then
         count(1)   = 1
-        status=NF_PUT_VARA_DOUBLE(ncid,varid,start,count,(/1.0/))
+        status=NF_PUT_VARA_DOUBLE(ncid,varid,start,count,(/1.0_dblp/))
       else
         status=NF_PUT_VARA_DOUBLE(ncid,varid,start,count,D_data)
       ENDIF
@@ -923,11 +926,11 @@ c~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exi
       SUBROUTINE initbnds(name,I_num,tab_dimid,D_data)
       use error0_mod, only: ec_error
 
-      character*120, INTENT(in) :: name
+      character(len=120), INTENT(in) :: name
       INTEGER                   :: varid, start(2), count(2)
       INTEGER,      INTENT(in)  :: I_num, tab_dimid(2)
 
-      REAL*8, DIMENSION(:,:), INTENT(in)  :: D_data
+      real(kind=dblp), DIMENSION(:,:), INTENT(in)  :: D_data
 
 !     Definition
       status=NF_DEF_VAR(ncid,name,NF_DOUBLE,2,tab_dimid,varid)
@@ -950,30 +953,30 @@ c~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exi
       SUBROUTINE initvar(N_num,tab_c,tab_dimid)
       use error0_mod, only: ec_error
 
-      character*60, INTENT(in)  :: tab_c(5)
+      character(len=60), INTENT(in)  :: tab_c(5)
       INTEGER                   :: varid
       INTEGER,      INTENT(in)  :: tab_dimid(5)
       INTEGER,      INTENT(in)  :: N_num
-      REAL*8                    :: tmp(1)
+      real(kind=dblp)                    :: tmp(1)
 
 !     Definition
       status=NF_DEF_VAR(ncid,tab_c(2),NF_DOUBLE,N_num,tab_dimid,varid)
 
 !     Define the attributes
-      status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_infovar%std,len_trim(tab_c(3)),trim(tab_c(3)))
+      status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_infovar%std,len_trim(tab_c(3)),trim(tab_c(3)))
 !      write(*,*) "name var to write: ", I_infovar%std
-      status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_infovar%long,len_trim(tab_c(1)),trim(tab_c(1)))
-      status=NF_PUT_ATT_TEXT(ncid,varid,
-     &      I_infovar%unit,len_trim(tab_c(4)),trim(tab_c(4)))
+      status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_infovar%long,len_trim(tab_c(1)),trim(tab_c(1)))
+      status=NF_PUT_ATT_TEXT(ncid,varid, &
+           I_infovar%unit,len_trim(tab_c(4)),trim(tab_c(4)))
 
       tmp(1)=fill_value
-      status=NF_PUT_ATT_DOUBLE(ncid,varid,
-     &      I_infovar%fill,NF_DOUBLE,1,tmp)
+      status=NF_PUT_ATT_DOUBLE(ncid,varid, &
+           I_infovar%fill,NF_DOUBLE,1,tmp)
       tmp(1)=missing_value
-      status=NF_PUT_ATT_DOUBLE(ncid,varid,
-     &      I_infovar%miss,NF_DOUBLE,1,tmp)
+      status=NF_PUT_ATT_DOUBLE(ncid,varid, &
+           I_infovar%miss,NF_DOUBLE,1,tmp)
 
       IF (status/=nf_noerr) THEN
          write(error_id,*) nf_strerror(status)
@@ -1018,4 +1021,4 @@ c~  When using a time axis, N_num is NF_UNLIMITED = 0, hence D_data does not exi
       RETURN
       END FUNCTION computeTime
 
-      END MODULE Atmosphere_Output
+      END module atmoutp_mod

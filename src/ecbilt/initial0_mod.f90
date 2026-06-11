@@ -2,6 +2,23 @@
 #include "choixcomposantes.h"
 !dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:40 CET 2009
 
+!==============================================================================
+! MODULE initial0_mod
+! Initialisation routines for the ECBilt QG3L atmospheric model.
+! Converted from initial0.f (F77) to F90 module.
+!==============================================================================
+module initial0_mod
+
+  use global_constants_mod, only: dblp=>dp, ip, solar_constant
+
+  implicit none
+  private
+
+  public :: ec_initecbilt
+
+contains
+
+
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_initecbilt
 !-----------------------------------------------------------------------
@@ -14,30 +31,30 @@
       use comemic_mod, only: fini
       use atmphys_mod, only: ec_iatmphys
       
-c~ #if ( ISOATM >= 1 )
-c~       use comsurf_mod, only: fractoc
-c~ #endif
-      use comunit
+!~ #if ( ISOATM >= 1 )
+!~       use comsurf_mod, only: fractoc
+!~ #endif
 
 
-c~ #if ( ISOATM >= 1 )
-c~       USE isoatm_mod, ONLY : ratio_oceanatm
-c~ #endif
+!~ #if ( ISOATM >= 1 )
+!~       USE isoatm_mod, ONLY : ratio_oceanatm
+!~ #endif
 
       use ECBiltTimer_mod, only: ec_inimdldate
 
 !~ --- [NOTA] temporary addition. I do not see the point of calling celest through there and not through a proper init
       use atmrad_mod, only: celest
-      use newunit_mod, only: coef_dat_id, berg_dat_id, gauss_asc_id, win_dat_id,
-     &               sum_dat_id, lwrref_dat_id , lwrcoef_dat_id, swrref_dat_id,
-     &               swrcoef_dat_id, namelistecbilt_id, GHG_dat_id,
-     &               VOLC_dat_id, SUL_dat_id, OZONE_dat_id, mbcs2_cor_id,
-     &               scenario2Xco2_dat_id, TSI_RM_dat_id,
-     &               book_id, ocbasin_id, ocheattr_id, runoff_id,info_id,
-     &               error_id, ipcc_id
+      use newunit_mod, only: coef_dat_id, berg_dat_id, gauss_asc_id, &
+                             win_dat_id, &
+                    sum_dat_id, lwrref_dat_id , lwrcoef_dat_id, swrref_dat_id, &
+                    swrcoef_dat_id, namelistecbilt_id, GHG_dat_id, &
+                    VOLC_dat_id, SUL_dat_id, OZONE_dat_id, mbcs2_cor_id, &
+                    scenario2Xco2_dat_id, TSI_RM_dat_id, &
+                    book_id, ocbasin_id, ocheattr_id, runoff_id,info_id, &
+                    error_id, ipcc_id
 #if ( CEMIS == 1 )
-     &               , carbon_emission_dat_id
-#endif     
+      use newunit_mod, only: carbon_emission_dat_id
+#endif
       implicit none
 
 ! *** open files
@@ -46,42 +63,42 @@ c~ #endif
       logical :: success
 
 ! --- start of former openatinpfiles.h
-c-----------------------------------------------------------------------
-c *** open statements of atmosphere input files:
-c *** units 90-99 are reserved for initial states
-c *** units 20 and higher are reserved for other parts of ecbilt
-c-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! *** open statements of atmosphere input files:
+! *** units 90-99 are reserved for initial states
+! *** units 20 and higher are reserved for other parts of ecbilt
+!-----------------------------------------------------------------------
 
-c *** initialisation data
+! *** initialisation data
 
-      open(newunit=coef_dat_id,file='inputdata/coef.dat',
-     &     status='old',form='unformatted')
-      open(newunit=berg_dat_id,file='inputdata/berg.dat',
-     &     status='old',form='unformatted')
-      open(newunit=gauss_asc_id,file='inputdata/gauss.asc',
-     &     status='old',form='formatted')
-      open(newunit=win_dat_id,file='inputdata/win.dat',
-     &                             status='old',form='formatted')
-      open(newunit=sum_dat_id,file='inputdata/sum.dat',
-     &                   status='old',form='formatted')
+      open(newunit=coef_dat_id,file='inputdata/coef.dat', &
+          status='old',form='unformatted')
+      open(newunit=berg_dat_id,file='inputdata/berg.dat', &
+          status='old',form='unformatted')
+      open(newunit=gauss_asc_id,file='inputdata/gauss.asc', &
+          status='old',form='formatted')
+      open(newunit=win_dat_id,file='inputdata/win.dat', &
+                                  status='old',form='formatted')
+      open(newunit=sum_dat_id,file='inputdata/sum.dat', &
+                        status='old',form='formatted')
 
 !      open(iuo+14,file='inputdata/ocbas.dat',
 !     &                   status='old',form='formatted')
 
-      open(newunit=lwrref_dat_id,file='inputdata/lwrref.dat'
-     &      ,form='unformatted')
+      open(newunit=lwrref_dat_id,file='inputdata/lwrref.dat' &
+           ,form='unformatted')
 
-      open(newunit=lwrcoef_dat_id,file='inputdata/lwrcoef.dat'
-     &      ,form='unformatted')
+      open(newunit=lwrcoef_dat_id,file='inputdata/lwrcoef.dat' &
+           ,form='unformatted')
 
-      open(newunit=swrref_dat_id,file='inputdata/swrref.dat'
-     &      ,form='unformatted')
+      open(newunit=swrref_dat_id,file='inputdata/swrref.dat' &
+           ,form='unformatted')
 
-      open(newunit=swrcoef_dat_id,file='inputdata/swrcoef.dat'
-     &      ,form='unformatted')
+      open(newunit=swrcoef_dat_id,file='inputdata/swrcoef.dat' &
+           ,form='unformatted')
 
-      open(newunit=namelistecbilt_id
-     &      ,file = 'namelistecbilt',status='old',form='formatted')
+      open(newunit=namelistecbilt_id &
+           ,file = 'namelistecbilt',status='old',form='formatted')
 
       open(newunit=GHG_dat_id,file='inputdata/GHG.dat')
       open(newunit=TSI_RM_dat_id,file='inputdata/TSI-RM.dat')
@@ -93,8 +110,8 @@ c *** initialisation data
       open(newunit=scenario2Xco2_dat_id,file='inputdata/scenario2Xco2.dat')
 
 #if ( CEMIS == 1 )
-      open(newunit=carbon_emission_dat_id,
-     &    file='inputdata/carbon_emission.dat')
+      open(newunit=carbon_emission_dat_id, &
+         file='inputdata/carbon_emission.dat')
 #endif
 
 ! --- end of former openatinpfiles.h
@@ -104,37 +121,37 @@ c *** initialisation data
 
 ! --- start of former openatoutfiles.h
 
-c-----------------------------------------------------------------------
-c *** open statements of atmosphere output files:
-c *** units 90-99 are reserved for initial states
-c *** units 1-20 and above 40  are reserved for other parts of ecbilt
-c-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! *** open statements of atmosphere output files:
+! *** units 90-99 are reserved for initial states
+! *** units 1-20 and above 40  are reserved for other parts of ecbilt
+!-----------------------------------------------------------------------
 
 
-c *** open data output files
+! *** open data output files
 
-      open(newunit=book_id,file='outputdata/globals/book'//fini
-     &          ,form='formatted')
-      open(newunit=ocbasin_id, file='outputdata/atmos/ocbasin'//fini,
-     &           form='formatted')
-      open(newunit=ocheattr_id, file='outputdata/atmos/ocheattr'//fini,
-     &           form='unformatted')
+      open(newunit=book_id,file='outputdata/globals/book'//fini &
+               ,form='formatted')
+      open(newunit=ocbasin_id, file='outputdata/atmos/ocbasin'//fini, &
+                form='formatted')
+      open(newunit=ocheattr_id, file='outputdata/atmos/ocheattr'//fini, &
+                form='unformatted')
 #if( ROUTEAU == 0 )
-      open(newunit=runoff_id, file='outputdata/land/runoff'//fini,
-     &           form='formatted')
+      open(newunit=runoff_id, file='outputdata/land/runoff'//fini, &
+                form='formatted')
 #endif
-c *** open info file
+! *** open info file
 
-      open(newunit=info_id,file='outputdata/globals/info'//fini
-     &          ,form='formatted')
+      open(newunit=info_id,file='outputdata/globals/info'//fini &
+               ,form='formatted')
 
-c *** open error file
+! *** open error file
 
-      open(newunit=error_id,file='outputdata/globals/error'//fini
-     &          ,form='formatted')
+      open(newunit=error_id,file='outputdata/globals/error'//fini &
+               ,form='formatted')
 
-      open(newunit=ipcc_id,file='outputdata/globals/ipcc'//fini
-     &          ,form='formatted')
+      open(newunit=ipcc_id,file='outputdata/globals/ipcc'//fini &
+               ,form='formatted')
 
 ! --- end of former openatoutpfiles.h
 
@@ -144,7 +161,8 @@ c *** open error file
 #endif
 
 !******change H. Renssen, 25-02-2003
-      if (iscencel.eq.1) success = celest(.true.) !~ dmr [NOTA] .true. == initialization done in that call !!
+      ! dmr [NOTA]: .true. = initialization done in celest call
+      if (iscencel.eq.1) success = celest(.true.)
 !      if (iscencel.eq.2) call bretagnon
 !******end of change
 
@@ -166,36 +184,36 @@ c *** open error file
 #if ( WISOATM == 1 )
       call ec_isoatminit
       ! moved to ec_isoatminit
-c~       call fix_input_field(fractoc,ratio_oceanatm,nlat,nlon,neauiso,
-c~      &                     ieau17,ieaud)
+!~       call fix_input_field(fractoc,ratio_oceanatm,nlat,nlon,neauiso,
+!~      &                     ieau17,ieaud)
 #endif
       return
-      end
+      end subroutine ec_initecbilt
 
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_iatmpar
 
 
+
       use error0_mod, only: ec_error
-      USE comatm, only: pi, radius, rgas, plevel, tlevel, om, p0, rdtime
-     &  , fzero, grav, phi, dt, dtime, alogpl2tl2, alogtl12, alogtl1pl2
-     &  , rlogtl12, dtt, nlat, nlon, nvl, nsh2, dp, cosfi, sinfi, tanfi
+      USE comatm, only: pi, radius, rgas, plevel, tlevel, om, p0, rdtime &
+       , fzero, grav, phi, dt, dtime, alogpl2tl2, alogtl12, alogtl1pl2 &
+       , rlogtl12, dtt, nlat, nlon, nvl, nsh2, dp, cosfi, sinfi, tanfi
       USE comdyn, only:
-      use comphys, only: alphad, alphas, alphav, cc1, cc2, cc3, cpair, cvair
-     &  , cwater, dp0, dp1, dp2, dtqmi, dtqmj, dtqmk, gamd, gamma, potfac1
-     &  , potfac2, rdtqmi, rdtqmj, rdtqmk, rkappa, rlatfus, rlatsub, rlatvap
-     &  , roair, rowat, sboltz, tqmimin, tqmjmin, tqmkmin, tzero
+      use comphys, only: alphad, alphas, alphav, cc1, cc2, cc3, cpair, cvair &
+       , cwater, dp0, dp1, dp2, dtqmi, dtqmj, dtqmk, gamd, gamma, potfac1 &
+       , potfac2, rdtqmi, rdtqmj, rdtqmk, rkappa, rlatfus, rlatsub, rlatvap &
+       , roair, rowat, sboltz, tqmimin, tqmjmin, tqmkmin, tzero
       use comemic_mod, only: iatm, fracto
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: fractoc, fractn, epss, nld, noc, nse
-      use comunit, only: iuo
       use newunit_mod, only: gauss_asc_id
       
       implicit none
 
-      real*8  ari(nlat/2)
-      real*8  rj,rw,dumwei
+      real(kind=dblp)  ari(nlat/2)
+      real(kind=dblp)  rj,rw,dumwei
 
       integer ilat,k,ird,i,j
 
@@ -204,10 +222,10 @@ c~      &                     ieau17,ieaud)
 ! *** rlatsub: latent heat of sublimation in J/kg
 ! *** rlatfus: latent heat of fusion in J/kg
 
-      pi=4d0*datan(1d0)
+      pi=4.0_dblp*atan(1.0_dblp)
       fzero=sin(0.25*pi)
 !     let op om is 2 keer de hoeksnelheid van de aarde !!!!
-      om=4d0*pi/(24d0*3600d0)
+      om=4.0_dblp*pi/(24.0_dblp*3600.0_dblp)
       grav=9.8
       rgas=287.
       radius=6.37e+6
@@ -223,22 +241,22 @@ c~      &                     ieau17,ieaud)
       gamma=cpair/cvair
       rkappa=(gamma-1.)/gamma
 
-      plevel(1)=2.0d+4
-      plevel(2)=5.0d+4
-      plevel(3)=8.0d+4
+      plevel(1)=2.0e4_dblp
+      plevel(2)=5.0e4_dblp
+      plevel(3)=8.0e4_dblp
 
-      tlevel(1)=3.5d+4
-      tlevel(2)=6.5d+4
+      tlevel(1)=3.5e4_dblp
+      tlevel(2)=6.5e4_dblp
 
       dp=plevel(2)-plevel(1)
 
-      dp0=2.0d+4
-      dp1=3.0d+4
-      dp2=5.0d+4
+      dp0=2.0e4_dblp
+      dp1=3.0e4_dblp
+      dp2=5.0e4_dblp
 
-      p0=1d5
+      p0=1e5_dblp
 
-      rlogtl12=1d0/log(tlevel(1)/tlevel(2))
+      rlogtl12=1.0_dblp/log(tlevel(1)/tlevel(2))
       alogtl12=log(tlevel(1)/tlevel(2))
       alogtl1pl2=log(tlevel(1)/plevel(2))
       alogpl2tl2=log(plevel(2)/tlevel(2))
@@ -247,7 +265,7 @@ c~      &                     ieau17,ieaud)
       potfac2=(tlevel(2)/p0)**rkappa
 
       gamd=grav/cpair
-      tzero=273.15d0
+      tzero=273.15_dblp
       alphad=roair*cpair
       alphas=roair*rlatsub
       alphav=roair*rlatvap
@@ -263,25 +281,25 @@ c~      &                     ieau17,ieaud)
 ! *** j corresponds to temperature difference between ground and 650 hPa
 ! *** k corresponds to temperature difference between 650 and 350 hPa
 
-      tqmimin=200d0
-      dtqmi=2d0
-      rdtqmi=1d0/dtqmi
-      tqmjmin=-10d0
-      dtqmj=2d0
-      rdtqmj=1d0/dtqmj
-      tqmkmin=5d0
-      dtqmk=2d0
-      rdtqmk=1d0/dtqmk
+      tqmimin=200.0_dblp
+      dtqmi=2.0_dblp
+      rdtqmi=1.0_dblp/dtqmi
+      tqmjmin=-10.0_dblp
+      dtqmj=2.0_dblp
+      rdtqmj=1.0_dblp/dtqmj
+      tqmkmin=5.0_dblp
+      dtqmk=2.0_dblp
+      rdtqmk=1.0_dblp/dtqmk
 
 ! *** time step of the atmospheric model:
 ! *** dt    : fraction of one day
 ! *** dtime : in seconds
 ! *** dtt   : dimensionless
 
-      dt     = 1d0/dble(iatm)
-      dtime  = dt*(24d0*3600d0)
-      rdtime = 1d0/dtime
-      dtt    = dt*pi*4d0
+      dt     = 1.0_dblp/real(iatm, kind=dblp)
+      dtime  = dt*(24.0_dblp*3600.0_dblp)
+      rdtime = 1.0_dblp/dtime
+      dtt    = dt*pi*4.0_dblp
 
 ! *** gauss points and weights
 
@@ -311,12 +329,12 @@ c~      &                     ieau17,ieaud)
       do i=1,nlat
         phi(i)=asin(phi(i))
       enddo
-c~ #if ( PMIP == 1 )
-c~ !mab:
-c~       open(1010,file='phi_lat.dat',form='unformatted',status='replace')
-c~       write(1010) (phi(i),i=1,nlat)
-c~       close(1010)
-c~ #endif
+!~ #if ( PMIP == 1 )
+!~ !mab:
+!~       open(1010,file='phi_lat.dat',form='unformatted',status='replace')
+!~       write(1010) (phi(i),i=1,nlat)
+!~       close(1010)
+!~ #endif
 
       do i=1,nlat
         cosfi(i)=cos(phi(i))
@@ -345,7 +363,7 @@ c~ #endif
 
 220   format(f18.10,f17.10)
 
-      end
+      end subroutine ec_iatmpar
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_iniparameterat
@@ -354,17 +372,30 @@ c~ #endif
 !-----------------------------------------------------------------------
 
 
-      USE comatm
-      USE comdyn
-      USE comphys
+      use comatm, only: iadyn, iaphys, initdate, initfield
+      use comdyn, only: addish, addisl, h0, iartif, idif, ipert, &
+                        ipvf1, ipvf2, ipvf3, ipvf4, ipvf5, &
+                        rrdef1, rrdef2, tdif, tdis, trel
+      use comphys, only: AMPANIR, AMPANIR2, AMPEQIR, AMPWIR, EXPIR, &
+                         HPROFAN, HPROFAN2, HPROFEQ, HPROFTROP, HPROFW, &
+                         albice, albin, albis, alphd, alphdi, alphs, bup, &
+                         cdrag, cgren, cwdrag, dragan, dragla, eccf, &
+                         emisld, emisoc, emisse, evfac, facttsi, gpm500, &
+                         hmoisr, ihavm, imsink, iradcloud, iscencel, &
+                         iscenghg, isceno3, iscensul, iscentsi, iscenvol, &
+                         isghgstrt, iso3strt, issulstrt, istsistrt, &
+                         isvolstrt, ivavm, iens, numens, &
+                         irunlabeloffset, iscenyear, mag_alpha, &
+                         ndayws, oblf, omwebf, rainmax, relhcrit, relhfac, &
+                         relhmax, solarc, solarm, tdifq, umoisr, uv10m, &
+                         uv10rfx, uv10rws, uv10rwv, &
+                         corAN, corPN, corAC, corID, corAS, corPS, corAA
       use comemic_mod, only: irunlabel, isatfor
       use comrunlabel_mod, only: irunlabelf
-      use comsurf_mod
-      use comunit, only: iuo
+      use comsurf_mod, only: albocef, emisn, iclimflux, nld, noc, nse
       use comatfor, only: nafyear, nbsatfor
 
 
-      use global_constants_mod, only: solar_constant
       use newunit_mod, only: namelistecbilt_id, parameterschk_id
       
       implicit none
@@ -373,28 +404,26 @@ c~ #endif
       NAMELIST /runatctl/ iadyn,iaphys,ipert,initfield,initdate
       NAMELIST /dispar/   tdis,addisl,addish,trel,tdif,idif,initfield,initdate
       NAMELIST /dfmpar/  rrdef1,rrdef2,h0
-      NAMELIST /moipar/  ihavm,ivavm,imsink,tdifq,gpm500,relhmax,
-     *                   hmoisr,umoisr,rainmax
+      NAMELIST /moipar/  ihavm,ivavm,imsink,tdifq,gpm500,relhmax, &
+                        hmoisr,umoisr,rainmax
       NAMELIST /cloudpar/ relhcrit,relhfac
       NAMELIST /forpar/  iartif,ipvf1,ipvf2,ipvf3,ipvf4,ipvf5
-      NAMELIST /radpar/    solarc,iradcloud,iscenghg,isghgstrt,
-     *                     iscentsi,istsistrt,iscenvol,isvolstrt,
-     *                     iscensul,issulstrt,isceno3,iso3strt ,
-     *                     iscencel,iens,numens,emisoc,emisse,emisld,
-     *                     albin,albis,albice,alphd,alphdi,alphs,cgren,
-     *                     albocef,facttsi,bup,AMPWIR,EXPIR,HPROFTROP,
-     *                     HPROFEQ,HPROFW,AMPEQIR,HPROFAN,AMPANIR,
-     *                     eccf,oblf,omwebf,AMPANIR2,HPROFAN2,
-     *                     irunlabeloffset,iscenyear, cdrag, evfac
-     *                   , mag_alpha
+      NAMELIST /radpar/    solarc,iradcloud,iscenghg,isghgstrt, &
+                          iscentsi,istsistrt,iscenvol,isvolstrt, &
+                          iscensul,issulstrt,isceno3,iso3strt , &
+                          iscencel,iens,numens,emisoc,emisse,emisld, &
+                          albin,albis,albice,alphd,alphdi,alphs,cgren, &
+                          albocef,facttsi,bup,AMPWIR,EXPIR,HPROFTROP, &
+                          HPROFEQ,HPROFW,AMPEQIR,HPROFAN,AMPANIR, &
+                          eccf,oblf,omwebf,AMPANIR2,HPROFAN2, &
+                          irunlabeloffset,iscenyear, cdrag, evfac, &
+                          mag_alpha
       NAMELIST /satfor/   isatfor,nbsatfor,nafyear,iclimflux
-      NAMELIST /fluxpar/ cdrag,cwdrag,dragan,dragla,uv10rfx,uv10m,
-     *                   uv10rws,ndayws
-!dmr @-@ iceb0
-     *    , uv10rwv
-!dmr @-@ iceb0
-      NAMELIST /fluxcorw/ corAN,corPN,corAC,corID,corAS,corPS,
-     *                   corAA
+      NAMELIST /fluxpar/ cdrag,cwdrag,dragan,dragla,uv10rfx,uv10m, &
+                         uv10rws,ndayws, uv10rwv
+      ! dmr @-@ iceb0 : uv10rwv added conditionally in original
+      NAMELIST /fluxcorw/ corAN,corPN,corAC,corID,corAS,corPS, &
+                        corAA
 
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -505,10 +534,10 @@ c~ #endif
       ihavm  = 1
       ivavm  = 1
       imsink = 1
-      tdifq  = 5d0
+      tdifq  = 5.0_dblp
       gpm500 = 5500
       relhmax= 1.0
-      hmoisr = 1d0
+      hmoisr = 1.0_dblp
       umoisr = 0.8
       rainmax= 1e-5
 
@@ -523,16 +552,16 @@ c~ #endif
 !dmr @-@ iceb0
       uv10rwv= 0.8
 !dmr @-@ iceb0
-      corAN  = -0.075d0
-      corPN  =  1.0d0
-      corAC  = -0.20d0
-      corID  =  0.0d0
-      corAS  = -0.075d0
-      corPS  =  0.d0
-      corAA  =  0.d0
+      corAN  = -0.075_dblp
+      corPN  =  1.0_dblp
+      corAC  = -0.20_dblp
+      corID  =  0.0_dblp
+      corAS  = -0.075_dblp
+      corPS  =  0._dblp
+      corAA  =  0._dblp
 
-      relhcrit = 0.5d0
-      relhfac  = 1.0d0
+      relhcrit = 0.5_dblp
+      relhfac  = 1.0_dblp
 
 
       iartif = 0
@@ -598,7 +627,7 @@ c~ #endif
       AMPANIR2  = 1.0
 
       mag_alpha = 1.0
-      evfac=1d0
+      evfac=1.0_dblp
 
       isatfor = 0
       nbsatfor= 0
@@ -625,8 +654,8 @@ c~ #endif
 #endif
 
 
-      open(newunit=parameterschk_id,file="parameters.chk"
-     >    ,form="formatted")
+      open(newunit=parameterschk_id,file="parameters.chk" &
+         ,form="formatted")
 
       write(parameterschk_id, 900) 'iaphys   =', iaphys
       write(parameterschk_id, 900) 'iadyn    =', iadyn
@@ -717,7 +746,7 @@ c~ #endif
 910   format(a12,1x,e12.5)
 
       return
-      end
+      end subroutine ec_iniparameterat
 
 
 
@@ -727,8 +756,28 @@ c~ #endif
 
 
       USE comatm,  only: nlat, nlon
-      use comdiag
-      use comunit, only: iuo
+      use comdiag, only: ifrendat, instcount, ioutdaily, ioutyearly, irad, &
+                         itel, ixout, meantot, meantype, meanyl, &
+                         newhflux, newhforg, newpsi, &
+                         newt, newt2m, newts, newtstrat, newu, newv, newvforg, &
+                         newcorain, newdyrain, newtorain, newsnow, &
+                         newevap, neweminp, newrmoisg, newrelhum, &
+                         newdivv, newssr, newtsr, newstr, newttr, &
+                         newbmoisg, newalbs, newustress, newvstress, &
+                         newsdl, newrunoffo, newrunoffl, neweflux, &
+                         newdivu, newuv10, newchi, newsp, newalbp, &
+                         newgh, newcdragw, newcdragv, newqgpv, newtcc, &
+                         newdumt1, newdumt2, newdumu1, newdumu2, &
+                         newomega, newhic, newswrs, newlwrs
+#if ( ISOATM >= 1 )
+      use comdiag, only: newpp17, newpp18, newppd, &
+                         newrmoisg17, newrmoisg18, newrmoisgd, &
+                         newsn17, newsn18, newsnd
+#endif
+#if ( ISOATM >= 2 )
+      use comdiag, only: newbmoisg17, newbmoisg18, newbmoisgd, &
+                         newsdl17, newsdl18, newsdld
+#endif
 
 
       use newunit_mod, only: namelistecbilt_id
@@ -736,32 +785,32 @@ c~ #endif
       implicit none
 
 
-      integer  ts(20),t(20),tstrat(20),cp(20),lsp(20),pp(20),evap(20),
-     *    eminp(20),q(20),r(20),tcc(20),u(20),v(20),uv10(20),ageu(20),
-     *         agev(20),omega(20),psi(20),qgpv(20),gh(20),chi(20),
-     *         sp(20),shf(20),lhf(20), hforc(20),vforc(20),ssr(20),
-     *         tsr(20),ttr(20),str(20),albs(20),albp(20),ustress(20),
-     *         vstress(20),cdragw(20), cdragv(20),bm(20),sdl(20),
-     *         runoffo(20), runoffl(20),dumt1(20),dumt2(20),dumu1(20),
-     *         dumu2(20),snow(20),t2m(20),hic(20),swrs(20), lwrs(20) !mohr
+      integer  ts(20),t(20),tstrat(20),cp(20),lsp(20),pp(20),evap(20), &
+         eminp(20),q(20),r(20),tcc(20),u(20),v(20),uv10(20),ageu(20), &
+              agev(20),omega(20),psi(20),qgpv(20),gh(20),chi(20), &
+              sp(20),shf(20),lhf(20), hforc(20),vforc(20),ssr(20), &
+              tsr(20),ttr(20),str(20),albs(20),albp(20),ustress(20), &
+              vstress(20),cdragw(20), cdragv(20),bm(20),sdl(20), &
+              runoffo(20), runoffl(20),dumt1(20),dumt2(20),dumu1(20), &
+              dumu2(20),snow(20),t2m(20),hic(20),swrs(20), lwrs(20) !mohr
 #if ( ISOATM >= 1 )
-     *        ,pp18(20)
-     *        ,sn18(20)
-     *        ,pp17(20)
-     *        ,sn17(20)
-     *        ,ppd(20)
-     *        ,snd(20)
-     *        ,q18(20)
-     *        ,q17(20)
-     *        ,qd(20)
+             ,pp18(20) &
+             ,sn18(20) &
+             ,pp17(20) &
+             ,sn17(20) &
+             ,ppd(20) &
+             ,snd(20) &
+             ,q18(20) &
+             ,q17(20) &
+             ,qd(20)
 #endif
 #if ( ISOATM >= 2 )
-     *        ,bm18(20)
-     *        ,sdl18(20)
-     *        ,bm17(20)
-     *        ,sdl17(20)
-     *        ,bmd(20)
-     *        ,sdld(20)
+             ,bm18(20) &
+             ,sdl18(20) &
+             ,bm17(20) &
+             ,sdl17(20) &
+             ,bmd(20) &
+             ,sdld(20)
 #endif
       integer i
 
@@ -769,17 +818,19 @@ c~ #endif
 !! swrs --> shortwave radiation at surface
 !! lwrs --> longwave radiation at surface
 
-      NAMELIST /outatctl/ixout,ioutdaily,ioutyearly,meantype,
-     &                    meanyl,meantot,ifrendat
-      NAMELIST /wratpar/ ts,t,tstrat,t2m,cp,lsp,pp,snow,evap,eminp,q,
-     * r,tcc,u,v,uv10,ageu,agev,omega,psi,qgpv,gh,chi,sp,shf,lhf,
-     * hforc,vforc,ssr,tsr,ttr,str,swrs,lwrs,albs,albp,ustress,vstress,cdragw,
-     * cdragv,bm,sdl,runoffo, runoffl,hic,dumt1,dumt2,dumu1,dumu2
+      NAMELIST /outatctl/ixout,ioutdaily,ioutyearly,meantype, &
+                         meanyl,meantot,ifrendat
+      NAMELIST /wratpar/ ts,t,tstrat,t2m,cp,lsp,pp,snow,evap,eminp,q, &
+      r,tcc,u,v,uv10,ageu,agev,omega,psi,qgpv,gh,chi,sp,shf,lhf, &
+      hforc,vforc,ssr,tsr,ttr,str,swrs,lwrs,albs,albp,ustress,vstress,cdragw, &
+      cdragv,bm,sdl,runoffo, runoffl,hic,dumt1,dumt2,dumu1,dumu2
+!~ TODO: NAMELIST with #if ISOATM — continuation not valid in free-form
 #if ( ISOATM >= 1 )
-     *,pp18 ,sn18 ,pp17 ,sn17 ,ppd ,snd, q18, q17, qd
+      ,pp18 ,sn18 ,pp17 ,sn17 ,ppd ,snd, q18, q17, qd
 #endif
+!~ TODO: NAMELIST with #if ISOATM — continuation not valid in free-form
 #if ( ISOATM >= 2 )
-     *,bm18 ,sdl18 ,bm17 ,sdl17 ,bmd ,sdld
+      ,bm18 ,sdl18 ,bm17 ,sdl17 ,bmd ,sdld
 #endif
       NAMELIST /flgout/irad
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -998,7 +1049,7 @@ c~ #endif
       enddo
 
       return
-      end
+      end subroutine ec_inioutparat
 
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
@@ -1007,14 +1058,14 @@ c~ #endif
 
 
        use error0_mod, only: ec_error
-       use comatm
-       use comdiag
-       use comunit
-
+        use comdiag, only: fill_value, ifrendat, instcount, ioutdaily, &
+                         ioutyearly, irad, itel, ixout, meantot, meantype, &
+                         meanyl, missing_value, nametotvar, newtotvar, &
+                         numtotvar, thirdd
 
       implicit none
 
-      character*60 part1
+      character(len=60) part1
       integer      totvar(80,20)
       integer      i,l
       integer :: outp_atmosparam_id
@@ -1111,8 +1162,8 @@ c~ #endif
          IF ( newtotvar(i,3)==1 ) meantot    = 1
          IF ( newtotvar(i,1)==1 ) ioutdaily  = 1
 
-         IF ((newtotvar(i,2)==1).OR.(newtotvar(i,3)==1)
-     &                          .OR.(newtotvar(i,4)==1) ) THEN
+         IF ((newtotvar(i,2)==1).OR.(newtotvar(i,3)==1) &
+                               .OR.(newtotvar(i,4)==1) ) THEN
          SELECT CASE ( nametotvar(i,5) )
          CASE ("T2")
             thirdd(1)=1
@@ -1135,5 +1186,5 @@ c~ #endif
       close(outp_atmosparam_id)
 
       return
-      end
-
+      end subroutine ec_inioutparat2
+end module initial0_mod
