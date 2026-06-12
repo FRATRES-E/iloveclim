@@ -2,6 +2,24 @@
 #include "choixcomposantes.h"
 !dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:39 CET 2009
 
+
+!==============================================================================
+! MODULE ecbilt0_mod
+! Main time-stepping routines for ECBilt QG3L atmospheric model.
+! Converted from ecbilt0.f (F77) to F90 module.
+!==============================================================================
+module ecbilt0_mod
+
+  use global_constants_mod, only: dblp=>dp, ip
+
+  implicit none
+  private
+
+  public :: ec_ecbilt, ec_update, ec_atmstate, ec_wrendphy, ec_wrenddyn
+
+contains
+
+
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_ecbilt(ist,jst)
 !-----------------------------------------------------------------------
@@ -22,11 +40,9 @@
 
       USE atmdyn_mod, only: ec_forcdaily, ec_forward
 
-      USE comatm
-      USE comdyn
-      use comphys
+      use comatm, only: iadyn, iaphys
+      use comdyn, only: iartif
       use comemic_mod, only: iyear, iatm, day
-      use comsurf_mod
       use atmphys_mod, only: ec_atmphyszero, ec_sensrad, ec_fortemp, ec_meantemp
 
 #if ( ISOATM == 0 )      
@@ -34,8 +50,8 @@
 #endif
 
 #if ( ISOATM >= 1 )
-      use atmmois_mod, only: ec_moisture=>ec_moisture_r332,
-     &                       ec_convec=>ec_convec_r332
+      use atmmois_mod, only: ec_moisture=>ec_moisture_r332, &
+                            ec_convec=>ec_convec_r332
 #else
       use atmmois_mod, only: ec_moisture
 #endif
@@ -78,7 +94,7 @@
       endif
 
       return
-      end
+      end subroutine ec_ecbilt
 
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
@@ -101,8 +117,8 @@
 
       logical :: success
 
-c~ [DEPRECATED]
-c~ [DEPRECATED]
+!~ [DEPRECATED]
+!~ [DEPRECATED]
 
       integer ist,jst,istep
 
@@ -114,7 +130,7 @@ c~ [DEPRECATED]
       call ec_atmstate
       call ec_vortfor
 
-      end
+      end subroutine ec_update
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_checks(istep)
@@ -122,13 +138,12 @@ c~ [DEPRECATED]
 ! *** this routine performs checks on the model formulation
 !-----------------------------------------------------------------------
 
-      USE comatm
       use comemic_mod, only: iatm, day
 
       implicit none
 
-c~ [DEPRECATED]
-c~ [DEPRECATED]
+!~ [DEPRECATED]
+!~ [DEPRECATED]
 
       integer i,j,istep
 
@@ -141,7 +156,7 @@ c~ [DEPRECATED]
 
       call flush(99)
       return
-      end
+      end subroutine ec_checks
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_testecbilt(istep)
@@ -149,23 +164,21 @@ c~ [DEPRECATED]
 ! *** testing if model variables are inside prescribed ranges
 !-----------------------------------------------------------------------
 
-      USE comatm
-      USE comdyn
-      use comphys
-      use comemic_mod, only: iyear, iatm, day
-      use comsurf_mod
-      use comunit
-      use newunit_mod, only: book_id, error_id, info_id
-      use ipcc_output_mod, only: moc,tmc,tmc0,tsurfmean,cland,thex
-      use atmphys_mod, only: ec_globalmean
-      use error0_mod, only: ec_error
+      use comatm,          only: dt, nlat, nlon
+      use comphys,         only: uv10, tzero
+      use comemic_mod,     only: iyear, iatm, day
+      use comsurf_mod,     only: eflux, hflux, tsurf
+      use newunit_mod,     only: book_id, error_id, info_id
+      use ipcc_output_mod, only: moc, tmc, tmc0, tsurfmean, cland, thex
+      use atmphys_mod,     only: ec_globalmean
+      use error0_mod,      only: ec_error
 
       implicit none
 
       integer i,j,istep
-      real*8  dum1,dum2
+      real(kind=dblp)  dum1,dum2
       character*12 chts
-!~      real*8  moc,tmc,tmc0,cland,thex
+!~      real(kind=dblp)  moc,tmc,tmc0,cland,thex
 !~      common/IPCC_out2/moc,tmc,tmc0,tsurfmean,cland,thex
 
 !      dum1=ec_globalmean(ulrads)
@@ -200,7 +213,7 @@ c~ [DEPRECATED]
       write(book_id,110) iyear,int((day+0.5*dt)/(iatm*dt))+1,tsurfmean
       call flush(book_id)
 
-      if (tsurfmean.gt.40..or.tsurfmean.lt.-10.) then
+      if (tsurfmean.gt.40.0 .or. tsurfmean.lt.-10.0) then
         write(error_id,*) 'mean surface temperature ',tsurfmean
         call ec_error(3)
       endif
@@ -209,7 +222,7 @@ c~ [DEPRECATED]
   100 format(f7.2)
 
       return
-      end
+      end subroutine ec_testecbilt
 
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
@@ -219,13 +232,13 @@ c~ [DEPRECATED]
 ! *** field, mean atmospheric temperatures and the moisture field
 !-----------------------------------------------------------------------
 
-      use atmdyn_mod, only: ec_ddl, ec_diver, ec_divwin,
-     &                      ec_forward, ec_geowin, ec_ggtosp, ec_omega3,
-     &                      ec_psitogeo, ec_qtopsi, ec_sptogg, ec_totwind
+      use atmdyn_mod, only: ec_ddl, ec_diver, ec_divwin, &
+                           ec_forward, ec_geowin, ec_ggtosp, ec_omega3, &
+                           ec_psitogeo, ec_qtopsi, ec_sptogg, ec_totwind
 
       use atmmois_mod, only: ec_moisfields
-      use atmphys_mod, only: ec_dyntemp, ec_tempprofile, ec_totwind10,
-     &                       ec_cloud
+      use atmphys_mod, only: ec_dyntemp, ec_tempprofile, ec_totwind10, &
+                            ec_cloud
 
       implicit none
 
@@ -244,7 +257,7 @@ c~ [DEPRECATED]
       success = ec_moisfields()
       call ec_cloud
 
-      end
+      end subroutine ec_atmstate
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_wrenddyn
@@ -252,12 +265,10 @@ c~ [DEPRECATED]
 ! *** output atmosphere for start new run
 !-----------------------------------------------------------------------
 
+      use comdyn,      only: for, qprime
 
-      USE comatm
-      USE comdyn
-      use comphys
-      use comsurf_mod
-      use comunit
+      use comatm, only: iadyn, iaphys
+      use comdyn, only: iartif
       use newunit_mod, only: newunit_id
       
       implicit none
@@ -265,7 +276,7 @@ c~ [DEPRECATED]
       write(newunit_id) qprime,for
 
       return
-      end
+      end subroutine ec_wrenddyn
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_wrendphy
@@ -273,46 +284,48 @@ c~ [DEPRECATED]
 ! *** output atmosphere for start new run
 !-----------------------------------------------------------------------
 
-      USE comatm
-      USE comdyn
-      use comphys
+      use comatm, only: iadyn, iaphys
+      use comdyn, only: iartif
       use comemic_mod, only: iyear
-      use comsurf_mod
-      use comunit
+      use comphys,     only: rmoisg, temp0g, tempm, torain, tosnow
+      use comsurf_mod, only: tsurfn
+      use comatm,      only: iwater
+      use comemic_mod, only: iyear
       use newunit_mod, only: newunit_id
-  
-
 #if ( CYCC >= 2 )
-      USE carbone_co2
+      use carbone_co2, only: PA_C
 #endif
-c~ #if ( ISOATM >= 1 )
-c~        USE iso_param_mod, ONLY : ieau
-c~ #endif
+#if ( ISOATM >= 1 )
+      use write_isoatm_mod, only: write_isoatm
+#endif
 
       implicit none
 
+      real(kind=dblp) :: PGACO2, PCO2ref
+      common /lo2atm/ PGACO2, PCO2ref
 
-      real*8 PGACO2,PCO2ref
-      common /lo2atm/ PGACO2,PCO2ref
+      write(newunit_id) tsurfn, tempm, temp0g
 
-      write(newunit_id) tsurfn,tempm,temp0g
-
-c~ #if ( ISOATM >= 1 )
-      write(newunit_id) rmoisg(:,:,iwater),torain(:,:,iwater)
-     >                 ,tosnow(:,:,iwater)
-c~ #else
-c~       write(newunit_id) rmoisg,torain,tosnow
-c~ #endif
+!~ #if ( ISOATM >= 1 )
+      write(newunit_id) rmoisg(:,:,iwater), &
+                        torain(:,:,iwater), &
+                        tosnow(:,:,iwater)
+!~ #else
+!~       write(newunit_id) rmoisg,torain,tosnow
+!~ #endif
 #if ( CYCC == 1 )
       if (flgloch)  write(newunit_id) PGACO2,PCO2ref
 #elif ( CYCC >= 2 )
       write(newunit_id) PA_C
 #endif
 #if ( ISOATM >= 1 )
+      use write_isoatm_mod, only: write_isoatm
+#endif
+#if ( ISOATM >= 1 )
       call write_isoatm
 #endif
       return
-      end
+      end subroutine ec_wrendphy
 
 #if ( ISM == 1 )
 !23456789012345678901234567890123456789012345678901234567890123456789012
@@ -321,13 +334,11 @@ c~ #endif
 ! *** replace topography by ISM topography
 !-----------------------------------------------------------------------
 
-      USE comatm
-      USE comdyn
-      use comphys
+      use comatm, only: iadyn, iaphys
+      use comdyn, only: iartif
       use comemic_mod, only: iyear
-      use comcoup_mod
-      use comsurf_mod
-      use comunit
+      use comcoup_mod                ! external coupler — only: not available
+      use comsurf_mod, only: epss, fractn, nld, rmountn, thi_chge
       use global_constants_mod, only: dblp=>dp, ip
       use newunit_mod, only: berg_dat_id
       
@@ -340,19 +351,19 @@ c~ #endif
 
       implicit none
 
-      real*8 asum,spv
+      real(kind=dblp) asum,spv
       integer i,j,i1,j1,ii,jj
 
       integer k1,k2,k,l,m,n,ifail,nn
-      real*8  pigr4,dis,dif,rll,ininag(nlat,nlon)
-      real*8  r1,a,b,c,d,e,sqn,rsqn
-      real*8  rnorm,rh0,dd
-      real*8  agg(nlat,nlon), agg1(nlat,nlon), agg2(nlat,nlon)
-      real*8  fw(nsh2),fs(nsh2),fors(nsh2,nvl), fmu(nlat,2)
-      real*8  forw(nsh2,nvl),wsx(nsh2),areafac
+      real(kind=dblp)  pigr4,dis,dif,rll,ininag(nlat,nlon)
+      real(kind=dblp)  r1,a,b,c,d,e,sqn,rsqn
+      real(kind=dblp)  rnorm,rh0,dd
+      real(kind=dblp)  agg(nlat,nlon), agg1(nlat,nlon), agg2(nlat,nlon)
+      real(kind=dblp)  fw(nsh2),fs(nsh2),fors(nsh2,nvl), fmu(nlat,2)
+      real(kind=dblp)  forw(nsh2,nvl),wsx(nsh2),areafac
 
 #if ( NC_BERG >= 1 )      
-      real*8 aggT(nlon,nlat)
+      real(kind=dblp) aggT(nlon,nlat)
 #endif
 #if ( NC_BERG == 2 )
       character*30 name_file
@@ -372,10 +383,10 @@ c~ #endif
               rmount(i,j)=rmount_ism(i,j)
              endif
           endif
-          if (rmountn(i,j,nld).lt.0d0) rmountn(i,j,nld)=0d0
+          if (rmountn(i,j,nld).lt.0e0_dblp) rmountn(i,j,nld)=0e0_dblp
           if (fractn(i,j,nld).lt.epss) then
-            rmountn(i,j,nld)=0d0
-            qmount(i,j)=0d0
+            rmountn(i,j,nld)=0e0_dblp
+            qmount(i,j)=0e0_dblp
           else
             qmount(i,j)=rmountn(i,j,nld)
           endif
@@ -384,7 +395,7 @@ c~ #endif
 
         do j=1,nlon
         do i=1,nlat
-          asum=0d0
+          asum=0e0_dblp
           do i1=-1,1
             do j1=-1,1
               ii=i+i1
@@ -402,12 +413,12 @@ c~ #endif
                 asum=asum+rmountn(ii,jj,nld)
               enddo
             enddo
-            qmount(i,j)=asum/9d0
+            qmount(i,j)=asum/9e0_dblp
           enddo
         enddo
 
-         open(newunit=topographie_id
-     &            ,file='outputdata/globals/topographie',status='unknown')
+         open(newunit=topographie_id &
+                 ,file='outputdata/globals/topographie',status='unknown')
          do i=1,nlat
            write(topographie_id,'(1P64E10.3)') (rmountn(i,j,nld),j=1,nlon)
          enddo
@@ -418,14 +429,14 @@ c~ #endif
 ! *** real parameters
 
 
-          pigr4=4.d0*pi
-          rl1=1.0d0/rrdef1**2
-          rl2=1.0d0/rrdef2**2
-          relt1=max(0.0d0,rl1/(trel*pigr4))
-          relt2=max(0.0d0,rl2/(trel*pigr4))
-          dis=max(0.0d0,1.0d0/(tdis*pigr4))
+          pigr4=4.e0_dblp*pi
+          rl1=1.0e0_dblp/rrdef1**2
+          rl2=1.0e0_dblp/rrdef2**2
+          relt1=max(0.0e0_dblp,rl1/(trel*pigr4))
+          relt2=max(0.0e0_dblp,rl2/(trel*pigr4))
+          dis=max(0.0e0_dblp,1.0e0_dblp/(tdis*pigr4))
           rll=dble(ll(nsh))
-          dif=max(0.0d0,1.0d0/(tdif*pigr4*(rll*(rll+1))**idif))
+          dif=max(0.0e0_dblp,1.0e0_dblp/(tdif*pigr4*(rll*(rll+1))**idif))
 
 ! *** zonal derivative operator
 
@@ -441,21 +452,21 @@ c~ #endif
 ! *** laplace/helmholtz direct and inverse operators
 
       do j=0,5
-        rinhel(1,j)=0.0d0
+        rinhel(1,j)=0.0e0_dblp
       enddo
 
-      diss(1,1)=0.0d0
-      diss(1,2)=0.0d0
+      diss(1,1)=0.0e0_dblp
+      diss(1,2)=0.0e0_dblp
 
       do k=2,nsh
         r1=dble(ll(k)*(ll(k)+1))
-        a=-r1-3.0d0*rl1
-        b=-r1-3.0d0*rl2
+        a=-r1-3.0e0_dblp*rl1
+        b=-r1-3.0e0_dblp*rl2
         c=-r1-rl1
         d=-r1-rl2
         e=a*d+b*c
         rinhel(k,0)=-r1
-        rinhel(k,1)=-1.0d0/r1
+        rinhel(k,1)=-1.0e0_dblp/r1
         rinhel(k,2)= d/e
         rinhel(k,3)= b/e
         rinhel(k,4)=-c/e
@@ -481,7 +492,7 @@ c~ #endif
 
       do j=1,nlon
         do i=1,nlat
-          ininag(i,j)=1.0d0
+          ininag(i,j)=1.0e0_dblp
         enddo
       enddo
 
@@ -498,10 +509,10 @@ c~ #endif
 
 
 
-         rnorm=1.0d0/sqrt(3.0d0*nlon)
+         rnorm=1.0e0_dblp/sqrt(3.0e0_dblp*nlon)
       do i=1,nlat
         fmu(i,1)=rnorm*pp(i,2)
-        fmu(i,2)=1.d0-fmu(i,1)**2
+        fmu(i,2)=1.e0_dblp-fmu(i,1)**2
       enddo
 
 #if ( NC_BERG == 1 )      
@@ -525,7 +536,7 @@ c~ #endif
          read (berg_dat_id) agg1
 #endif         
 
-         rh0=max(0.0d0,0.001d0/h0)
+         rh0=max(0.0e0_dblp,0.001e0_dblp/h0)
       do j=1,nlon
         do i=1,nlat
           if ((flgisma.AND.(i.lt.15)).OR.(flgismg.AND.(i.gt.15))) then
@@ -539,7 +550,7 @@ c~ #endif
 !          agg(i,j)=fmu(i,1)*agg1(i,j)*rh0
           agg(i,j) = agg1(i,j)*rh0
           rmount(i,j)=agg1(i,j)
-          if (rmount(i,j).lt.0d0) rmount(i,j)=0d0
+          if (rmount(i,j).lt.0e0_dblp) rmount(i,j)=0e0_dblp
          enddo
         enddo
 
@@ -568,8 +579,8 @@ c~ #endif
 
         do j=1,nlon
           do i=1,nlat
-            agg(i,j)=1.0d0+addisl*agg2(i,j)+
-     &                addish*(1.0d0-exp(-0.001d0*agg1(i,j)))
+            agg(i,j)=1.0e0_dblp+addisl*agg2(i,j)+ &
+                     addish*(1.0e0_dblp-exp(-0.001e0_dblp*agg1(i,j)))
           enddo
         enddo
 
@@ -580,7 +591,7 @@ c~ #endif
         call ec_sptogg (wsx,ddisdx,pp)
         call ec_sptogg (ws,ddisdy,pd)
 
-        dd=0.5d0*diss(2,2)
+        dd=0.5e0_dblp*diss(2,2)
         do j=1,nlon
           do i=1,nlat
             ddisdx(i,j)=dd*ddisdx(i,j)/fmu(i,2)
@@ -591,3 +602,5 @@ c~ #endif
       endif
          end
 #endif
+
+end module ecbilt0_mod

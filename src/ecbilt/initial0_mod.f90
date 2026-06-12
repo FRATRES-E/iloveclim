@@ -30,6 +30,7 @@ contains
       use comphys, only: iscencel
       use comemic_mod, only: fini
       use atmphys_mod, only: ec_iatmphys
+      use ecbilt0_mod, only: ec_atmstate
       
 !~ #if ( ISOATM >= 1 )
 !~       use comsurf_mod, only: fractoc

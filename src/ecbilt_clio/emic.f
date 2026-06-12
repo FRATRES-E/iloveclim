@@ -188,6 +188,7 @@ c~      >                       , ec_sumfluxland
       use face, only: styles_samples, colors_samples
 
       use error0_mod, only: ec_error
+      use ecbilt0_mod, only: ec_update, ec_ecbilt
       implicit none
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
