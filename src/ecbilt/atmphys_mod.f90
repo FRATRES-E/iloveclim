@@ -88,6 +88,10 @@ contains
       use ncio, only: nc_read
 #endif
 
+#if ( IMSK == 1 )
+      use ec_masq_mod, only: ec_masq
+#endif
+
       implicit none
 
       real(kind=dblp) fvolcan
