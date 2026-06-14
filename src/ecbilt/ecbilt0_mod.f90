@@ -335,7 +335,10 @@ contains
 !-----------------------------------------------------------------------
 
       use comatm, only: iadyn, iaphys
+
       use comdyn, only: iartif
+      use c06_fftw_mod, only: C06FPF, C06FQF                
+
       use comemic_mod, only: iyear
       use comcoup_mod                ! external coupler — only: not available
       use comsurf_mod, only: epss, fractn, nld, rmountn, thi_chge

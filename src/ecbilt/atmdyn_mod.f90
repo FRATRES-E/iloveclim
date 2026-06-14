@@ -37,6 +37,9 @@ contains
                         relt1, relt2, rinhel, rl1, rl2, rm, rmount, rrdef1, &
                         rrdef2, tdif, tdis, trel, trigd, trigi, u200, u500, &
                         u800, udivg, utot, wgg, ws
+
+      use c06_fftw_mod, only: C06FPF, C06FQF                
+
       use comphys, only: utot10, uv10, uvw10, vtot10, iens, numens
       use comsurf_mod, only: fractn, nld, epss ! afq, topo=0 over the oceans
 #if ( F_PALAEO_FWF == 2 )
@@ -856,6 +859,7 @@ contains
 
 
       use comdyn, only: nlat, nlon, nm, nsh, nshm, trigi, wgg
+      use c06_fftw_mod, only: C06FPF, C06FQF                
 
       implicit none
 
@@ -916,6 +920,7 @@ contains
 
 
       use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
+      use c06_fftw_mod, only: C06FPF, C06FQF                
 
       implicit none
 
@@ -975,6 +980,7 @@ contains
 
 
       use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
+      use c06_fftw_mod, only: C06FPF, C06FQF                
 
       implicit none
 
