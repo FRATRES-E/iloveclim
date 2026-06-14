@@ -337,7 +337,8 @@ contains
       use comatm, only: iadyn, iaphys
 
       use comdyn, only: iartif
-      use c06_fftw_mod, only: C06FPF, C06FQF                
+      ! use c06_fftw_mod, only: C06FPF, C06FQF                
+      use ec_fourier_mod, only: ec_fourier_init
 
       use comemic_mod, only: iyear
       use comcoup_mod                ! external coupler — only: not available
@@ -493,17 +494,20 @@ contains
 ! *** initialization of coefficients for fft
 
 
-      do j=1,nlon
-        do i=1,nlat
-          ininag(i,j)=1.0e0_dblp
-        enddo
-      enddo
+!      do j=1,nlon
+!        do i=1,nlat
+!          ininag(i,j)=1.0e0_dblp
+!        enddo
+!      enddo
+!
+!      ifail=0
+!      call c06fpf (nlat,nlon,ininag,'i',trigd,wgg,ifail)
+!
+!      ifail=0
+!      call c06fqf (nlat,nlon,ininag,'i',trigi,wgg,ifail)
 
-      ifail=0
-      call c06fpf (nlat,nlon,ininag,'i',trigd,wgg,ifail)
+      call ec_fourier_init(nlat, nlon)
 
-      ifail=0
-      call c06fqf (nlat,nlon,ininag,'i',trigi,wgg,ifail)
 
 ! *** orography and dissipation terms
 

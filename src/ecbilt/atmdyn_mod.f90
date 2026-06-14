@@ -38,7 +38,8 @@ contains
                         rrdef2, tdif, tdis, trel, trigd, trigi, u200, u500, &
                         u800, udivg, utot, wgg, ws
 
-      use c06_fftw_mod, only: C06FPF, C06FQF                
+      ! use c06_fftw_mod, only: C06FPF, C06FQF                
+      use ec_fourier_mod, only: ec_fourier_init
 
       use comphys, only: utot10, uv10, uvw10, vtot10, iens, numens
       use comsurf_mod, only: fractn, nld, epss ! afq, topo=0 over the oceans
@@ -178,18 +179,19 @@ contains
 
 ! *** initialization of coefficients for fft
 
-
-      do j=1,nlon
-        do i=1,nlat
-          ininag(i,j)=1.0d0
-        enddo
-      enddo
-
-      ifail=0
-      call c06fpf (nlat,nlon,ininag,'i',trigd,wgg,ifail)
-
-      ifail=0
-      call c06fqf (nlat,nlon,ininag,'i',trigi,wgg,ifail)
+!      do j=1,nlon
+!        do i=1,nlat
+!          ininag(i,j)=1.0d0
+!        enddo
+!      enddo
+!
+!      ifail=0
+!      call c06fpf (nlat,nlon,ininag,'i',trigd,wgg,ifail)
+!
+!      ifail=0
+!      call c06fqf (nlat,nlon,ininag,'i',trigi,wgg,ifail)
+ 
+      call ec_fourier_init(nlat, nlon)
 
 ! *** orography and dissipation terms
 
@@ -859,7 +861,8 @@ contains
 
 
       use comdyn, only: nlat, nlon, nm, nsh, nshm, trigi, wgg
-      use c06_fftw_mod, only: C06FPF, C06FQF                
+      !! use c06_fftw_mod, only: C06FPF, C06FQF                
+      use ec_fourier_mod, only: ec_fourier_spec2grid
 
       implicit none
 
@@ -904,9 +907,9 @@ contains
 
 ! *** inverse fourier transform
 
-      ifail=0
-      call c06fqf (nlat,nlon,agg,'r',trigi,wgg,ifail)
-
+!      ifail=0
+!      call c06fqf (nlat,nlon,agg,'r',trigi,wgg,ifail)
+      call ec_fourier_spec2grid(agg)
       return
       end subroutine ec_sptogg
 
@@ -920,7 +923,8 @@ contains
 
 
       use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
-      use c06_fftw_mod, only: C06FPF, C06FQF                
+      !!use c06_fftw_mod, only: C06FPF, C06FQF                
+      use ec_fourier_mod, only: ec_fourier_grid2spec
 
       implicit none
 
@@ -933,8 +937,9 @@ contains
 !
 ! *** fourier transform
 !
-      ifail=0
-      call c06fpf (nlat,nlon,agg,'r',trigd,wgg,ifail)
+!!      ifail=0
+!!      call c06fpf (nlat,nlon,agg,'r',trigd,wgg,ifail)
+      call ec_fourier_grid2spec(agg)
 !
 ! *** legendre transform
 !
@@ -980,7 +985,8 @@ contains
 
 
       use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
-      use c06_fftw_mod, only: C06FPF, C06FQF                
+      !! use c06_fftw_mod, only: C06FPF, C06FQF                
+      use ec_fourier_mod, only: ec_fourier_grid2spec
 
       implicit none
 
@@ -1000,8 +1006,9 @@ contains
 
 ! *** fourier transform
 
-      ifail=0
-      call c06fpf (nlat,nlon,store,'r',trigd,wgg,ifail)
+      !!ifail=0
+      !!call c06fpf (nlat,nlon,store,'r',trigd,wgg,ifail)
+      call ec_fourier_grid2spec(store)
 
 ! *** legendre transform
 
