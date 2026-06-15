@@ -108,6 +108,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 
       use newunit_mod, only: newunit_id, wisocpl_restart_id
       use landmodel_mod, only: ec_wrendland
+      use ecbilt0_mod, only: ec_wrenddyn, ec_wrendphy
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...

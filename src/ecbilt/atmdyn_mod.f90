@@ -1,25 +1,50 @@
-!dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:31 CET 2009
-#include "choixcomposantes.h"
-!dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:31 CET 2009
+!==============================================================================
+! MODULE atmdyn_mod
+! Atmospheric dynamics for the ECBilt QG3L model.
+! Contains: initialisation (ec_iatmdyn), time stepping (ec_ddt, ec_forward,
+!           ec_dqdt), spectral/grid transforms (ec_sptogg, ec_ggtosp, ...),
+!           jacobian operators, wind diagnostics, and artificial forcing.
+!
+! Refactored from atmdyn0.f — types unified to real(kind=dblp) / real(kind=silp)
+!==============================================================================
+module atmdyn_mod
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
+  use global_constants_mod, only: dblp=>dp, silp=>sp, ip
+
+  implicit none
+  private
+
+  public :: ec_iatmdyn, ec_addperturb, ec_ddt, ec_jacob, ec_jacobd,      &
+            ec_jacobr, ec_omoro, ec_ddl, ec_sptogg, ec_ggtosp,           &
+            ec_rggtosp, ec_qtopsi, ec_psitoq, ec_psiq, ec_qpsi,          &
+            ec_qpsit, ec_fmtofs, ec_fstofm, ec_forward, ec_dqdt,         &
+            ec_psitogeo, ec_omega3, ec_diver, ec_divwin, ec_geowin,       &
+            ec_totwind, ec_lap, ec_lapinv, ec_forcdaily
+
+contains
+
+
       SUBROUTINE ec_iatmdyn
 !-----------------------------------------------------------------------
 ! *** initialise parameters and operators and read initial state
 !-----------------------------------------------------------------------
 
-      USE comatm
-      USE comdyn
-      USE comphys
+      use comatm, only: pi
+      use comdyn, only: addish, addisl, ddisdx, ddisdy, diss, divg, dorodl, &
+                        dorodm, for, forcggs1, forcggw1, h0, iartif, idif, &
+                        ipert, lgdiss, ll, nlat, nlon, nm, nsh, nsh2, nshm, &
+                        ntl, nvl, orog, pd, pp, psi, psit, pw, qprime, rdiss, &
+                        relt1, relt2, rinhel, rl1, rl2, rm, rmount, rrdef1, &
+                        rrdef2, tdif, tdis, trel, trigd, trigi, u200, u500, &
+                        u800, udivg, utot, wgg, ws
+      use comphys, only: utot10, uv10, uvw10, vtot10, iens, numens
       use comsurf_mod, only: fractn, nld, epss ! afq, topo=0 over the oceans
 #if ( F_PALAEO_FWF == 2 )
-     >                       , thi_chge
+      use comsurf_mod, only: thi_chge
 #endif
       use newunit_mod, only: coef_dat_id, berg_dat_id, win_dat_id, sum_dat_id
-      use global_constants_mod, only: dblp=>dp, ip
       use comemic_mod, only: fini, irunlabel
-      use comcoup_mod
-      use comunit
+      use comcoup_mod                ! external coupler — only: not available
 #if ( NC_BERG >= 1 )      
       use ncio, only: nc_read
 #endif      
@@ -29,8 +54,8 @@
 
 #if ( ISM == 2 )
 ! dmr FLAG AJOUT GRISLI
-      USE input_flagsGRIS
-      USE output_ECBilt
+      USE input_flagsGRIS, only: nord_GRIS, sud_GRIS, masqueECB, topoECB
+      USE output_ECBilt              ! external GRISLI — only: not available
 ! dmr FLAG AJOUT GRISLI
 #endif
 
@@ -41,20 +66,20 @@
 #endif
 
       integer i,j,k1,k2,k,l,m,n,ifail,ii,jj,i1,j1,nn
-      real*8  pigr4,dis,dif,rll,ininag(nlat,nlon),asum
-      real*8  r1,a,b,c,d,e,sqn,rsqn
-      real*8  rnorm,rh0,dd
-      real*8  agg(nlat,nlon), agg1(nlat,nlon), agg2(nlat,nlon)
-      real*8  fw(nsh2),fs(nsh2),fors(nsh2,nvl), fmu(nlat,2)
-      real*8  forw(nsh2,nvl),wsx(nsh2),areafac
-      real*8  spv
-      REAL*4  outdata(nlon,nlat)
+      real(kind=dblp)  pigr4,dis,dif,rll,ininag(nlat,nlon),asum
+      real(kind=dblp)  r1,a,b,c,d,e,sqn,rsqn
+      real(kind=dblp)  rnorm,rh0,dd
+      real(kind=dblp)  agg(nlat,nlon), agg1(nlat,nlon), agg2(nlat,nlon)
+      real(kind=dblp)  fw(nsh2),fs(nsh2),fors(nsh2,nvl), fmu(nlat,2)
+      real(kind=dblp)  forw(nsh2,nvl),wsx(nsh2),areafac
+      real(kind=dblp)  spv
+      real(kind=silp)  outdata(nlon,nlat)
 
-      integer(kind=ip):: topography_read_ctl_id, topography_read_dat_id
-     &                   , inatdyn_dat_id
+      integer(kind=ip):: topography_read_ctl_id, topography_read_dat_id &
+                         , inatdyn_dat_id
 
 #if ( NC_BERG >= 1 )      
-      real*8 aggT(nlon,nlat)
+      real(kind=dblp) aggT(nlon,nlat)
 #endif
 #if ( NC_BERG == 2 )
       character*30 name_file
@@ -245,35 +270,35 @@
 #if (1)
       outdata = 0.0
 
-      open(newunit=topography_read_ctl_id,
-     &     file='outputdata/atmos/topography-read.ctl')
+      open(newunit=topography_read_ctl_id, &
+           file='outputdata/atmos/topography-read.ctl')
       write(topography_read_ctl_id,fmt="('dset   ^topography-read.dat')")
       write(topography_read_ctl_id,fmt="('options big_endian')")
       write(topography_read_ctl_id,fmt="('undef ',1p,e12.4)") -1.0e20
       write(topography_read_ctl_id,fmt="('title ECBILT orography')")
-      write(topography_read_ctl_id,
-     &      fmt="('xdef ',i3,' linear ',2f7.2)") 64,0.00,5.625
+      write(topography_read_ctl_id, &
+            fmt="('xdef ',i3,' linear ',2f7.2)") 64,0.00,5.625
       write(topography_read_ctl_id,fmt="('ydef ',i3,' levels')") 32
-      write(topography_read_ctl_id,
-     & fmt="(' -85.7606 -80.2688 -74.7445 -69.2130 -63.6786')")
-      write(topography_read_ctl_id,
-     & fmt="(' -58.1430 -52.6065 -47.0696 -41.5325 -35.9951')")
-      write(topography_read_ctl_id,
-     & fmt="(' -30.4576 -24.9199 -19.3822 -13.8445 -8.30670')")
-      write(topography_read_ctl_id,
-     & fmt="(' -2.76890 2.76890 8.30670 13.8445 19.3822')")
-      write(topography_read_ctl_id,
-     & fmt="('  24.9199 30.4576 35.9951 41.5325 47.0696')")
-      write(topography_read_ctl_id,
-     & fmt="('  52.6065 58.1430 63.6786 69.2130 74.7445')")
+      write(topography_read_ctl_id, &
+       fmt="(' -85.7606 -80.2688 -74.7445 -69.2130 -63.6786')")
+      write(topography_read_ctl_id, &
+       fmt="(' -58.1430 -52.6065 -47.0696 -41.5325 -35.9951')")
+      write(topography_read_ctl_id, &
+       fmt="(' -30.4576 -24.9199 -19.3822 -13.8445 -8.30670')")
+      write(topography_read_ctl_id, &
+       fmt="(' -2.76890 2.76890 8.30670 13.8445 19.3822')")
+      write(topography_read_ctl_id, &
+       fmt="('  24.9199 30.4576 35.9951 41.5325 47.0696')")
+      write(topography_read_ctl_id, &
+       fmt="('  52.6065 58.1430 63.6786 69.2130 74.7445')")
       write(topography_read_ctl_id,fmt="('  80.2688 85.7606')")
-      write(topography_read_ctl_id,
-     & fmt="('zdef ',i3,' linear ',2f7.2)") 1,0.00,1.00
-      write(topography_read_ctl_id,
-     & fmt="('tdef ',i4,' linear 1jan0001  1YR')") 1
+      write(topography_read_ctl_id, &
+       fmt="('zdef ',i3,' linear ',2f7.2)") 1,0.00,1.00
+      write(topography_read_ctl_id, &
+       fmt="('tdef ',i4,' linear 1jan0001  1YR')") 1
       write(topography_read_ctl_id,fmt="('vars 1')")
-      write(topography_read_ctl_id,
-     & fmt="('var1       1  99 orography ECBILT')")
+      write(topography_read_ctl_id, &
+       fmt="('var1       1  99 orography ECBILT')")
       write(topography_read_ctl_id,fmt="('endvars')")
       close(topography_read_ctl_id)
       do i=1,nlon
@@ -281,10 +306,10 @@
           outdata(i,j)=rmount(j,i)
         enddo
       enddo
-      open(newunit=topography_read_dat_id,CONVERT='BIG_ENDIAN',
-     &      file='outputdata/atmos/topography-read.dat'
-     &         ,form='unformatted',
-     &         access='direct',recl=Size(outdata)*Kind(outdata(1,1)))
+      open(newunit=topography_read_dat_id,CONVERT='BIG_ENDIAN', &
+            file='outputdata/atmos/topography-read.dat' &
+               ,form='unformatted', &
+               access='direct',recl=Size(outdata)*Kind(outdata(1,1)))
       write(topography_read_dat_id,REC=1) outdata
       close(topography_read_dat_id)
 
@@ -317,8 +342,8 @@
 
         do j=1,nlon
           do i=1,nlat
-            agg(i,j)=1.0d0+addisl*agg2(i,j)+
-     &                addish*(1.0d0-exp(-0.001d0*agg1(i,j)))
+            agg(i,j)=1.0d0+addisl*agg2(i,j)+ &
+                      addish*(1.0d0-exp(-0.001d0*agg1(i,j)))
           enddo
         enddo
 
@@ -410,8 +435,8 @@
           enddo
         enddo
       else
-        open(newunit=inatdyn_dat_id,file='startdata/inatdyn'//fini//'.dat',
-     *        form='unformatted')
+        open(newunit=inatdyn_dat_id,file='startdata/inatdyn'//fini//'.dat', &
+              form='unformatted')
         read(inatdyn_dat_id) qprime,for
         close(inatdyn_dat_id)
       endif
@@ -428,17 +453,17 @@
   910 format(10e12.5)
 
       return
-      end
+      end subroutine ec_iatmdyn
 
 !1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
 !  (C) Copr. 1986-92 Numerical Recipes Software +.-).
-      double precision function ran1(idum)
+      real(kind=dblp) function ran1(idum)
 
       implicit none
       integer idum,ia,im,iq,ir,ntab,ndiv
       real am,eps,rnmx
-      parameter (ia=16807,im=2147483647,am=1./im,iq=127773,ir=2836,
-     *ntab=32,ndiv=1+(im-1)/ntab,eps=1.2e-7,rnmx=1.-eps)
+      parameter (ia=16807,im=2147483647,am=1./im,iq=127773,ir=2836, &
+      ntab=32,ndiv=1+(im-1)/ntab,eps=1.2e-7,rnmx=1.-eps)
       integer j,k,iv(ntab),iy
       save iv,iy
       data iv /ntab*0/, iy /0/
@@ -466,24 +491,12 @@
 !1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
       SUBROUTINE ec_addperturb
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-      USE comphys
-      use comemic_mod, only:
-#endif
+      use comdyn, only: ipert, nlat, nlon, pp, qprime
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#include "comemic.h"
-#endif
 
-      real*8 qpgg1(nlat,nlon),qpgg2(nlat,nlon),qpgg3(nlat,nlon)
+      real(kind=dblp) qpgg1(nlat,nlon),qpgg2(nlat,nlon),qpgg3(nlat,nlon)
 
       integer :: i,j
-      double precision :: ran1
 
       write(*,*)'ipert=',ipert
 
@@ -514,9 +527,8 @@
       call ec_ggtosp(qpgg2,qprime(1,2))
       call ec_ggtosp(qpgg3,qprime(1,3))
 
-      end
+      end subroutine ec_addperturb
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_ddt
 !----------------------------------------------------------------------
 ! *** computation of time derivative of the potential vorticity fields
@@ -527,23 +539,16 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: diss, dqprdt, for, nsh2, psi, psit, qprime, relt1, relt2
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer k,l
-      real*8  dum1,dum2
+      real(kind=dblp)  dum1,dum2
 
 ! *** advection of potential vorticity at upper level
 
@@ -575,11 +580,10 @@
         enddo
       enddo
       return
-      end
+      end subroutine ec_ddt
 
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_jacob (psiloc,pvor,sjacob)
 !----------------------------------------------------------------------
 ! *** advection of potential vorticity
@@ -588,24 +592,17 @@
 !----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nlat, nlon, nsh2, pd, pp
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       integer i,j,k
-      real*8  psiloc(nsh2), pvor(nsh2), sjacob(nsh2),vv(nsh2)
-      real*8  dpsidl(nlat,nlon), dpsidm(nlat,nlon), dvordl(nlat,nlon),
-     *        dvordm(nlat,nlon), gjacob(nlat,nlon), dpsidls(nsh2)
+      real(kind=dblp)  psiloc(nsh2), pvor(nsh2), sjacob(nsh2),vv(nsh2)
+      real(kind=dblp)  dpsidl(nlat,nlon), dpsidm(nlat,nlon), dvordl(nlat,nlon), &
+              dvordm(nlat,nlon), gjacob(nlat,nlon), dpsidls(nsh2)
 
 ! *** space derivatives of potential vorticity
 
@@ -636,9 +633,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_jacob
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_jacobd (psiloc,pvor,sjacob)
 !----------------------------------------------------------------------
 ! *** advection of potential vorticity and dissipation on gaussian grid
@@ -647,26 +643,21 @@
 !----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comatm, only: sinfi
+      use comdyn, only: ddisdx, ddisdy, diss, dorodl, dorodm, gekdis, lgdiss, &
+                        nlat, nlon, nsh2, pd, pp, psi, rdiss
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer i,j,k
-      real*8  psiloc(nsh2), pvor(nsh2), sjacob(nsh2)
-      real*8  dpsidl(nlat,nlon), dpsidm(nlat,nlon), dvordl(nlat,nlon),
-     *        dvordm(nlat,nlon), gjacob(nlat,nlon), vv(nsh2),
-     *        azeta(nlat,nlon),dpsidls(nsh2)
+      real(kind=dblp)  psiloc(nsh2), pvor(nsh2), sjacob(nsh2)
+      real(kind=dblp)  dpsidl(nlat,nlon), dpsidm(nlat,nlon), dvordl(nlat,nlon), &
+              dvordm(nlat,nlon), gjacob(nlat,nlon), vv(nsh2), &
+              azeta(nlat,nlon),dpsidls(nsh2)
 
 ! *** space derivatives of potential vorticity
 
@@ -684,8 +675,8 @@
 
       do j=1,nlon
         do i=1,nlat
-          gjacob(i,j)=dpsidm(i,j)*(dvordl(i,j)+sinfi(i)*dorodl(i,j))-
-     *                dpsidl(i,j)*(dvordm(i,j)+sinfi(i)*dorodm(i,j))
+          gjacob(i,j)=dpsidm(i,j)*(dvordl(i,j)+sinfi(i)*dorodl(i,j))- &
+                      dpsidl(i,j)*(dvordm(i,j)+sinfi(i)*dorodm(i,j))
         enddo
       enddo
 
@@ -704,9 +695,9 @@
 
         do j=1,nlon
           do i=1,nlat
-            gekdis(i,j)=-dpsidm(i,j)*ddisdy(i,j)
-     *              -dpsidl(i,j)*ddisdx(i,j)
-     *              +rdiss(i,j)*azeta(i,j)
+            gekdis(i,j)=-dpsidm(i,j)*ddisdy(i,j) &
+                    -dpsidl(i,j)*ddisdx(i,j) &
+                    +rdiss(i,j)*azeta(i,j)
             gjacob(i,j)=gjacob(i,j) + gekdis(i,j)
           enddo
         enddo
@@ -732,9 +723,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_jacobd
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_jacobr (psiloc,pvor,sjacob)
 !-----------------------------------------------------------------------
 ! *** computation of jacobian without planetary vorticity
@@ -743,25 +733,18 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nlat, nlon, nsh2, pd, pp
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer i,j,k
-      real*8  psiloc(nsh2), pvor(nsh2), sjacob(nsh2),vv(nsh2)
-      real*8  dpsidl(nlat,nlon), dpsidm(nlat,nlon), dvordl(nlat,nlon),
-     *        dvordm(nlat,nlon), gjacob(nlat,nlon), dpsidls(nsh2)
+      real(kind=dblp)  psiloc(nsh2), pvor(nsh2), sjacob(nsh2),vv(nsh2)
+      real(kind=dblp)  dpsidl(nlat,nlon), dpsidm(nlat,nlon), dvordl(nlat,nlon), &
+              dvordm(nlat,nlon), gjacob(nlat,nlon), dpsidls(nsh2)
 
 ! *** space derivatives of potential vorticity
 
@@ -787,9 +770,8 @@
 
 
       return
-      end
+      end subroutine ec_jacobr
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_omoro (psiloc,sjacob)
 !-----------------------------------------------------------------------
 ! *** computation of jacobian without planetary vorticity
@@ -798,25 +780,19 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comatm, only: sinfi
+      use comdyn, only: dorodl, dorodm, nlat, nlon, nsh2, pd, pp
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer i,j,k
-      real*8  psiloc(nsh2), sjacob(nsh2),vv(nsh2)
-      real*8  dpsidl(nlat,nlon), dpsidm(nlat,nlon),
-     *        gjacob(nlat,nlon), dpsidls(nsh2)
+      real(kind=dblp)  psiloc(nsh2), sjacob(nsh2),vv(nsh2)
+      real(kind=dblp)  dpsidl(nlat,nlon), dpsidm(nlat,nlon), &
+              gjacob(nlat,nlon), dpsidls(nsh2)
 
 ! *** space derivatives of streamFUNCTION
 
@@ -837,9 +813,8 @@
 
 
       return
-      end
+      end subroutine ec_omoro
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_ddl (as,dadl)
 !-----------------------------------------------------------------------
 ! *** zonal derivative in spectral space
@@ -849,23 +824,16 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh, rm
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer k
-      real*8 as(nsh,2), dadl(nsh,2)
+      real(kind=dblp) as(nsh,2), dadl(nsh,2)
 
       do k=1,nsh
         dadl(k,1)=-rm(k)*as(k,2)
@@ -873,9 +841,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_ddl
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_sptogg (as,agg,pploc)
 
 !-----------------------------------------------------------------------
@@ -888,23 +855,16 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nlat, nlon, nm, nsh, nshm, trigi, wgg
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer i,ifail,j,k,k1,k2,m,mi,mr,nlon1
-      real*8  as(nsh,2), agg(nlat,nlon), pploc(nlat,nsh)
+      real(kind=dblp)  as(nsh,2), agg(nlat,nlon), pploc(nlat,nsh)
 
 ! *** inverse legendre transform
 
@@ -944,9 +904,8 @@
       call c06fqf (nlat,nlon,agg,'r',trigi,wgg,ifail)
 
       return
-      end
+      end subroutine ec_sptogg
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_ggtosp (agg,as)
 !-----------------------------------------------------------------------
 ! *** conversion from gaussian grid (agg) to spectral coefficients (as)
@@ -956,23 +915,16 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer ir,ifail,j,k,k1,k2,m,mi,mr,nlon1,i
-      real*8  as(nsh,2), agg(nlat,nlon)
+      real(kind=dblp)  as(nsh,2), agg(nlat,nlon)
 !
 ! *** fourier transform
 !
@@ -1011,9 +963,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_ggtosp
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_rggtosp (agg,as)
 !-----------------------------------------------------------------------
 ! *** conversion from gaussian grid (agg) to spectral coefficients (as)
@@ -1023,24 +974,17 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nlat, nlon, nm, nsh, nshm, pw, trigd, wgg
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer i,ifail,ir,j,k,k1,k2,m,mi,mr,nlon1
-      real*8 as(nsh,2), agg(nlat,nlon)
-      real*8 store(nlat,nlon)
+      real(kind=dblp) as(nsh,2), agg(nlat,nlon)
+      real(kind=dblp) store(nlat,nlon)
 
       do j=1,nlon
         do i=1,nlat
@@ -1085,9 +1029,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_rggtosp
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_qtopsi
 !-----------------------------------------------------------------------
 ! *** computation of streamFUNCTION from potential vorticity
@@ -1097,23 +1040,16 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, psi, psit, qprime, rinhel, ws
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer k
-      real*8  r3
+      real(kind=dblp)  r3
 
       do k=1,nsh2
         ws(k)=qprime(k,1)+qprime(k,3)
@@ -1135,9 +1071,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_qtopsi
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_psitoq
 !-----------------------------------------------------------------------
 ! *** computation of potential vorticity from stream FUNCTION
@@ -1147,17 +1082,10 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, psi, psit, qprime, rinhel, rl1, rl2
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       integer k
@@ -1170,9 +1098,8 @@
         qprime(k,3)=rinhel(k,0)*psi(k,3)+rl2*psit(k,2)
       enddo
       return
-      end
+      end subroutine ec_psitoq
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_psiq(sfin,qout)
 !-----------------------------------------------------------------------
 ! ***  computation of potential vorticity qout from stream FUNCTION sfin
@@ -1180,22 +1107,15 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, nvl, rinhel, rl1, rl2
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer k
-      real*8  sfin(nsh2,nvl),qout(nsh2,nvl),tus(nsh2)
+      real(kind=dblp)  sfin(nsh2,nvl),qout(nsh2,nvl),tus(nsh2)
 
       do k=1,nsh2
         tus(k)=rl1*sfin(k,1)-rl1*sfin(k,2)
@@ -1216,10 +1136,9 @@
       enddo
 
       return
-      end
+      end subroutine ec_psiq
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_qpsi(qin,sfout)
 !-----------------------------------------------------------------------
 ! *** computation of streamFUNCTION bb from potential vorticity qin
@@ -1227,21 +1146,14 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, ntl, nvl, rinhel, ws
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
-      real*8  qin(nsh2,nvl),sfout(nsh2,nvl), tus(nsh2,ntl), r3
+      real(kind=dblp)  qin(nsh2,nvl),sfout(nsh2,nvl), tus(nsh2,ntl), r3
       integer k
 
       do k=1,nsh2
@@ -1264,9 +1176,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_qpsi
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_qpsit(qin,tus)
 !-----------------------------------------------------------------------
 ! *** computation of streamFUNCTION bb from potential vorticity qin
@@ -1274,20 +1185,13 @@
 
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, ntl, nvl, rinhel, ws
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
-      real*8  qin(nsh2,nvl),tus(nsh2,ntl), r3,sfout(nsh2,nvl)
+      real(kind=dblp)  qin(nsh2,nvl),tus(nsh2,ntl), r3,sfout(nsh2,nvl)
       integer k
 
       do k=1,nsh2
@@ -1303,10 +1207,9 @@
       enddo
 
       return
-      end
+      end subroutine ec_qpsit
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_fmtofs (y,z)
 !-----------------------------------------------------------------------
 ! *** transforms franco's format to the french format for global fields
@@ -1316,20 +1219,15 @@
 
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 1 )
-      USE comatm
-#endif
 !sript <<<
+      use comdyn, only: nsh, nsh2, nvl, nm
       implicit none
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 0 )
-#include "comatm.h"
-#endif
 !sript <<<
 
       integer   m,n,k,indx,l
-      real*8    y(nsh2,nvl),z(nsh2,nvl)
+      real(kind=dblp)    y(nsh2,nvl),z(nsh2,nvl)
 
       do l=1,nvl
         k=1
@@ -1347,9 +1245,8 @@
         enddo
       enddo
       return
-      end
+      end subroutine ec_fmtofs
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_fstofm (y,z,ntr)
 !-----------------------------------------------------------------------
 ! *** transforms the french format to franco's format for global fields
@@ -1357,22 +1254,18 @@
 ! *** output z spectral coefficients in franco's format
 !-----------------------------------------------------------------------
 
+      use comdyn, only: nsh, nsh2, nvl, nm
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 1 )
-      USE comatm
-#endif
 !sript <<<
+      use comdyn, only: nsh, nsh2, nvl, nm
       implicit none
 
 !script >>> Les declarations suivantes ont ete faite par un script
-#if ( COMATM == 0 )
-#include "comatm.h"
-#endif
 !sript <<<
 
       integer   m,n,k,indx,i,l,ntr
-      real*8    y(nsh2,nvl),z(nsh2,nvl)
+      real(kind=dblp)    y(nsh2,nvl),z(nsh2,nvl)
 
       do l=1,nvl
         do i=1,nsh2
@@ -1395,10 +1288,9 @@
         enddo
       enddo
       return
-      end
+      end subroutine ec_fstofm
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_forward
 !-----------------------------------------------------------------------
 ! *** performs a fourth order runge kutta time step at truncation nm
@@ -1409,25 +1301,19 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comatm, only: dtt
+      use comdyn, only: nm, nsh2, nvl, qprime
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer  k,l,nvar
-      real*8   dt2,dt6
-      real*8   y(nsh2,nvl),dydt(nsh2,nvl),yt(nsh2,nvl)
-      real*8   dyt(nsh2,nvl),dym(nsh2,nvl)
+      real(kind=dblp)   dt2,dt6
+      real(kind=dblp)   y(nsh2,nvl),dydt(nsh2,nvl),yt(nsh2,nvl)
+      real(kind=dblp)   dyt(nsh2,nvl),dym(nsh2,nvl)
 
       nvar=(nm+2)*nm
       dt2=dtt*0.5d0
@@ -1460,9 +1346,8 @@
       enddo
       call ec_fstofm(y,qprime,nm)
       return
-      end
+      end subroutine ec_forward
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_dqdt(y,dydt)
 !-----------------------------------------------------------------------
 ! *** computation of time derivative of the potential vorticity field
@@ -1472,29 +1357,21 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: dqprdt, nm, nsh2, nvl, qprime
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
-      real*8  y(nsh2,nvl),dydt(nsh2,nvl)
+      real(kind=dblp)  y(nsh2,nvl),dydt(nsh2,nvl)
 
       call ec_fstofm(y,qprime,nm)
       call ec_qtopsi
       call ec_ddt
       call ec_fmtofs(dqprdt,dydt)
       return
-      end
+      end subroutine ec_dqdt
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_psitogeo
 !-----------------------------------------------------------------------
 ! *** computes geopotential in [m2/s2] from the streamFUNCTION
@@ -1506,36 +1383,29 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-      USE comphys
-#endif
+      use comatm, only: om, radius, sinfi
+      use comdyn, only: divs, geopg, nlat, nlon, nsh2, ntl, nvl, pd, pp, psi, &
+                        rinhel
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#endif
 
 
 
 
       integer i,j,l
-      real*8  dmu(nlat),cdim,tempfac(ntl)
-      real*8  delpsis(nsh2),delpsig(nlat,nlon)
-      real*8  dmupsig(nlat,nlon),delgeog(nlat,nlon)
-      real*8  delgeos(nsh2),geos(nsh2)
+      real(kind=dblp)  dmu(nlat),cdim,tempfac(ntl)
+      real(kind=dblp)  delpsis(nsh2),delpsig(nlat,nlon)
+      real(kind=dblp)  dmupsig(nlat,nlon),delgeog(nlat,nlon)
+      real(kind=dblp)  delgeos(nsh2),geos(nsh2)
 
 #if ( ABEL == 1 )
-      real*8  x1d(nsh2), sdim
-      real*8  chi_scaled(nsh2)
-!      real*8  chigtest(nlat,nlon,nvl)
-      real*8  dchidls(nsh2)
-      real*8  dchidlg(nlat,nlon)
+      real(kind=dblp)  x1d(nsh2), sdim
+      real(kind=dblp)  chi_scaled(nsh2)
+!      real(kind=dblp)  chigtest(nlat,nlon,nvl)
+      real(kind=dblp)  dchidls(nsh2)
+      real(kind=dblp)  dchidlg(nlat,nlon)
 #endif
 
       do i=1,nlat
@@ -1580,10 +1450,13 @@
 
         do j=1,nlon
           do i=1,nlat
-            delgeog(i,j)=dmu(i)*dmupsig(i,j)+
-     *                      sinfi(i)*delpsig(i,j)
 #if ( ABEL == 1 )
-     *              -1*dchidlg(i,j)
+            delgeog(i,j)=dmu(i)*dmupsig(i,j)+ &
+                            sinfi(i)*delpsig(i,j) &
+                            -1*dchidlg(i,j)
+#else
+            delgeog(i,j)=dmu(i)*dmupsig(i,j)+ &
+                            sinfi(i)*delpsig(i,j)
 #endif
           enddo
         enddo
@@ -1600,9 +1473,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_psitogeo
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_omega3
 !-----------------------------------------------------------------------
 ! *** computes the vertical velocity at the two temperature levels
@@ -1612,27 +1484,20 @@
 ! ***        omegg at gaussian grid
 !-----------------------------------------------------------------------
 
-#if ( COMATM == 1 )
       USE comatm, only: fzero,om,pi,radius,tlevel,rgas,dp
-      USE comdyn
-      use comemic_mod, only:
-#endif
+      use comdyn, only: dfor1, dfor2, dqprdt, gekdis, nlat, nlon, nsh2, ntl, nvl, &
+                        omegg, omegs, pp, psi, psit, rrdef1, rrdef2, trel
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comemic.h"
-#endif
 
       integer i,j,k,l
-      real*8  adoro(nsh2),adpsit(nsh2,ntl),dpsitdt(nsh2,ntl)
-      real*8  facom(nvl),facoc
-      real*8  facd1,facd2
-      real*8  facekm
-      real*8  omegsd(nsh2)
+      real(kind=dblp)  adoro(nsh2),adpsit(nsh2,ntl),dpsitdt(nsh2,ntl)
+      real(kind=dblp)  facom(nvl),facoc
+      real(kind=dblp)  facd1,facd2
+      real(kind=dblp)  facekm
+      real(kind=dblp)  omegsd(nsh2)
 
       facom(1)=(dp*om)/(rrdef1**2*fzero)
       facom(2)=(dp*om)/(rrdef2**2*fzero)
@@ -1671,13 +1536,13 @@
 
 ! ***   level1  (350 hpa)
 
-        omegs(k,1)= dpsitdt(k,1) -
-     *              adpsit(k,1) + psit(k,1)/facoc
+        omegs(k,1)= dpsitdt(k,1) - &
+                    adpsit(k,1) + psit(k,1)/facoc
 
 ! ***   level2  (650 hpa)
 
-        omegs(k,2)= dpsitdt(k,2) -
-     *              adpsit(k,2) + psit(k,2)/facoc
+        omegs(k,2)= dpsitdt(k,2) - &
+                    adpsit(k,2) + psit(k,2)/facoc
 
 ! ***   level 3 (surface)
 
@@ -1727,10 +1592,9 @@
       enddo
 
       return
-      end
+      end subroutine ec_omega3
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_diver
 !-----------------------------------------------------------------------
 ! *** computes divergence from omega using conservation of mass
@@ -1741,18 +1605,12 @@
 
 
 
-#if ( COMATM == 1 )
       USE comatm, only: nsh2, dp
-      USE comdyn
-#endif
+      use comdyn, only: divg, divs, nsh2, nvl, omegs, pp
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
       integer k,l
@@ -1769,9 +1627,8 @@
 
 
       return
-      end
+      end subroutine ec_diver
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_divwin
 !-----------------------------------------------------------------------
 ! *** computes divergent wind from the divergence
@@ -1781,24 +1638,19 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comatm, only: cosfi, radius
+      use comdyn, only: chi, chig, divs, nlat, nlon, nsh2, nvl, pd, pp, &
+                        rinhel, udivg, vdivg
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer i,j,k,l
-      real*8  r1,r2
-      real*8  x(nsh2),xhelp(nsh2),dxdl(nlat,nlon),dxdm(nlat,nlon)
+      real(kind=dblp)  r1,r2
+      real(kind=dblp)  x(nsh2),xhelp(nsh2),dxdl(nlat,nlon),dxdm(nlat,nlon)
 
       r1=radius
       r2=radius**2
@@ -1826,9 +1678,8 @@
       enddo
 
       return
-      end
+      end subroutine ec_divwin
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_geowin
 !-----------------------------------------------------------------------
 ! *** computation of geostrophic winds at all levels
@@ -1840,22 +1691,17 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comatm, only: cosfi, om, radius
+      use comdyn, only: nlat, nlon, nsh2, nvl, pd, pp, psi, u200, u500, u800, &
+                        v200, v500, v800
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
       integer i,j,k,l
-      real*8  facwin2
-      real*8  dpsdl(nlat,nlon),dpsdm(nlat,nlon),psik(nsh2),vv(nsh2)
+      real(kind=dblp)  facwin2
+      real(kind=dblp)  dpsdl(nlat,nlon),dpsdm(nlat,nlon),psik(nsh2),vv(nsh2)
 
 ! *** space derivatives of streamFUNCTION
 
@@ -1902,9 +1748,8 @@
 
 
       return
-      end
+      end subroutine ec_geowin
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_totwind
 !-----------------------------------------------------------------------
 ! *** computation of total wind at all levels
@@ -1912,18 +1757,12 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nlat, nlon, nvl, u200, u500, u800, udivg, utot, v200, &
+                        v500, v800, vdivg, vtot
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
@@ -1962,10 +1801,9 @@
 
 
       return
-      end
+      end subroutine ec_totwind
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_lap(xs,xsl)
 !-----------------------------------------------------------------------
 ! *** computation of laplace operator in spectral domain
@@ -1974,34 +1812,26 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, rinhel
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer k
-      real*8  xs(nsh2),xsl(nsh2)
+      real(kind=dblp)  xs(nsh2),xsl(nsh2)
 
       do k=1,nsh2
         xsl(k)=xs(k)*rinhel(k,0)
       enddo
 
       return
-      end
+      end subroutine ec_lap
 
 
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_lapinv(xsl,xs)
 !-----------------------------------------------------------------------
 ! *** computation of laplace operator in spectral domain
@@ -2010,65 +1840,49 @@
 !-----------------------------------------------------------------------
 
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-#endif
+      use comdyn, only: nsh2, rinhel
 
       implicit none
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#endif
 
 
 
       integer k
-      real*8  xs(nsh2),xsl(nsh2)
+      real(kind=dblp)  xs(nsh2),xsl(nsh2)
 
       do k=1,nsh2
         xs(k)=xsl(k)*rinhel(k,1)
       enddo
 
       return
-      end
+      end subroutine ec_lapinv
 
-!23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_forcdaily
 !-----------------------------------------------------------------------
 ! *** calculates artificial forcing as a FUNCTION of the time
 ! *** of the year
 !-----------------------------------------------------------------------
 
-#if ( COMATM == 1 )
-      USE comatm
-      USE comdyn
-      USE comphys
+      use comdyn, only: forcgg1, forcggs1, forcggw1, nlat, nlon
       use comemic_mod, only: day
-#endif
 
       implicit none
 
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-#include "comdyn.h"
-#include "comphys.h"
-#include "comemic.h"
-#endif
 
 
       integer i,j
 
       do i=1,nlat
         do j=1,nlon
-          forcgg1(i,j)=dabs(180.d0-day)*forcggw1(i,j)/180.d0 +
-     *             forcggs1(i,j) - dabs(180.d0-day)*forcggs1(i,j)/180.d0
+          forcgg1(i,j)=dabs(180.d0-day)*forcggw1(i,j)/180.d0 + &
+                   forcggs1(i,j) - dabs(180.d0-day)*forcggs1(i,j)/180.d0
         enddo
       enddo
 
       return
-      end
+      end subroutine ec_forcdaily
 
 
+
+end module atmdyn_mod

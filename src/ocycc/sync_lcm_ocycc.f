@@ -189,9 +189,10 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          ODOC13(i,(kmax+1-k),n) = scal(n+1,i,k,11)
          ODOCS13(i,(kmax+1-k),n) = scal(n+1,i,k,12)
          OC14(i,(kmax+1-k),n) = scal(n+1,i,k,13)
+#if ( OOISO == 0 )
+         OO2(i,(kmax+1-k),n) = scal(n+1,i,k,9)
+#else
          OO2(i,(kmax+1-k),n,iair) = scal(n+1,i,k,9)
-
-#if ( OOISO >= 1 )
          OO2(i,(kmax+1-k),n,iair16) = scal(n+1,i,k,oo2iso16)
          OO2(i,(kmax+1-k),n,iair17) = scal(n+1,i,k,oo2iso17)
          OO2(i,(kmax+1-k),n,iair18) = scal(n+1,i,k,oo2iso18)
@@ -248,9 +249,10 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          scal(n+1,i,k,11) = ODOC13(i,(kmax+1-k),n)
          scal(n+1,i,k,12) = ODOCS13(i,(kmax+1-k),n)
          scal(n+1,i,k,13) = OC14(i,(kmax+1-k),n)
+#if ( OOISO == 0 )
+         scal(n+1,i,k,9) = OO2(i,(kmax+1-k),n)
+#else
          scal(n+1,i,k,9) = OO2(i,(kmax+1-k),n,iair)
-
-#if ( OOISO >= 1 )
          scal(n+1,i,k,oo2iso16) = OO2(i,(kmax+1-k),n,iair16)
          scal(n+1,i,k,oo2iso17) = OO2(i,(kmax+1-k),n,iair17)
          scal(n+1,i,k,oo2iso18) = OO2(i,(kmax+1-k),n,iair18)

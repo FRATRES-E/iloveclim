@@ -53,7 +53,8 @@
 #endif
 
 #if ( COMATM == 1 )
-       use veget_mod, only: carea, st, sg, b1g, b2g, b3g, b4g, b1t, b2t
+       use bio_mod, only: carea
+       use veget_mod, only: st, sg, b1g, b2g, b3g, b4g, b1t, b2t
      &                      ,b3t, b4t
        use comatm, only: nlat, nlon
 #endif
@@ -63,10 +64,6 @@
 #endif
 
        IMPLICIT NONE
-
-#if ( COMATM == 0 )
-#include "veget.h"
-#endif
 
 !dmr&nb Declaration des parametres de la SUBROUTINE
        INTEGER KOD

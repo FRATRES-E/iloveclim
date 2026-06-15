@@ -71,7 +71,7 @@
       integer(ip):: nstat,ieqveg,ieqvegwr,iscendef,ivegstrt
       real(dblp), dimension(nlat,nlon) :: st = 0.0_dblp,sg =0.0_dblp,sd= 0.0_dblp, snlt,anup,pnpp,b12,b34,b1,b2,b3,b4,anup_moy, &
                     stock,st_moy,stR,sgR,sdR,snltR
-#if ( FROG_EXP > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
       real(dblp), dimension(nlat,nlon) :: Fv, Fv_t, Fv_g
       real(dblp), dimension(nlat,nlon) :: r_leaf !ratio of carbon in leaves/(leaves+wood)
 #endif

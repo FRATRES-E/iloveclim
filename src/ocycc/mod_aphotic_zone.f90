@@ -43,6 +43,12 @@
                              fCAL_2000, fCAL_bot, b_sh_fr &
                            , caco3_mabot, O2min1, O2min2,OrgCFlxAttFactor, caco3_m, caco3_m_b_sh,  &
                            reminO2
+
+#if ( SILICA == 1 )
+       use mbiota_mod, ONLY: Opal_m, SUE_SI
+       use marine_bio_mod, only: OSI       
+#endif
+
 #if ( RAYLEIGH == 1 )
        use iso_dioxygen_mod, ONLY: Ray_reminO2
 #endif
@@ -123,6 +129,9 @@
       REAL(kind=dblp) :: ODOCS13_dif
       REAL(kind=dblp) :: ODOC13_dif
       REAL(kind=dblp) :: caco3_dif    ! caco3 loss from flux though the water column (caco3_dif > 0: caco3 loss!!!)
+#if ( SILICA == 1 )
+      REAL(kind=dblp) :: Opal_dif
+#endif
 #if ( OXNITREUX == 1 )
       REAL(kind=dblp) :: ON2O_dif
 #endif
@@ -130,6 +139,9 @@
       REAL(kind=dblp) :: caco3_13, TPP_compute, caco3_compute ! calred unused a priori
 #if ( ARAG == 1 )
       REAL(kind=dblp) :: caco3_13_ar, caco3_compute_ar
+#endif
+#if ( SILICA == 1 )
+      REAL(kind=dblp) :: Opal_compute
 #endif
       REAL(kind=dblp) :: RDOC_M
       REAL(kind=dblp) :: VDIC        ! [DIC] variation due to oxidation of DOC, DOCS and POC (VDIC > 0: DIC gain),
@@ -152,6 +164,9 @@
         ODOC_dif=0
         ODOCS_dif=0
         caco3_dif=0
+#if ( SILICA == 1 )
+        Opal_dif=0
+#endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
 ! dmr
 !              [NOTE] Guy & Didier :
@@ -302,6 +317,9 @@
            caco3_d13C_ar=0
 #endif
 
+#if ( SILICA == 1 )
+            Opal_dif = SUE_SI(j)*Opal_m(i,n)/(Dvol_col(j)*SCALE_B)
+#endif
          else ! .not. bottom_cell
 #endif
 
@@ -312,6 +330,12 @@
 #if ( ARAG == 1 )
             caco3_m_ar=(SUE_MAR(J)-SUE_MCA(J+1))*caco3_m_ar/(DVOL_col(j)*SCALE_B)
             caco3_13_ar=(SUE_MAR(J)-SUE_MAR(J+1))*caco3_d13C_ar/(DVOL_col(j)*SCALE_B)
+
+#endif
+
+#if ( SILICA == 1 )
+            Opal_dif=(SUE_SI(j)-SUE_SI(j+1))*Opal_m(i,n)/(DVOL_col(j)*SCALE_B)
+
 #endif
 
 ! #if ( bottom_remin == 1 )
@@ -337,6 +361,11 @@
 !nb remove        caco3_compute_ar = RR_ar*calred*SUE_MAR(j+1)*TPP_m(i,n)/(1-sigma_m)
         caco3_compute_ar = SUE_MAR(j+1)*caco3_m_ar(i,n)
 #endif
+
+#if ( SILICA == 1 )
+        Opal_compute = SUE_SI(j+1)*Opal_m(i,n)
+#endif
+
         if ( oc_bottom_cell(j) ) then ! Need to add the big_shell_fraction that is sedimented directly
 !nb remove          caco3_compute = caco3_compute + b_sh_fr*RR*calred*TPP_m/(1-sigma_m)
           caco3_compute = caco3_compute + caco3_m_b_sh(i,n)
@@ -383,6 +412,9 @@
         OC14(j)=OC14(j)+(vdic+caco3_dif+caco3_dif_ar)*OC14(j)/ODIC(j)*SCANU
 #endif
 
+#if ( SILICA == 1 )
+        OSI(i,j,n)=OSI(i,j,n)+Opal_dif*SCANU !vérifier SCANU
+#endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! PO4 dynamics
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

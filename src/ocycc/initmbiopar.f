@@ -23,6 +23,10 @@ c********************************************************************
      >                   , SWR_FRAC
      >                   , O2min1, O2min2
 
+#if ( SILICA == 1 )
+      use mbiota_mod, only: SUE_SI
+#endif
+
 #if ( REMIN == 1 )
       use mbiota_mod, only: SUE_3D, kremin
      >                   , Ea, Rgaz, betaPOM
@@ -487,6 +491,30 @@ c slow DOC
 
       enddo
 
+#if ( SILICA == 1 )
+! Flux attenuation factor for Opal
+! ---------------------------------
+
+!         do j=1,JPROD+1 
+!            SUE_SI(j)=1.
+!         enddo 
+!
+!         do j=JPROD+2,JX 
+!         prom=(ZX(j)-100.)/3000.  
+!         SUE_Si(J)=dexp(-prom)
+!          enddo
+
+      SUE_SI(1:JPROD+1) = 1d0
+
+      do j = JPROD+2, JX
+
+        prom = (ZX(j)-zp_xp)/10000.d0 !lOpal = 10000 d'après TSCHUMI et al. 2008 
+        !ZX(j) prof de la couche j et zp_xp prof de fin de la zone photique
+        SUE_SI(J) = dexp(-prom)
+
+      enddo
+#endif
+
 ! Correction for big shell fraction:
 ! - b_sh_fr: fraction of CaCO3 shells that are big enough to fall to
 !   sufficiently fast to the seafloor that they escape
@@ -589,7 +617,7 @@ cnb   3D fixed remineralisation profile (test)
 c-----
 
 cnb - Initialisation des valeurs initiales dans l ocean
-c initial concentrations; units are mumol/kg for PO4, NO3, DOC;
+c initial concentrations; units are mumol/kg for PO4, NO3, DOC; OSI
 c                         mol/kg for DIC;
 c                         eq /kg for ALK
 
@@ -619,8 +647,16 @@ cvm - Nitrous oxide
 #endif 
 
 cnb - Silice
-       OSI_ini=0.0
-
+       OSI_ini=90.0 !selon Tréguer 2021 -> 120000TmolSi (volume océan pas pris d'iLoveClim)
+       !do n=1,NOC_CBR
+        !do j=1,JT
+          !do i=1,LT
+            !Dvol_tot=Dvol(i,j,n)
+          !end do
+        !end do
+      !end do
+      !OSI_ini=1.2*(10**23)/Dvol_tot ! 120 000 Tmol en mumol /Volume total iLoveClim
+       
 cnb - Alkalinite
 
 #if ( LGMSWITCH == 0 )

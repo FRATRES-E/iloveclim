@@ -41,6 +41,8 @@
 
       module atmphys_d
 
+  use global_constants_mod, only: dblp=>dp, silp=>sp, ip
+
 #if ( DOWNSTS == 1 )
 
        implicit none
@@ -66,15 +68,14 @@
 !
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function ec_ptmoisgp_d(temp2g_ij,temp4g_ij,geopg_ij2,tmount,qmax,dqmdt,qmount_ipoints) result(returnValue)
+      function ec_ptmoisgp_d(temp2g_ij,temp4g_ij,geopg_ij2, &
+                             tmount,qmax,dqmdt, &
+                             qmount_ipoints) result(returnValue)
 
-#if ( COMATM == 1 )
-        use comatm,  only: nlat, nlon, nsh, nsh2, nvl, grav, nm, ntl, rgas, rlogtl12, tlevel, plevel
+        use comatm,  only: nlat, nlon, nsh, nsh2, nvl, grav, nm, ntl, &
+                           rgas, rlogtl12, tlevel, plevel
         use comdyn,  only: geopg
         use comphys, only: temp4g, hmoisr, gpm500, qmount
-        use comunit
-#endif
-
         use newunit_mod, only: error_id
         
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -88,29 +89,14 @@
 !>    @param[out] qmount_ipoints
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       double precision              , intent(in)    :: temp2g_ij, temp4g_ij, geopg_ij2
-       double precision, dimension(:), intent(in)    :: qmount_ipoints
-       double precision, dimension(:), intent(out)   :: tmount, qmax, dqmdt
+       real(kind=dblp), intent(in)    :: temp2g_ij, temp4g_ij, geopg_ij2
+       real(kind=dblp), dimension(:), intent(in)    :: qmount_ipoints
+       real(kind=dblp), dimension(:), intent(out)   :: tmount, qmax, dqmdt
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Through commons variables ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-! dmr comdyn.h provides:
-! dmr          geopg
-#include "comdyn.h"
-! dmr comphys.h provides:
-! dmr         temp4g
-! dmr         hmoisr
-! dmr         gpm500
-! dmr         qmount
-#include "comphys.h"
-! dmr comunit.h provides:
-! dmr         iuo
-#include "comunit.h"
-#endif
 
 ! dmr comrunlabel.h is not used??
 ! #include "comrunlabel.h"
@@ -131,10 +117,11 @@
 ! dmr  hmount      : is the local topography (meters)
 ! dmr  delta_qmount: is the step in the intermediate points for vertical sampling
 
-       real(kind=8)                        :: z500, hfac, hred, pfac, alpha, t500, hmount
-       real(kind=8)                        :: delta_qmount
+       real(kind=dblp) :: z500, hfac, hred, pfac, alpha, t500, hmount
+       real(kind=dblp)                        :: delta_qmount
 
-       double precision, parameter         :: magic_coeff = 0.6d0 ! used to tune the amount of subgrid precipitation ...
+       ! magic_coeff: tunes the amount of subgrid precipitation
+       real(kind=dblp), parameter :: magic_coeff = 0.6_dblp
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Main code of the function starts here
@@ -148,10 +135,10 @@
 ! dmr  gpm500:     is from comphys.h and initial0: mean 500 hPa geopotential height [m]
        z500 = gpm500*grav
 ! dmr  rgas  :     Gas Constant, defined as 287. in initial0
-       hfac = 2.0_8/rgas
+       hfac = 2.0_dblp/rgas
 
 ! dmr  hmoisr:     reduction factor of mountain heights in order to tune the amount of water that is allowed to pass a topographic
-!                  barier, value is currently 1.0d0 in initial0 (!)
+!                  barier, value is currently 1.0.0_dblp in initial0 (!)
        hred = hmoisr*grav*magic_coeff
 
 ! dmr  pressure and temperature at second level
@@ -176,8 +163,8 @@
 ! dmr is allowed to pass a topographic barier
 
 !~         hmount=qmount_ipoints(k)*hred
-!~         if (hmount.lt.0d0) hmount=0d0
-        hmount = max(qmount_ipoints(k)*hred,0.d0)
+!~         if (hmount.lt.0.0_dblp) hmount=0.0_dblp
+        hmount = max(qmount_ipoints(k)*hred,0.0_dblp)
 
 ! dmr calculate the groundpressure assuming that the mean geopotential
 ! dmr height at 500 hPa is gpm500 decameter
@@ -196,7 +183,8 @@
 !~         endif
 
 !        qmax=ec_detqmax_d(tmount,i,j,dqmdt)
-        qmax(k)=ec_detqmax_d(tmount(k),dqmdt(k),temp2g_ij,temp4g_ij,geopg_ij2,hmount,alpha,t500,z500)
+        qmax(k)=ec_detqmax_d(tmount(k),dqmdt(k),temp2g_ij,temp4g_ij, &
+                             geopg_ij2,hmount,alpha,t500,z500)
 
       enddo
 
@@ -216,14 +204,14 @@
 !
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function ec_ptmoisgp_dreduce(temp2g_ij,temp4g_ij,geopg_ij2,tmount,qmax,dqmdt,qmount_ipoints,k_min,k_max) result(returnValue)
+      function ec_ptmoisgp_dreduce(temp2g_ij,temp4g_ij,geopg_ij2, &
+                                   tmount,qmax,dqmdt,qmount_ipoints, &
+                                   k_min,k_max) result(returnValue)
 
-#if ( COMATM == 1 )
-        use comatm, only: nlat, nlon, nsh, nsh2, nvl, grav, nm, ntl, rgas, rlogtl12, tlevel, plevel
+        use comatm, only: nlat, nlon, nsh, nsh2, nvl, grav, nm, ntl, &
+                          rgas, rlogtl12, tlevel, plevel
         use comdyn, only: geopg
         use comphys,only: gpm500, hmoisr
-        use comunit,only: iuo
-#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...
@@ -236,30 +224,15 @@
 !>    @param[out] qmount_ipoints
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       double precision              , intent(in)    :: temp2g_ij, temp4g_ij, geopg_ij2
-       double precision, dimension(:), intent(in)    :: qmount_ipoints
+       real(kind=dblp), intent(in)    :: temp2g_ij, temp4g_ij, geopg_ij2
+       real(kind=dblp), dimension(:), intent(in)    :: qmount_ipoints
        integer                       , intent(in)    :: k_min, k_max
-       double precision, dimension(:), intent(out)   :: tmount, qmax, dqmdt
+       real(kind=dblp), dimension(:), intent(out)   :: tmount, qmax, dqmdt
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Through commons variables ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( COMATM == 0 )
-#include "comatm.h"
-! dmr comdyn.h provides:
-! dmr          geopg
-#include "comdyn.h"
-! dmr comphys.h provides:
-! dmr         temp4g
-! dmr         hmoisr
-! dmr         gpm500
-! dmr         qmount
-#include "comphys.h"
-! dmr comunit.h provides:
-! dmr         iuo
-#include "comunit.h"
-#endif
 
 
 ! dmr comrunlabel.h is not used??
@@ -281,10 +254,11 @@
 ! dmr  hmount      : is the local topography (meters)
 ! dmr  delta_qmount: is the step in the intermediate points for vertical sampling
 
-       real(kind=8)                        :: z500, hfac, hred, pfac, alpha, t500, hmount
-       real(kind=8)                        :: delta_qmount
+       real(kind=dblp) :: z500, hfac, hred, pfac, alpha, t500, hmount
+       real(kind=dblp)                        :: delta_qmount
 
-       double precision, parameter         :: magic_coeff = 0.6d0 ! used to tune the amount of subgrid precipitation ...
+       ! magic_coeff: tunes the amount of subgrid precipitation
+       real(kind=dblp), parameter :: magic_coeff = 0.6_dblp
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Main code of the function starts here
@@ -298,10 +272,10 @@
 ! dmr  gpm500:     is from comphys.h and initial0: mean 500 hPa geopotential height [m]
        z500 = gpm500*grav
 ! dmr  rgas  :     Gas Constant, defined as 287. in initial0
-       hfac = 2.0_8/rgas
+       hfac = 2.0_dblp/rgas
 
 ! dmr  hmoisr:     reduction factor of mountain heights in order to tune the amount of water that is allowed to pass a topographic
-!                  barier, value is currently 1.0d0 in initial0 (!)
+!                  barier, value is currently 1.0.0_dblp in initial0 (!)
        hred = hmoisr*grav*magic_coeff
 
 ! dmr  pressure and temperature at second level
@@ -327,8 +301,8 @@
 ! dmr is allowed to pass a topographic barier
 
 !~         hmount=qmount_ipoints(k)*hred
-!~         if (hmount.lt.0d0) hmount=0d0
-        hmount = max(qmount_ipoints(k)*hred,0.d0)
+!~         if (hmount.lt.0.0_dblp) hmount=0.0_dblp
+        hmount = max(qmount_ipoints(k)*hred,0.0_dblp)
 
 ! dmr calculate the groundpressure assuming that the mean geopotential
 ! dmr height at 500 hPa is gpm500 decameter
@@ -347,7 +321,8 @@
 !~         endif
 
 !        qmax=ec_detqmax_d(tmount,i,j,dqmdt)
-        qmax(k)=ec_detqmax_d(tmount(k),dqmdt(k),temp2g_ij,temp4g_ij,geopg_ij2,hmount,alpha,t500,z500)
+        qmax(k)=ec_detqmax_d(tmount(k),dqmdt(k),temp2g_ij,temp4g_ij, &
+                             geopg_ij2,hmount,alpha,t500,z500)
 
       enddo
 
@@ -371,12 +346,14 @@
 !
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function ec_detqmax_d(tmount,dqmdt,temp2g_ij,temp4g_ij,geopg_ij2_l,hmount_l,alpha_l,t500_l,z500_l) result(returnValue)
+      function ec_detqmax_d(tmount,dqmdt,temp2g_ij,temp4g_ij, &
+                            geopg_ij2_l,hmount_l, &
+                            alpha_l,t500_l,z500_l) result(returnValue)
 
-#if ( COMATM == 1 )
-      use comatm, only: alogpl2tl2, nlat, nlon, nsh2, nvl, alogtl12, alogtl1pl2, grav, nsh, nm, ntl, rgas, rlogtl12
-      use comphys,only: iqmtab, jqmtab, kqmtab, rdtqmi, rdtqmj, rdtqmk, tqmimin, tqmjmin, tqmkmin, tqmi, tqmj, tqmk, qmtabel
-#endif
+      use comatm, only: alogpl2tl2, nlat, nlon, nsh2, nvl, alogtl12, &
+                        alogtl1pl2, grav, nsh, nm, ntl, rgas, rlogtl12
+      use comphys,only: iqmtab, jqmtab, kqmtab, rdtqmi, rdtqmj, rdtqmk, &
+                        tqmimin, tqmjmin, tqmkmin, tqmi, tqmj, tqmk, qmtabel
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...
@@ -384,40 +361,24 @@
 !>    @param[out] outParam The Beaufitul Parameter that does all the output!!
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       real(kind=8), intent(in)    :: tmount, temp4g_ij, temp2g_ij, hmount_l, alpha_l, t500_l, z500_l, geopg_ij2_l
-       real(kind=8), intent(out)   :: dqmdt
+       real(kind=dblp), intent(in) :: tmount, temp4g_ij, &
+                                     temp2g_ij, hmount_l, &
+                                     alpha_l, t500_l, z500_l, geopg_ij2_l
+       real(kind=dblp), intent(out)   :: dqmdt
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Through commons variables ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( COMATM == 0 )
-! dmr comphys.h provides:
-! dmr         tqmi
-! dmr         tqmj
-! dmr         tqmk
-! dmr         iqmtab
-! dmr         jqmtab
-! dmr         kqmtab
-! dmr         tqmimin
-! dmr         tqmjmin
-! dmr         tqmkmin
-! dmr         qmtabel
-! dmr         rdtqmi
-! dmr         rdtqmj
-! dmr         rdtqmk
-
-#include "comphys.h"
-
-#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Local variables ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       real(kind=8)        :: returnValue
-       real(kind=8)        :: ti,tj,tk,dqmdi,dqmdj,dqmdk,qmax
-       real(kind=8)        :: dtgdt
-       real(kind=8)        :: mountred ! afq precip threshold on qmax depends on local elevation
+       real(kind=dblp)        :: returnValue
+       real(kind=dblp)        :: ti,tj,tk,dqmdi,dqmdj,dqmdk,qmax
+       real(kind=dblp)        :: dtgdt
+       ! mountred: precip threshold on qmax depends on local elevation
+       real(kind=dblp) :: mountred
 
        integer             :: ii,jj,kk
 
@@ -478,12 +439,13 @@
        dqmdj=(qmtabel(ii,jj+1,kk)-qmtabel(ii,jj,kk))*rdtqmj
        dqmdk=(qmtabel(ii,jj,kk+1)-qmtabel(ii,jj,kk))*rdtqmk
 
-       qmax = qmtabel(ii,jj,kk) + (ti-tqmi(ii))*dqmdi + (tj-tqmj(jj))*dqmdj + (tk-tqmk(kk))*dqmdk
+       qmax = qmtabel(ii,jj,kk) + (ti-tqmi(ii))*dqmdi &
+            + (tj-tqmj(jj))*dqmdj + (tk-tqmk(kk))*dqmdk
 
-       qmax = min(max(qmax,0d0),0.2d0)
+       qmax = min(max(qmax,0.0_dblp),0.2_dblp)
 
-!~        if (qmax.lt.0d0) then
-!~          qmax=0d0
+!~        if (qmax.lt.0.0_dblp) then
+!~          qmax=0.0_dblp
 !~        elseif (qmax.gt.0.2) then
 !~ !dmr --- Tentative fix to try and stop the crash of model
 !~          qmax = 0.2
@@ -497,9 +459,10 @@
 !       z500=gpm500*grav
 !       hmount=qmount(i,j)*hmoisr*grav
 
-       dtgdt=(rgas*t500_l*alogtl1pl2 + (hmount_l-geopg_ij2_l-z500_l))/(rgas*tmount*alogtl12)
+       dtgdt=(rgas*t500_l*alogtl1pl2 &
+            + (hmount_l-geopg_ij2_l-z500_l))/(rgas*tmount*alogtl12)
 
-       dqmdt=dqmdi + dqmdj * (dtgdt - 1d0) + dqmdk
+       dqmdt=dqmdi + dqmdj * (dtgdt - 1.0_dblp) + dqmdk
 
        ! afq -- hmount_l is in decameters (!)
        ! here we assume a linear relation with altitude from 0 to 2500 m

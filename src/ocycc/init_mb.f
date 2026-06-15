@@ -57,9 +57,10 @@
       OPO4(:,:,:)   = OPO4_ini             ! mumol/kg
       ONO3(:,:,:)   = ONO3_ini             ! mumol/kg
       OSI(:,:,:)    = OSI_ini
-
+#if ( OOISO == 0 ) 
+      OO2(:,:,:)  = OO2_ini            ! mumol/kg
+#else
       OO2(:,:,:,iair)  = OO2_ini            ! mumol/kg
-#if ( OOISO == 1 )
       OO2(:,:,:,iair17)  = OO2_iso02
       OO2(:,:,:,iair18)  = OO2_iso03
       OO2(:,:,:,iair16)  = OO2(:,:,:,iair)-OO2(:,:,:,iair18)-OO2(:,:,:,iair17)
