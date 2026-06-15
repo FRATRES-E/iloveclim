@@ -49,7 +49,8 @@
                      tot_nit_prev,                                      &
 !nb                     Oeta,                                              &
                      OetaC_POMoxid, OetaC_DOMoxid_1D,                   &
-                     OetaN_POMoxid, OetaN_DOMoxid_1D
+                     OetaN_POMoxid, OetaN_DOMoxid_1D,                   &
+                     OetaC_POMoxid_prev,                                &
 #endif
 
                      FODOCS, FOC13, FODOC13, FODOCS13 
@@ -316,22 +317,24 @@
 !nb          vtmp=((PHYTO_M(i,j,n)+ZOO_M(i,j,n)+ ODOC(i,j,n)+ODOCS(i,j,n)) &
 !nb                      *OetaC_POMoxid_1D(j)/OetaC_DOMoxid_1D(j))         &
 !nb                      *DVOL_prev(i,j,n)
-         vtmp_POC=(PHYTO_M(i,j,n)+ZOO_M(i,j,n))*DVOL_prev(i,j,n)/OVOL
+         vtmp_POC=(PHYTO_M(i,j,n)+ZOO_M(i,j,n))*DVOL_prev(i,j,n)!/OVOL
 
-         vtmp_DOC=(ODOC(i,J,n)+ODOCS(i,J,n))*DVOL(i,J,n)/OVOL
+         vtmp_DOC=(ODOC(i,J,n)+ODOCS(i,J,n))*DVOL_prev(i,j,n)!/OVOL
 
 !nb          tot_phos_prev=tot_phos_prev+vtmp/Oeta(j,4)+OPO4(i,j,n)        &
 !nb                      *DVOL_prev(i,j,n)
-          tot_phos_prev=tot_phos_prev+vtmp_POC/OetaC_POMoxid(i,j,n)     &
-          +vtmp_DOC/OetaC_DOMoxid_1D(j)+OPO4(i,j,n)*                    &
-                      *DVOL_prev(i,j,n)
+          !write(*,*) 'OetaC_POMoxid_prev ',i,j,n, OetaC_POMoxid_prev(i,j,n)
+          !write(*,*) 'OetaC_DOMoxid_1D ',i,j,n, OetaC_DOMoxid_1D(j)
+          tot_phos_prev=tot_phos_prev+vtmp_POC/OetaC_POMoxid_prev(i,j,n)&
+          +vtmp_DOC/OetaC_DOMoxid_1D(j)+OPO4(i,j,n)                     &
+                      *DVOL_prev(i,j,n)!/OVOL
 
 !nb          tot_nit_prev=tot_nit_prev+vtmp/Oeta(j,4)*Oeta(j,1)+ONO3(i,j,n)&
 !nb                      *DVOL_prev(i,j,n)
 
-          tot_nit_prev=tot_nit_prev+vtmp_POC/OetaC_POMoxid(i,j,n)*      &
+          tot_nit_prev=tot_nit_prev+vtmp_POC/OetaC_POMoxid_prev(i,j,n)* &
           OetaN_POMoxid(i,j,n)+vtmp_DOC/OetaC_DOMoxid_1D(j)*            &
-          OetaN_DOMoxid_1D(j)+ONO3(i,j,n) * DVOL_prev(i,j,n)
+          OetaN_DOMoxid_1D(j)+ONO3(i,j,n) * DVOL_prev(i,j,n)!/OVOL
 
            endif
           enddo
