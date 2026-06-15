@@ -44,7 +44,7 @@
 ! -----------------------------------------------------------------------------------------------------------------------------
 
 #if ( FROG_EXP > 0 )
-!      use frog_component_mod,   only: frog_component   ! type(frog_component_t), target, save
+       use frog_component_mod,   only: frog_component   ! type(frog_component_t), target, save
 #endif
 #if ( MEDUSA == 1 )
 !      use medusa_component_mod, only: medusa_component
@@ -106,7 +106,7 @@
          registry_count = 0
 
 #if ( FROG_EXP > 0 )
-!        call add_component(frog_component)
+         call add_component(frog_component)
 #endif
 #if ( MEDUSA == 1 )
 !        call add_component(medusa_component)

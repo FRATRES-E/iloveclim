@@ -64,7 +64,7 @@ contains
     mlat = m ; nlon = n
     rnorm = 1.0_C_DOUBLE / sqrt(real(n, C_DOUBLE))
 
-    wdir = 'run/inputdata/FFTW3'
+    wdir = 'inputdata/FFTW3'
     if (present(wisdom_dir)) wdir = trim(wisdom_dir)
 
     ! Nom de fichier wisdom specifique a la resolution (m x n) : un jeu de
