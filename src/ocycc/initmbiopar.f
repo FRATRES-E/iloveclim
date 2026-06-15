@@ -12,7 +12,7 @@ c********************************************************************
       use loveclim_transfer_mod, only: MGT, zx, zz
 #if ( BATHY >= 1 )
       use loveclim_transfer_mod, only: MGT_prev
-#endif
+      use loveclim_transfer_mod, only: mgt, zx, zz
       use mod_sync_time, only: tday, tyer
 
       use mbiota_mod, only: SCALE_M, SCALE_B, SCANU, C14RA
