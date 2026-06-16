@@ -33,7 +33,7 @@
 !!       init                 : INITIALIZE_FROG (lib), INIT_CPL2FROG(GET_COUPLING_STEP()) (cpl+lib), then the priming
 !!                              sequence DAILY_UPDATE_FROGVARS / INITIALIZE_FROGVARS(GET_FROGVARS()) / RESET_FROGVARS_TIMER
 !!                              -- reproduces emic.f L494-506 exactly.
-!!       step(PHASE_DAY_END)  : DAILY_UPDATE_FROGVARS()  -- once per day, emic.f L589 (inside j==iatm, before ec_co2oc/clio).
+!!       step(PHASE_BEFORE_OCEAN): DAILY_UPDATE_FROGVARS() -- once per day, before ec_co2oc/clio (emic.f L589).
 !!       step(PHASE_YEAR_END) : STEPFWD_FROG(GET_FROGVARS()) / SET_FROG_FEEDBACK(FEEDBACK_FROG()) / RESET_FROGVARS_TIMER
 !!                              -- once per model year, emic.f L701-706 (after the j loop).
 !!       finalize             : WRITE_FROGRESTART(-1) -- emic.f L967.
@@ -47,7 +47,7 @@
       module frog_component_mod
 
        use global_constants_mod,  only: ip, days_year360d_i
-       use coupled_component_mod, only: coupled_component_t, PHASE_DAY_END, PHASE_YEAR_END
+       use coupled_component_mod, only: coupled_component_t, PHASE_BEFORE_OCEAN, PHASE_YEAR_END
        use coupling_timer_mod,    only: coupling_timer_t
 
        implicit none
@@ -108,7 +108,7 @@
          class(frog_component_t), intent(in) :: self
          integer(ip),             intent(in) :: phase, iday
          select case (phase)
-           case (PHASE_DAY_END)
+           case (PHASE_BEFORE_OCEAN)
              wants = .true.                                   ! DAILY_UPDATE_FROGVARS every day (emic.f L589)
            case (PHASE_YEAR_END)
              wants = self%timer%is_due(iday)                  ! STEPFWD only when mod(i, days_year360d_i)==0
@@ -130,7 +130,7 @@
 
          select case (phase)
 
-           case (PHASE_DAY_END)                               ! emic.f L589
+           case (PHASE_BEFORE_OCEAN)                          ! emic.f L589
              call DAILY_UPDATE_FROGVARS()
 
            case (PHASE_YEAR_END)                              ! emic.f L701-706

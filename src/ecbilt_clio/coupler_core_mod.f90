@@ -39,7 +39,8 @@
 
        use global_constants_mod,   only: ip
        use coupled_component_mod,  only: coupled_component_t                                                                   &
-     &                                , PHASE_DAY_BEGIN, PHASE_ATM_STEP, PHASE_LAND_STEP, PHASE_DAY_END, PHASE_YEAR_END
+     &                                , PHASE_DAY_BEGIN, PHASE_ATM_STEP, PHASE_LAND_STEP, PHASE_BEFORE_OCEAN                    &
+     &                                , PHASE_AFTER_OCEAN, PHASE_YEAR_END
        use component_registry_mod, only: registry_build, registry_components, registry_count
 
        implicit none
@@ -163,7 +164,7 @@
            call self%accumulate_ocean_fluxes(iday, j)         ! ec_sumfluxocean(i,j)   [emic.f L574, EVERY j]
 
            if (j == self%iatm) then                           ! end of the day         [emic.f L586]
-             call self%dispatch_components(PHASE_DAY_END, iday, j, 0_ip)   ! FROG daily, OCYCC step (pre-co2oc)
+             call self%dispatch_components(PHASE_BEFORE_OCEAN, iday, j, 0_ip)   ! FROG daily, OCYCC prep (pre-co2oc)
              call self%run_coupler_to_ocean(iday)             ! ec_co2oc/clio/carbon   [emic.f L601-618]
            end if
 
@@ -172,6 +173,7 @@
            call self%dispatch_components(PHASE_ATM_STEP, iday, j, 0_ip)   ! per-j component hooks (downscaling acc.)
          end do
 
+         call self%dispatch_components(PHASE_AFTER_OCEAN, iday, 0_ip, 0_ip)   ! MEDUSA, GRISLI -- after clio ran [post-L659]
          call self%dispatch_components(PHASE_YEAR_END, iday, 0_ip, 0_ip)   ! CARAIB/FROG/isotopes self-gate on yearly timer
 
          call self%end_of_day(iday)                           ! palaeo/bathy/daily_io + ec_writestate [emic.f L902-944]

@@ -42,17 +42,22 @@
        private
 
        public :: coupled_component_t
-       public :: PHASE_DAY_BEGIN, PHASE_ATM_STEP, PHASE_LAND_STEP, PHASE_DAY_END, PHASE_YEAR_END
+       public :: PHASE_DAY_BEGIN, PHASE_ATM_STEP, PHASE_LAND_STEP, PHASE_BEFORE_OCEAN, PHASE_AFTER_OCEAN, PHASE_YEAR_END
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Generic coupling phase identifiers. A component is queried with the current phase and decides whether it acts.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       integer(ip), parameter :: PHASE_DAY_BEGIN = 1   ! once, start of day i      (e.g. ocean_to_coupler)
-       integer(ip), parameter :: PHASE_ATM_STEP  = 2   ! every atmospheric step j
-       integer(ip), parameter :: PHASE_LAND_STEP = 3   ! every land step k
-       integer(ip), parameter :: PHASE_DAY_END   = 4   ! once, end of day (j==iatm) (e.g. integrate_ocean, MEDUSA daily)
-       integer(ip), parameter :: PHASE_YEAR_END  = 5   ! once per model year       (e.g. FROG, CARAIB, isotopes)
+! dmr   Phases are named by their position relative to the CORE pipeline, not by a vague "when". A phase exists only where the
+! dmr   core has a distinct synchronisation point. BEFORE_OCEAN / AFTER_OCEAN bracket the daily ocean integration (ec_co2oc /
+! dmr   clio): the ocean state differs between the two, so they are genuinely distinct sync points -- not merely "earlier" and
+! dmr   "later". Ordered chronologically over one model day.
+       integer(ip), parameter :: PHASE_DAY_BEGIN    = 1   ! once, start of day i        (e.g. ocean_to_coupler)
+       integer(ip), parameter :: PHASE_ATM_STEP     = 2   ! every atmospheric step j
+       integer(ip), parameter :: PHASE_LAND_STEP    = 3   ! every land step k
+       integer(ip), parameter :: PHASE_BEFORE_OCEAN = 4   ! end of day, BEFORE ec_co2oc/clio (FROG-daily, OCYCC prep) [L589]
+       integer(ip), parameter :: PHASE_AFTER_OCEAN  = 5   ! after the j loop, AFTER clio ran (MEDUSA, GRISLI)        [post-L659]
+       integer(ip), parameter :: PHASE_YEAR_END     = 6   ! once per model year         (FROG-annual, CARAIB, isotopes)
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   The abstract contract.
