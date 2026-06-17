@@ -429,9 +429,9 @@
 
         use comemic_mod, only: irunlabel
 
-#if ( OCYCC == 1 )
-        use ocycc_main, only: ocycc_ini
-#endif
+!#if ( OCYCC == 1 )
+!        use ocycc_main, only: ocycc_ini
+!#endif
 
 #if ( ICEBERG > 0 )
         use iceberg_mod, only: read_positb, init_iceberg, read_iceberg_restartdata
@@ -472,9 +472,9 @@
        call ec_initlbm
        call ec_initcoup
 
-#if ( OCYCC == 1 )
-       returnValue = ocycc_ini(day,month)
-#endif
+!#if ( OCYCC == 1 )
+!       returnValue = ocycc_ini(day,month)
+!#endif
 
 #if ( ICEBERG > 0 )
 ! Initialize iceberg model

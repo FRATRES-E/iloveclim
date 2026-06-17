@@ -136,10 +136,10 @@
          integer(ip) :: c
          logical :: ok
 
-         ok = init_coupled_components(day, month)   ! ECBilt + CLIO + LBM + ec_initcoup (+ OCYCC/ICEBERG today; to be moved)
+         ok = init_coupled_components(day, month)   ! ECBilt + CLIO + LBM + ec_initcoup (+ ICEBERG today; OCYCC now a component)
 
          do c = 1, registry_count
-           call registry_components(c)%p%init(day, month)
+           call registry_components(c)%p%init(day, month)   ! optional components (incl. ocycc_ini, formerly end of above)
          end do
 
        end subroutine coupler_init_all

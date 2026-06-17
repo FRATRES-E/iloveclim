@@ -56,7 +56,10 @@
 !      use caraib_component_mod, only: caraib_component
 #endif
 #if ( OCYCC == 1 )
-!      use ocycc_component_mod,  only: ocycc_component
+       use ocycc_component_mod,  only: ocycc_component
+#endif
+#if ( CYCC >= 2 )
+       use cycc_component_mod,   only: cycc_component   ! TEMPORARY port (terrestrial carbon), to unblock OCYCC non-reg
 #endif
 
        implicit none
@@ -83,6 +86,9 @@
      &                          + 1                                                                                            &
 #endif
 #if ( OCYCC == 1 )
+     &                          + 1                                                                                            &
+#endif
+#if ( CYCC >= 2 )
      &                          + 1                                                                                            &
 #endif
      &                          + 0
@@ -118,7 +124,10 @@
 !        call add_component(caraib_component)
 #endif
 #if ( OCYCC == 1 )
-!        call add_component(ocycc_component)
+         call add_component(ocycc_component)
+#endif
+#if ( CYCC >= 2 )
+         call add_component(cycc_component)   ! after OCYCC: ECO2(0) follows ocycc_ini, faithful to emic.f L250<L476
 #endif
 
        end subroutine registry_build
