@@ -43,6 +43,9 @@
 ! dmr  extending coupled_component_t. FROG is the pilot; uncomment when frog_component_mod is wired in.
 ! -----------------------------------------------------------------------------------------------------------------------------
 
+#if ( CLM_INDICES >= 1 )
+       use clm_indices_component_mod, only: clm_indices_component   ! registered FIRST (step precedes FROG/OCYCC)
+#endif
 #if ( FROG_EXP > 0 )
        use frog_component_mod,   only: frog_component   ! type(frog_component_t), target, save
 #endif
@@ -91,6 +94,9 @@
 #if ( CYCC >= 2 )
      &                          + 1                                                                                            &
 #endif
+#if ( CLM_INDICES >= 1 )
+     &                          + 1                                                                                            &
+#endif
      &                          + 0
 
 ! dmr --- A polymorphic pointer wrapper holds heterogeneous concrete components without dynamic allocation.
@@ -109,8 +115,16 @@
 
        subroutine registry_build()
 
+! dmr   NOTE on ordering: registration order drives BOTH step dispatch order AND finalize order. For CLM_INDICES these two
+! dmr   wants conflict: its step must precede FROG/OCYCC (faithful to ec_ecbilt), but its finalize was LAST in emic.f (L992).
+! dmr   Decision: prioritise step order (register FIRST); finalize order is assumed irrelevant (GLOBAL_FINALIZE just closes
+! dmr   files, disjoint from other finalizes). Revisit if a finalize-order dependency surfaces.
+
          registry_count = 0
 
+#if ( CLM_INDICES >= 1 )
+         call add_component(clm_indices_component)   ! FIRST: step (DAILYSTEP) precedes FROG/OCYCC, faithful to ec_ecbilt
+#endif
 #if ( FROG_EXP > 0 )
          call add_component(frog_component)
 #endif

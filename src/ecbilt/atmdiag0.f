@@ -56,9 +56,9 @@
 #if ( ISOATM >= 1 )
       USE iso_param_mod, ONLY : ieau, ieau18, ieau17, ieaud
 #endif
-#if ( CLM_INDICES >= 1 )
-      USE CLIMATE_INDICES_MOD, only: DAILYSTEP_FOR_CLIM_INDICES
-#endif
+! #if ( CLM_INDICES >= 1 )
+!       USE CLIMATE_INDICES_MOD, only: DAILYSTEP_FOR_CLIM_INDICES
+! #endif
       implicit none
 
       integer i,j,k,l,istep
@@ -163,9 +163,9 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
         call ec_outputinst
       endif
 
-#if ( CLM_INDICES >= 1 )
-      call DAILYSTEP_FOR_CLIM_INDICES()
-#endif
+! #if ( CLM_INDICES >= 1 )
+!       call DAILYSTEP_FOR_CLIM_INDICES()
+! #endif
 
       if (meantype .eq. 1) then
         minterv=30

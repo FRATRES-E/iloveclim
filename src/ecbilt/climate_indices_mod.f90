@@ -248,7 +248,7 @@
 !       MAIN BODY OF THE ROUTINE
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-         ! WRITE(*,*) 'i_day, i_month == ', iday, imonth, iyear
+         !WRITE(*,*) 'i_day, i_month == ', iday, imonth, iyear
 
          DO j=1, size_X
          DO i=1, size_Y
@@ -527,6 +527,7 @@
 
         USE global_constants_mod, ONLY: ip, str_len
         USE file_libs,            ONLY: get_fID, release_fID
+        USE basic_libs,           ONLY: BASENAME
         USE comemic_mod,          ONLY: iyear
         USE global_constants_mod, ONLY: months_year_i
 
@@ -553,7 +554,7 @@
 
         OPEN(unit=file_ID,file=ctrlfilename, form='formatted', action='write', status='unknown')
 
-        WRITE(unit=file_ID,fmt="(A)") "DSET ^"//binfilename
+        WRITE(unit=file_ID,fmt="(A)") "DSET ^"//BASENAME(binfilename)
         WRITE(unit=file_ID,fmt="(A)") "TITLE "//"Climate indices derived from run ... of iLOVECLIM"
         if ( dtype == "i" ) then
           WRITE(unit=file_ID,fmt="(A)") "UNDEF 0"
