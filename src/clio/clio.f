@@ -34,6 +34,7 @@
       use bloc_mod
       use ice_mod
       use dynami_mod
+      use defgrid_mod, only: defgrid
 
 ! --- BdB 05-2019: add first year in clio for writing time in output
       use comemic_mod, only: init_year_clio
