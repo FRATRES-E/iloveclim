@@ -1,0 +1,153 @@
+!==============================================================================
+! SUBROUTINE define_ice_shelves
+!
+! [G5c] Définition des plateformes de glace (ice shelves) et zones icebergs.
+!       Agnostique à la grille.
+!
+! RÔLE : Initialise le masque tmics des ice shelves (surface effective de
+!        contact ice shelf/océan en m²) pour les 8 plateformes antarctiques
+!        nommées, et calcule les surfaces des zones de fonte des icebergs
+!        Nord (areicebn) et Sud (areicebs).
+!
+! NOTA : Les indices géographiques codés en dur (i=93..103, j=2, etc.) sont
+!        spécifiques à la résolution CL15/CL30. Pour une autre résolution,
+!        remplacer ces indices ou les lire depuis un fichier de configuration.
+!
+! ENTRÉES :
+!   imax, jmax     : dimensions de la grille
+!   ks2            : indice de surface (= kmax)
+!   tms(i,j,ks2)   : masque de surface (1=mer, 0=terre)
+!   dxs1(i,j)      : longueur du côté N de la maille S (m)
+!   dxs2(i,j)      : longueur du côté E de la maille S (m)
+!   area(i,j)      : surface de la maille (m²)
+!   mouchard_id    : unité du fichier de débogage
+!
+! SORTIES :
+!   tmics(i,j)     : surface effective de contact ice shelf (m² ; 0 si absent)
+!   iicebern1, iicebern2, jicebern1, jicebern2 : bornes de la zone icebergs Nord
+!   iicebers1, iicebers2, jicebers1, jicebers2 : bornes de la zone icebergs Sud
+!   areicebn       : surface océanique de la zone icebergs Nord (m²)
+!   areicebs       : surface océanique de la zone icebergs Sud (m²)
+!==============================================================================
+
+      SUBROUTINE define_ice_shelves(
+     &  imax, jmax, ks2,
+     &  tms, dxs1, dxs2, area,
+     &  tmics,
+     &  iicebern1, iicebern2, jicebern1, jicebern2,
+     &  iicebers1, iicebers2, jicebers1, jicebers2,
+     &  areicebn, areicebs,
+     &  mouchard_id)
+
+      use global_constants_mod, only: dblp=>dp, ip
+      implicit none
+
+!-- Arguments
+      integer(ip), intent(in)  :: imax, jmax, ks2, mouchard_id
+      real(dblp),  intent(in)  :: tms(imax,jmax,ks2)
+      real(dblp),  intent(in)  :: dxs1(imax,jmax), dxs2(imax,jmax)
+      real(dblp),  intent(in)  :: area(imax,jmax)
+
+      real(dblp),  intent(out) :: tmics(imax,jmax)
+      integer(ip), intent(out) :: iicebern1, iicebern2, jicebern1, jicebern2
+      integer(ip), intent(out) :: iicebers1, iicebers2, jicebers1, jicebers2
+      real(dblp),  intent(out) :: areicebn, areicebs
+
+!-- Variables locales
+      integer(ip) :: i, j
+      real(dblp)  :: effecta
+
+!==============================================================================
+!-- Zones de fonte des icebergs
+!   areicebn/s = surface océanique active dans la zone Nord/Sud (m²)
+!==============================================================================
+!-- Zone icebergs NORD (Atlantique Nord, ~50-55°N)
+      iicebern1=98 ; iicebern2=115 ; jicebern1=46 ; jicebern2=55
+      areicebn=0.0
+      do i=iicebern1,iicebern2
+        do j=jicebern1,jicebern2
+          areicebn=areicebn+area(i,j)*tms(i,j,ks2)
+        enddo
+      enddo
+
+!-- Zone icebergs SUD (Antarctique circumpolaire)
+      iicebers1=2 ; iicebers2=121 ; jicebers1=1 ; jicebers2=9
+      areicebs=0.0
+      do i=iicebers1,iicebers2
+        do j=jicebers1,jicebers2
+          areicebs=areicebs+area(i,j)*tms(i,j,ks2)
+        enddo
+      enddo
+
+      write(mouchard_id,*) 'surface iceberg melting N,S',
+     &                      areicebn, areicebs
+
+!==============================================================================
+!-- Plateformes de glace (ice shelves)
+!   effecta = épaisseur effective de la face verticale de contact (m)
+!   tmics(i,j) = tms(i,j,ks2) * dxs1_ou_dxs2(i,j) * effecta
+!
+!   Plateformes nommées (indices spécifiques CL15/CL30) :
+!     1. Ross Ice Shelf (i=93..103, j=2)
+!     2. Est Weddell 1  (i=104..109, j=3..4)
+!     3. Est Weddell 2  (i=110..117, j=4..5)
+!     4. Larsen         (i=93, j=4..5 — côté est, dxs2)
+!     5. Amery          (i=14..17, j=5)
+!     6. Ross (suite)   (i=48..61, j=2)
+!     7. Getz           (i=73..77, j=3)
+!     8. George VI      (i=84..87, j=4)
+!==============================================================================
+      effecta=5.0d3   ! épaisseur effective de face verticale (m)
+
+      tmics(:,:)=0.0  ! initialisation — pas de plateforme par défaut
+
+!-- 1. Ross Ice Shelf
+      do i=93,103
+        tmics(i,2)=tms(i,2,ks2)*dxs1(i,2)*effecta
+      enddo
+      do i=93,96
+        tmics(i,3)=tms(i,3,ks2)*dxs1(i,2)*effecta
+      enddo
+
+!-- 2. Est Weddell 1
+      do i=104,106
+        tmics(i,3)=tms(i,3,ks2)*dxs1(i,3)*effecta
+      enddo
+      do i=107,109
+        tmics(i,4)=tms(i,4,ks2)*dxs1(i,4)*effecta
+      enddo
+
+!-- 3. Est Weddell 2
+      do i=110,114
+        tmics(i,4)=tms(i,4,ks2)*dxs1(i,4)*effecta
+      enddo
+      do i=115,117
+        tmics(i,5)=tms(i,5,ks2)*dxs1(i,5)*effecta
+      enddo
+
+!-- 4. Larsen (côté est de la maille, dxs2)
+      do j=4,5
+        tmics(93,j)=tms(93,j,ks2)*dxs2(93,j)*effecta
+      enddo
+
+!-- 5. Amery
+      do i=14,17
+        tmics(i,5)=tms(i,5,ks2)*dxs1(i,5)*effecta
+      enddo
+
+!-- 6. Ross (suite)
+      do i=48,61
+        tmics(i,2)=tms(i,2,ks2)*dxs1(i,2)*effecta
+      enddo
+
+!-- 7. Getz
+      do i=73,77
+        tmics(i,3)=tms(i,3,ks2)*dxs1(i,3)*effecta
+      enddo
+
+!-- 8. George VI
+      do i=84,87
+        tmics(i,4)=tms(i,4,ks2)*dxs1(i,4)*effecta
+      enddo
+      WRITE(*,*) "DEBUG :: tmics", sum(tmics)
+      end subroutine define_ice_shelves

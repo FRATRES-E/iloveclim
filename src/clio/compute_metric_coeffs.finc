@@ -1,0 +1,233 @@
+!==============================================================================
+! SUBROUTINE compute_metric_coeffs
+!
+! [G2] Coefficients métriques de la grille (4 positions par point).
+!
+! *** À REMPLACER CONJOINTEMENT AVEC compute_grid_coords POUR CHANGER DE GRILLE ***
+!
+! RÔLE : À partir des métriques locales h1/h2 et de leurs dérivées (sorties de G1),
+!        remplit les tableaux cmx, cmy, smx, smy, cmxy, smxy (4 positions chacun),
+!        les dérivées cmxdy, cmydx, le facteur de Coriolis fs2cor et le sinus de
+!        latitude géographique covrai. Applique les corrections de jonction WW/AA
+!        et du détroit de Béring.
+!
+! CONVENTION DES 4 POSITIONS (3ème indice) :
+!   0 = centre de la maille (pt S)
+!   1 = face ouest (i-1/2)
+!   2 = face sud   (j-1/2)
+!   3 = coin SW    (i-1/2, j-1/2) = pt U
+!
+! ENTRÉES :
+!   ltest                  : type de bassin (>=3 = monde réel avec grille AA)
+!   jsepar                 : dernière ligne j de la grille WW
+!   jeq                    : indice j de jonction WW/AA
+!   jsep(imax)             : indice j de début de grille AA pour chaque colonne i
+!   iberp, ibera           : indices i du détroit de Béring (grilles WW et AA)
+!   iberpm, iberam         : iberp-1, ibera-1
+!   jberp, jbera           : indices j du détroit de Béring (grilles WW et AA)
+!   jberpm, jberam         : jberp-1, jbera-1
+!   omega                  : vitesse angulaire de la Terre (rad/s)
+!   unsrt                  : 1/rterre
+!   radian                 : pi/180
+!   dlat, dlong, dyai, dxaj: résolutions des grilles WW et AA (degrés)
+!   ylat1, xlon1           : origine de la grille WW
+!   yai1, xaj1             : origine de la grille AA
+!   imax, jmax             : dimensions de la grille
+!   h1, h2                 : coefficients métriques locaux au pt S (sorties de G1, m)
+!   d1d2                   : d(h1)/dy au pt S (m/rad)
+!   d2d1                   : d(h2)/dx au pt S (m/rad)
+!   dx1, dx2               : pas angulaires adimensionnés (sorties de G1, rad)
+!
+! SORTIES :
+!   cmx(i,j,0:3)           : h1/rterre aux 4 positions
+!   cmy(i,j,0:3)           : h2/rterre aux 4 positions
+!   smx(i,j,0:3)           : 1/cmx
+!   smy(i,j,0:3)           : 1/cmy
+!   cmxy(i,j,0:3)          : cmx*cmy (élément de surface normalisé)
+!   smxy(i,j,0:3)          : 1/cmxy
+!   cmxdy(i,j)             : d(cmx)/dy au coin SW (= d(h1)/dy / rterre)
+!   cmydx(i,j)             : d(cmy)/dx au coin SW (= d(h2)/dx / rterre)
+!   fs2cor(i,j)            : facteur de Coriolis = 2*Omega*sin(lat_U)
+!   covrai(i,j)            : sin(lat_S géographique)
+!==============================================================================
+
+      SUBROUTINE compute_metric_coeffs(
+     &  ltest, jsepar, jeq, jsep,
+     &  iberp, ibera, iberpm, iberam,
+     &  jberp, jbera, jberpm, jberam,
+     &  omega, unsrt, radian,
+     &  dlat, dlong, dyai, dxaj,
+     &  ylat1, xlon1, yai1, xaj1,
+     &  imax, jmax,
+     &  h1, h2, d1d2, d2d1, dx1, dx2,
+     &  cmx, cmy, smx, smy, cmxy, smxy,
+     &  cmxdy, cmydx, fs2cor, covrai)
+
+      use global_constants_mod, only: dblp=>dp, ip
+      implicit none
+
+!-- Déclaration des arguments
+      integer(ip), intent(in) :: ltest, jsepar, jeq, imax, jmax
+      integer(ip), intent(in) :: jsep(imax)
+      integer(ip), intent(in) :: iberp, ibera, iberpm, iberam
+      integer(ip), intent(in) :: jberp, jbera, jberpm, jberam
+      real(dblp),  intent(in) :: omega, unsrt, radian
+      real(dblp),  intent(in) :: dlat, dlong, dyai, dxaj
+      real(dblp),  intent(in) :: ylat1, xlon1, yai1, xaj1
+      real(dblp),  intent(in) :: h1(imax,jmax), h2(imax,jmax)
+      real(dblp),  intent(in) :: d1d2(imax,jmax), d2d1(imax,jmax)
+      real(dblp),  intent(in) :: dx1(imax,jmax), dx2(imax,jmax)
+
+      real(dblp), intent(out) :: cmx(imax,jmax,0:3), cmy(imax,jmax,0:3)
+      real(dblp), intent(out) :: smx(imax,jmax,0:3), smy(imax,jmax,0:3)
+      real(dblp), intent(out) :: cmxy(imax,jmax,0:3), smxy(imax,jmax,0:3)
+      real(dblp), intent(out) :: cmxdy(imax,jmax), cmydx(imax,jmax)
+      real(dblp), intent(out) :: fs2cor(imax,jmax), covrai(imax,jmax)
+
+!-- Variables locales
+      integer(ip) :: i, j
+      real(dblp)  :: ysdeg, yudeg, yurad, yu0rad
+      real(dblp)  :: ccsysw, sscysw, ccsyuw, sscyuw, ssnyuw, ssnysw
+      real(dblp)  :: ccsysa, sscysa, ccsyua, sscyua
+      real(dblp)  :: ccmxdy, ccmydx, ccfcor
+      real(dblp)  :: xu0m90, xudeg_aa, yyalim, ysrad
+      real(dblp)  :: csxua(jmax), csxsa(jmax)
+
+!==============================================================================
+!-- 3.1 : Coefficients métriques pour la grille WW
+!==============================================================================
+
+      do j=1,jsepar
+        ysdeg = ylat1 + dlat * DFLOAT(j-1)
+        yurad = (ysdeg - 0.5 * dlat) * radian
+
+        if (ltest.lt.0) then
+!-- Grille cartésienne (cas test)
+          ccsysw=1.0 ; sscysw=1.0 ; ccsyuw=1.0 ; sscyuw=1.0
+          ssnyuw=sin(45.0*radian) ; ssnysw=sin(45.0*radian)
+          ccmxdy=0.0
+          ccfcor=omega*sin(45.0*radian)
+        else
+          ccsysw = cos(ysdeg*radian)  ; sscysw = 1.0/ccsysw
+          ccsyuw = cos(yurad)         ; sscyuw = 1.0/ccsyuw
+          ssnyuw = sin(yurad)         ; ssnysw = sin(ysdeg*radian)
+          ccmxdy = -ssnyuw * unsrt
+          ccfcor = omega * ssnyuw
+        endif
+
+        do i=1,imax
+!-- cmx = h1/R = cos(lat) en grille WW
+          cmx(i,j,0)=ccsysw ; cmx(i,j,1)=ccsysw
+          cmx(i,j,2)=ccsyuw ; cmx(i,j,3)=ccsyuw
+          smx(i,j,0)=sscysw ; smx(i,j,1)=sscysw
+          smx(i,j,2)=sscyuw ; smx(i,j,3)=sscyuw
+!-- cmy = h2/R = 1 en grille WW (h2=R uniforme en latitude)
+          cmy(i,j,0)=1. ; cmy(i,j,1)=1. ; cmy(i,j,2)=1. ; cmy(i,j,3)=1.
+          smy(i,j,0)=1. ; smy(i,j,1)=1. ; smy(i,j,2)=1. ; smy(i,j,3)=1.
+!-- cmxy = cmx*cmy
+          cmxy(i,j,0)=ccsysw ; cmxy(i,j,1)=ccsysw
+          cmxy(i,j,2)=ccsyuw ; cmxy(i,j,3)=ccsyuw
+          smxy(i,j,0)=sscysw ; smxy(i,j,1)=sscysw
+          smxy(i,j,2)=sscyuw ; smxy(i,j,3)=sscyuw
+!-- Dérivées
+          cmxdy(i,j) = ccmxdy  ! d(h1)/dy = -sin(lat_U)/R
+          cmydx(i,j) = 0.      ! d(h2)/dx = 0 (h2 uniforme en x)
+!-- Coriolis et sin(lat géo)
+          fs2cor(i,j) = ccfcor
+          covrai(i,j) = ssnysw
+        enddo
+      enddo  ! fin boucle j grille WW
+
+!==============================================================================
+!-- 3.3 : Coefficients métriques pour la grille AA
+!==============================================================================
+
+      if (ltest.ge.3) then
+
+        xu0m90 = xaj1 - 1.5*dxaj - 90.
+        do j=jeq,jmax
+          xudeg_aa = xu0m90 + dxaj * DFLOAT(j)
+          csxua(j) = sin(xudeg_aa * radian)
+          csxsa(j) = sin((xudeg_aa + 0.5*dxaj) * radian)
+        enddo
+        yyalim = 90.0 - abs(dyai)
+
+        do i=1,imax
+          ysdeg = yai1 + dyai * DFLOAT(i-1)
+          if (abs(ysdeg).ge.yyalim) then
+            ccsysa=1. ; yurad=0. ; ysrad=0. ; ccsyua=1.
+          else
+            ccsysa = cos(ysdeg*radian)
+            yurad  = (ysdeg - 0.5*dyai)*radian
+            ysrad  = ysdeg*radian
+            ccsyua = cos(yurad)
+          endif
+          sscysa = 1.0/ccsysa ; sscyua = 1.0/ccsyua
+          ccmydx = sin(yurad)*unsrt
+
+          do j=jsep(i),jmax
+!-- cmx = h1/R = 1 en grille AA (direction x = ex-longitude)
+            cmx(i,j,0)=1. ; cmx(i,j,1)=1. ; cmx(i,j,2)=1. ; cmx(i,j,3)=1.
+            smx(i,j,0)=1. ; smx(i,j,1)=1. ; smx(i,j,2)=1. ; smx(i,j,3)=1.
+!-- cmy = h2/R = cos(lat_AA) en grille AA (direction y = ex-latitude)
+            cmy(i,j,0)=ccsysa ; cmy(i,j,1)=ccsyua
+            cmy(i,j,2)=ccsysa ; cmy(i,j,3)=ccsyua
+            smy(i,j,0)=sscysa ; smy(i,j,1)=sscyua
+            smy(i,j,2)=sscysa ; smy(i,j,3)=sscyua
+!-- cmxy (note : positions 1 et 2 sont des ratios inversés, termes croisés)
+            cmxy(i,j,0)=ccsysa ; cmxy(i,j,1)=sscyua
+            cmxy(i,j,2)=sscysa ; cmxy(i,j,3)=ccsyua
+            smxy(i,j,0)=sscysa ; smxy(i,j,1)=ccsyua
+            smxy(i,j,2)=ccsysa ; smxy(i,j,3)=sscyua
+!-- Dérivées
+            cmxdy(i,j) = 0.       ! d(h1)/dy = 0 en grille AA
+            cmydx(i,j) = ccmydx   ! d(h2)/dx = sin(lat_AA_U)/R
+!-- Coriolis en grille AA : f = 2*Omega*cos(lat_AA)*sin(lon_AA)
+            fs2cor(i,j) = omega * ccsyua * csxua(j)
+            covrai(i,j) = ccsysa * csxsa(j)
+          enddo
+
+!-- Correction à la jonction WW/AA (j=jeq) : moyenne des métriques des 2 grilles
+          if (jsep(i).eq.jeq) then
+            cmy(i,jeq,2)  = 0.5*(1. + cmy(i,jeq,0))
+            cmy(i,jeq,3)  = 0.5*(1. + cmy(i,jeq,1))
+            smy(i,jeq,2)  = 1./cmy(i,jeq,2)
+            smy(i,jeq,3)  = 1./cmy(i,jeq,3)
+            cmxy(i,jeq,2) = smy(i,jeq,2)
+            cmxy(i,jeq,3) = cmy(i,jeq,3)
+            smxy(i,jeq,2) = cmy(i,jeq,2)
+            smxy(i,jeq,3) = smy(i,jeq,3)
+            cmydx(i,jeq)  = 0.5 * ccmydx
+          endif
+        enddo  ! fin boucle i grille AA
+
+!-- Corrections métriques au détroit de Béring (jonction WW<->AA)
+        if (iberp.ne.0) then
+          cmx(ibera, jbera,2) = cmx(iberpm,jberp,2)
+          smx(ibera, jbera,2) = smx(iberpm,jberp,2)
+          cmy(ibera, jbera,2) = cmy(iberpm,jberp,2)
+          smy(ibera, jbera,2) = smy(iberpm,jberp,2)
+          cmxy(ibera, jbera,2) = cmxy(iberpm,jberp,2)
+          smxy(ibera, jbera,2) = smxy(iberpm,jberp,2)
+          cmx(iberam,jbera,2) = cmx(iberp, jberp,2)
+          smx(iberam,jbera,2) = smx(iberp, jberp,2)
+          cmy(iberam,jbera,2) = cmy(iberp, jberp,2)
+          smy(iberam,jbera,2) = smy(iberp, jberp,2)
+          cmxy(iberam,jbera,2) = cmxy(iberp, jberp,2)
+          smxy(iberam,jbera,2) = smxy(iberp, jberp,2)
+!-- Corrections diagnostiques (cmxy au coin SW)
+          cmxy(ibera, jbera,3) = cmxy(iberp, jberp,3)
+          smxy(ibera, jbera,3) = smxy(iberp, jberp,3)
+          cmxy(iberp, jberp,0) = cmxy(iberam,jberam,0)
+          cmxy(iberpm,jberp,0) = cmxy(ibera, jberam,0)
+          cmxy(ibera, jbera,0) = cmxy(iberpm,jberpm,0)
+          cmxy(iberam,jbera,0) = cmxy(iberp, jberpm,0)
+          smxy(iberp, jberp,0) = smxy(iberam,jberam,0)
+          smxy(iberpm,jberp,0) = smxy(ibera, jberam,0)
+          smxy(ibera, jbera,0) = smxy(iberpm,jberpm,0)
+          smxy(iberam,jbera,0) = smxy(iberp, jberpm,0)
+        endif
+
+      endif  ! fin section grille AA
+
+      end subroutine compute_metric_coeffs

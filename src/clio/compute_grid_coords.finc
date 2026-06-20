@@ -1,0 +1,371 @@
+!==============================================================================
+! SUBROUTINE compute_grid_coords
+!
+! [G1] Coordonnées géographiques de la grille bi-domaine WW+AA.
+!
+! *** SEUL BLOC À REMPLACER POUR UN AUTRE TYPE DE GRILLE ***
+!
+! RÔLE : Calcule, pour chaque point (i,j) de la grille, les coordonnées
+!        géographiques (lon/lat en degrés et radians), les coins des mailles,
+!        l'angle de rotation grille->géo, et les métriques locales h1/h2
+!        nécessaires aux sous-routines G2 et G3a.
+!
+! ENTRÉES :
+!   ltest          : type de bassin (0=rect, <0=cartésien, >=3=monde réel)
+!   jsepar         : dernière ligne j de la grille WW (avant transition AA)
+!   jeq            : indice j de jonction WW/AA
+!   jsep(imax)     : pour chaque colonne i, indice j de début de grille AA
+!   jsep2(83:imax) : indices secondaires de séparation (spécifiques CL15/CL30)
+!   dlong, dlat    : résolution en longitude/latitude grille WW (degrés)
+!   xlon1, ylat1   : origine de la grille WW (degrés)
+!   dxaj, dyai     : résolution de la grille AA (degrés)
+!   xaj1, yai1     : origine de la grille AA (degrés)
+!   radian         : pi/180
+!   rterre         : rayon de la Terre (m)
+!   unsrt          : 1/rterre
+!   omega          : vitesse angulaire de la Terre (rad/s)
+!   pi             : 3.14159...
+!   zepsd1         : epsilon pour éviter les divisions par zéro
+!   imax, jmax     : dimensions de la grille
+!
+! SORTIES :
+!   xslon(i,j)         : longitude du pt scalaire S (degrés)
+!   yslat(i,j)         : latitude  du pt scalaire S (degrés)
+!   xulon(i,j)         : longitude du pt vitesse U (degrés)
+!   yulat(i,j)         : latitude  du pt vitesse U (degrés)
+!   zlatt(i,j)         : latitude  du pt vitesse U (radians)
+!   zlont(i,j)         : longitude du pt vitesse U (radians)
+!   xsedg(i,j,1:4)     : longitudes des 4 coins de la maille S (SW,SE,NE,NW)
+!   ysedg(i,j,1:4)     : latitudes  des 4 coins de la maille S
+!   xuedg(i,j,1:4)     : longitudes des 4 coins de la maille U
+!   yuedg(i,j,1:4)     : latitudes  des 4 coins de la maille U
+!   xslonp(i,j)        : coin SW de la maille S, étendu à (imax+1,jmax+1) pour Ferret
+!   yslatp(i,j)        : idem latitude
+!   xulonp(i,j)        : coin SW de la maille U étendu
+!   yulatp(i,j)        : idem latitude
+!   angle(i,j)         : angle de rotation grille->géo (radians)
+!   xang1(i,j)         : composante cos de la rotation (grille AA uniquement)
+!   xang2(i,j)         : composante sin de la rotation (grille AA uniquement)
+!   dx1(i,j)           : pas angulaire adimensionné en direction x (rad)
+!   dx2(i,j)           : pas angulaire adimensionné en direction y (rad)
+!   h1(i,j)            : coefficient métrique direction x au pt S (m)
+!   h2(i,j)            : coefficient métrique direction y au pt S (m)
+!   d1d2(i,j)          : d(h1)/dy au pt S (m/rad)
+!   d2d1(i,j)          : d(h2)/dx au pt S (m/rad)
+!==============================================================================
+
+      SUBROUTINE compute_grid_coords(
+     &  ltest, jsepar, jeq, jsep, jsep2,
+     &  dlong, dlat, xlon1, ylat1,
+     &  dxaj, dyai, xaj1, yai1,
+     &  radian, rterre, unsrt, omega, pi, zepsd1,
+     &  imax, jmax,
+     &  xslon, yslat, xulon, yulat,
+     &  zlatt, zlont,
+     &  xsedg, ysedg, xuedg, yuedg,
+     &  xslonp, yslatp, xulonp, yulatp,
+     &  angle, xang1, xang2,
+     &  dx1, dx2, h1, h2, d1d2, d2d1)
+
+      use global_constants_mod, only: dblp=>dp, ip
+      implicit none
+
+!-- Déclaration des arguments
+      integer(ip), intent(in) :: ltest, jsepar, jeq, imax, jmax
+      integer(ip), intent(in) :: jsep(imax)
+      integer(ip), intent(in) :: jsep2(83:imax)
+      real(dblp),  intent(in) :: dlong, dlat, xlon1, ylat1
+      real(dblp),  intent(in) :: dxaj, dyai, xaj1, yai1
+      real(dblp),  intent(in) :: radian, rterre, unsrt, omega, pi, zepsd1
+
+      real(dblp), intent(out) :: xslon(imax,jmax), yslat(imax,jmax)
+      real(dblp), intent(out) :: xulon(imax,jmax), yulat(imax,jmax)
+      real(dblp), intent(out) :: zlatt(imax,jmax), zlont(imax,jmax)
+      real(dblp), intent(out) :: xsedg(imax,jmax,4), ysedg(imax,jmax,4)
+      real(dblp), intent(out) :: xuedg(imax,jmax,4), yuedg(imax,jmax,4)
+      real(dblp), intent(out) :: xslonp(imax+1,jmax+1), yslatp(imax+1,jmax+1)
+      real(dblp), intent(out) :: xulonp(imax+1,jmax+1), yulatp(imax+1,jmax+1)
+      real(dblp), intent(out) :: angle(imax,jmax)
+      real(dblp), intent(out) :: xang1(imax,jmax), xang2(imax,jmax)
+      real(dblp), intent(out) :: dx1(imax,jmax), dx2(imax,jmax)
+      real(dblp), intent(out) :: h1(imax,jmax),  h2(imax,jmax)
+      real(dblp), intent(out) :: d1d2(imax,jmax), d2d1(imax,jmax)
+
+!-- Variables locales
+      integer(ip) :: i, j, ipm, jpm
+      real(dblp)  :: ysdeg, yudeg, yurad, yu0rad, yu2rad, ysrad, xsrad
+      real(dblp)  :: ccsysw, sscysw, ccsyuw, sscyuw, ssnyuw, ssnysw
+      real(dblp)  :: ccsysa, sscysa, ccsyua, sscyua, ssnyua
+      real(dblp)  :: ccmxdy, ccfcor, ccfcu8, ccmydx
+      real(dblp)  :: xsdeg, xudeg, xurad
+      real(dblp)  :: xu0m90, xudeg_aa, yyalim, yfac
+      real(dblp)  :: szphi, zlam
+      real(dblp)  :: csxua(jmax), csxsa(jmax)
+
+!==============================================================================
+!-- Initialisation à 90° (valeur sentinelle ; sera écrasée par les vraies valeurs)
+!==============================================================================
+      do j=1,jmax
+        do i=1,imax
+          xslon(i,j)=90.0 ; yslat(i,j)=90.0
+          xulon(i,j)=90.0 ; yulat(i,j)=90.0
+          xsedg(i,j,1)=90.0 ; xsedg(i,j,2)=90.0
+          xsedg(i,j,3)=90.0 ; xsedg(i,j,4)=90.0
+          ysedg(i,j,1)=90.0 ; ysedg(i,j,2)=90.0
+          ysedg(i,j,3)=90.0 ; ysedg(i,j,4)=90.0
+          xuedg(i,j,1)=90.0 ; xuedg(i,j,2)=90.0
+          xuedg(i,j,3)=90.0 ; xuedg(i,j,4)=90.0
+          yuedg(i,j,1)=90.0 ; yuedg(i,j,2)=90.0
+          yuedg(i,j,3)=90.0 ; yuedg(i,j,4)=90.0
+          angle(i,j)=0.0
+          xang1(i,j)=0.0
+          xang2(i,j)=1.0
+        enddo
+      enddo
+      do j=1,jmax+1
+        do i=1,imax+1
+          xslonp(i,j)=90.0 ; yslatp(i,j)=90.0
+          xulonp(i,j)=90.0 ; yulatp(i,j)=90.0
+        enddo
+      enddo
+
+!==============================================================================
+!-- 3.1 : GRILLE SPHÉRIQUE CLASSIQUE (WW) : lon/lat standard
+!==============================================================================
+
+      do j=1,jsepar
+        ysdeg = ylat1 + dlat * DFLOAT(j-1)
+        yudeg = ysdeg - 0.5 * dlat
+        yurad = (ysdeg - 0.5 * dlat) * radian
+
+        if (ltest.lt.0) then
+!-- Grille cartésienne (cas test) : métriques constantes à 45°N
+          yu0rad = 45.0 * radian
+          ccsysw = 1.0  ; sscysw = 1.0
+          ccsyuw = 1.0  ; sscyuw = 1.0
+          ssnysw = sin(yu0rad) ; ssnyuw = sin(yu0rad)
+          ccmxdy = 0.0
+          ccfcor = omega * sin(yu0rad)
+          ccfcu8 = -0.25 * omega * cos(yu0rad)
+        else
+!-- Grille sphérique réelle
+          ccsysw = cos(ysdeg * radian)
+          sscysw = 1.0 / ccsysw
+          ccsyuw = cos(yurad)
+          sscyuw = 1.0 / ccsyuw
+          ssnyuw = sin(yurad)
+          ssnysw = sin(ysdeg*radian)
+          ccmxdy = -ssnyuw * unsrt
+          ccfcor = omega * ssnyuw
+          ccfcu8 = -0.25 * omega * ccsyuw
+        endif
+
+        do i=1,imax
+          zlatt(i,j)  = yurad
+          yslat(i,j)  = ysdeg
+          ysedg(i,j,1)= yudeg
+          ysedg(i,j,2)= yudeg
+          ysedg(i,j,3)= yudeg + dlat
+          ysedg(i,j,4)= yudeg + dlat
+          yulat(i,j)  = yudeg
+          yuedg(i,j,1)= ysdeg - dlat
+          yuedg(i,j,2)= ysdeg - dlat
+          yuedg(i,j,3)= ysdeg
+          yuedg(i,j,4)= ysdeg
+          xsdeg = xlon1 + dlong * DFLOAT(i-1)
+          xurad = (xsdeg - 0.5 * dlong) * radian
+          xudeg = xsdeg - 0.5 * dlong
+          xslon(i,j)  = xsdeg
+          xsedg(i,j,1)= xudeg
+          xsedg(i,j,2)= xudeg + dlong
+          xsedg(i,j,3)= xudeg + dlong
+          xsedg(i,j,4)= xudeg
+          xulon(i,j)  = xudeg
+          if ((xsdeg-dlong).le.0.0d0) then
+            xuedg(i,j,1)= xsdeg - dlong + 360.0d0
+          else
+            xuedg(i,j,1)= xsdeg - dlong
+          endif
+          xuedg(i,j,2)= xsdeg
+          xuedg(i,j,3)= xsdeg
+          if ((xsdeg-dlong).le.0.0d0) then
+            xuedg(i,j,4)= xsdeg - dlong + 360.0d0
+          else
+            xuedg(i,j,4)= xsdeg - dlong
+          endif
+          zlont(i,j) = xurad
+!-- Métriques pour la dynamique de la glace (section 4)
+          dx1(i,j)  = dlong * radian
+          yu2rad    = (ysdeg + 0.5*dlat) * radian
+          dx2(i,j)  = sin(yu2rad) - sin(yurad)
+          h1(i,j)   = rterre * ccsysw
+          h2(i,j)   = rterre / ccsysw
+          d1d2(i,j) = -rterre * sin(ysdeg*radian) * sscysw
+          d2d1(i,j) = 0.0
+        enddo
+
+!-- Angle de rotation (quasi nul en grille WW)
+        do i=1,imax-1
+          angle(i,j)=atan2((yulat(i+1,j)-yulat(i,j)),
+     &                     (xulon(i+1,j)-xulon(i,j)))
+        enddo
+        angle(imax,j)=angle(imax-1,j)
+
+      enddo  ! fin boucle j grille WW
+
+!==============================================================================
+!-- 3.3 : GRILLE SPHÉRIQUE TOURNÉE (AA) : Atlantique Nord + Arctique
+!==============================================================================
+
+      if (ltest.ge.3) then
+
+        xu0m90 = xaj1 - 1.5 * dxaj - 90.
+        do j=jeq,jmax
+          xudeg_aa  = xu0m90 + dxaj * DFLOAT(j)
+          csxua(j)  = sin(xudeg_aa * radian)
+          csxsa(j)  = sin((xudeg_aa + 0.5*dxaj) * radian)
+        enddo
+        yyalim = 90.0 - abs(dyai)
+
+        do i=1,imax
+          ysdeg = yai1 + dyai * DFLOAT(i-1)
+          if (abs(ysdeg).ge.yyalim) then
+            ccsysa=1. ; yurad=0. ; ysrad=0. ; ccsyua=1. ; ssnyua=0.
+          else
+            ccsysa = cos(ysdeg * radian)
+            yurad  = (ysdeg - 0.5 * dyai) * radian
+            ysrad  = ysdeg * radian
+            ccsyua = cos(yurad)
+          endif
+          sscysa = 1.0 / ccsysa
+          sscyua = 1.0 / ccsyua
+          ccmydx = sin(yurad) * unsrt
+
+          do j=jsep(i),jmax
+            dx2(i,j)  = dlat * radian
+            yu2rad    = (ysdeg + 0.5*dyai) * radian
+            dx1(i,j)  = -sin(yu2rad) + sin(yurad)
+            h1(i,j)   = rterre / ccsysa
+            h2(i,j)   = rterre * ccsysa
+            d1d2(i,j) = 0.0
+            d2d1(i,j) = +rterre * sin(ysdeg*radian) * sscysa
+
+!-- Transformation rotation sphérique AA -> lon/lat géographique
+            xsrad = (xaj1 + dxaj*DFLOAT(j-1)) * radian
+            xurad = (xaj1 - 1.5*dxaj + dxaj*DFLOAT(j)) * radian
+            yslat(i,j) = -asin(cos(ysrad)*cos(xsrad)) / radian
+            yulat(i,j) = -asin(cos(yurad)*cos(xurad)) / radian
+            zlatt(i,j) = -asin(cos(yurad)*cos(xurad))
+            szphi      =  cos(yurad)*cos(xurad)
+            zlam = atan2(cos(ysrad)*sin(xsrad), sin(ysrad))
+            xslon(i,j) = (zlam + pi) / radian + 69.0
+            zlam = atan2(cos(yurad)*sin(xurad), sin(yurad))
+            xulon(i,j) = (zlam + pi) / radian + 69.0
+            zlont(i,j) = zlam + pi + 69.0*pi/180.0
+!-- Angles de rotation grille AA -> géographique
+            xang1(i,j) = (szphi*cos(zlam)) / max(zepsd1,cos(yurad))
+            xang2(i,j) = (sin(zlam))       / max(zepsd1,cos(yurad))
+          enddo
+        enddo ! fin boucle i grille AA
+
+!-- Affectation des coins des mailles en grille AA
+        do i=1,imax
+          do j=jsep(i),jmax
+            ipm=min(i+1,imax) ; jpm=min(j+1,jmax)
+            xsedg(i,j,1)=xulon(i  ,j  ) ; xsedg(i,j,2)=xulon(ipm,j  )
+            xsedg(i,j,3)=xulon(ipm,jpm) ; xsedg(i,j,4)=xulon(i  ,jpm)
+            ysedg(i,j,1)=yulat(i  ,j  ) ; ysedg(i,j,2)=yulat(ipm,j  )
+            ysedg(i,j,3)=yulat(ipm,jpm) ; ysedg(i,j,4)=yulat(i  ,jpm)
+            ipm=max(i-1,1) ; jpm=max(j-1,1)
+            xuedg(i,j,1)=xslon(ipm,jpm) ; xuedg(i,j,2)=xslon(i  ,jpm)
+            xuedg(i,j,3)=xslon(i  ,j  ) ; xuedg(i,j,4)=xslon(ipm,j  )
+            yuedg(i,j,1)=yslat(ipm,jpm) ; yuedg(i,j,2)=yslat(i  ,jpm)
+            yuedg(i,j,3)=yslat(i  ,j  ) ; yuedg(i,j,4)=yslat(ipm,j  )
+          enddo
+        enddo
+
+!-- Lissage des coordonnées dans la zone de transition (colonnes i=1..82)
+        do i=1,82
+          yfac = 0.25 / float(jmax - jsep(i))
+          jpm  = jsep(i) - 1
+          do j=jsep(i),jmax
+            xslon(i,j)   = xslon(i,jpm)
+            yslat(i,j)   = yslat(i,jpm) + yfac*(j-jpm)
+            xsedg(i,j,1) = xsedg(i,jpm,1) ; xsedg(i,j,2) = xsedg(i,jpm,2)
+            xsedg(i,j,3) = xsedg(i,jpm,3) ; xsedg(i,j,4) = xsedg(i,jpm,4)
+            ysedg(i,j,1) = yslat(i,j)-0.5*yfac ; ysedg(i,j,2) = yslat(i,j)-0.5*yfac
+            ysedg(i,j,3) = yslat(i,j)+0.5*yfac ; ysedg(i,j,4) = yslat(i,j)+0.5*yfac
+            xulon(i,j)   = xulon(i,jpm)
+            yulat(i,j)   = yulat(i,jpm) + yfac*(float(j-jpm)-0.5)
+            xuedg(i,j,1) = xuedg(i,jpm,1) ; xuedg(i,j,2) = xuedg(i,jpm,2)
+            xuedg(i,j,3) = xuedg(i,jpm,3) ; xuedg(i,j,4) = xuedg(i,jpm,4)
+            yuedg(i,j,1) = yulat(i,j)-0.5*yfac ; yuedg(i,j,2) = yulat(i,j)-0.5*yfac
+            yuedg(i,j,3) = yulat(i,j)+0.5*yfac ; yuedg(i,j,4) = yulat(i,j)+0.5*yfac
+          enddo
+        enddo
+
+!-- Même lissage pour la région Arctique (colonnes i=83..imax, spécifique CL15/CL30)
+#if ( HRCLIO == 0 )
+        do i=83,imax
+          if (jsep2(i).ne.jmax) then
+#elif ( HRCLIO == 1 )
+        jsep2(imax)=jmax
+        do i=imax,imax
+          if (jsep2(i).ne.jmax) then
+#endif
+            yfac = 0.25 / float(jmax - jsep2(i))
+            jpm  = jsep2(i) - 1
+            do j=jsep2(i),jmax
+              xslon(i,j)   = xslon(i,jpm)
+              yslat(i,j)   = yslat(i,jpm) + yfac*(j-jpm)
+              xsedg(i,j,1) = xsedg(i,jpm,1) ; xsedg(i,j,2) = xsedg(i,jpm,2)
+              xsedg(i,j,3) = xsedg(i,jpm,3) ; xsedg(i,j,4) = xsedg(i,jpm,4)
+              ysedg(i,j,1) = yslat(i,j)-0.5*yfac ; ysedg(i,j,2) = yslat(i,j)-0.5*yfac
+              ysedg(i,j,3) = yslat(i,j)+0.5*yfac ; ysedg(i,j,4) = yslat(i,j)+0.5*yfac
+              xulon(i,j)   = xulon(i,jpm)
+              yulat(i,j)   = yulat(i,jpm) + yfac*(float(j-jpm)-0.5)
+              xuedg(i,j,1) = xuedg(i,jpm,1) ; xuedg(i,j,2) = xuedg(i,jpm,2)
+              xuedg(i,j,3) = xuedg(i,jpm,3) ; xuedg(i,j,4) = xuedg(i,jpm,4)
+              yuedg(i,j,1) = yulat(i,j)-0.5*yfac ; yuedg(i,j,2) = yulat(i,j)-0.5*yfac
+              yuedg(i,j,3) = yulat(i,j)+0.5*yfac ; yuedg(i,j,4) = yulat(i,j)+0.5*yfac
+            enddo
+          endif
+        enddo
+
+!-- Angle de rotation pour la grille AA
+        do i=1,imax-1
+          do j=jsep(i),jmax
+            angle(i,j)=atan2((yulat(i+1,j)-yulat(i,j)),
+     &                       (xulon(i+1,j)-xulon(i,j)))
+          enddo
+        enddo
+        i=imax
+        do j=jsep(i),jmax
+          angle(i,j)=angle(i-1,j)
+        enddo
+
+      endif  ! fin section grille AA
+
+!-- Construction des tableaux de coins étendus (imax+1,jmax+1) pour Ferret
+      do j=1,jmax
+        do i=1,imax
+          xslonp(i,j) = xsedg(i,j,1) ; yslatp(i,j) = ysedg(i,j,1)
+          xulonp(i,j) = xuedg(i,j,1) ; yulatp(i,j) = yuedg(i,j,1)
+        enddo
+        xslonp(imax+1,j) = xsedg(imax,j,2)
+        yslatp(imax+1,j) = ysedg(imax,j,2)
+        xulonp(imax+1,j) = xuedg(imax,j,2)
+        yulatp(imax+1,j) = yuedg(imax,j,2)
+      enddo
+      do i=1,imax
+        xslonp(i,jmax+1) = xsedg(i,jmax,4)
+        yslatp(i,jmax+1) = ysedg(i,jmax,4)
+        xulonp(i,jmax+1) = xuedg(i,jmax,4)
+        yulatp(i,jmax+1) = yuedg(i,jmax,4)
+      enddo
+      xslonp(imax+1,jmax+1) = xsedg(imax,jmax,3)
+      yslatp(imax+1,jmax+1) = ysedg(imax,jmax,3)
+      xulonp(imax+1,jmax+1) = xuedg(imax,jmax,3)
+      yulatp(imax+1,jmax+1) = yuedg(imax,jmax,3)
+
+      end subroutine compute_grid_coords
