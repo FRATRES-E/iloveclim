@@ -9,7 +9,10 @@ c********************************************************************
 
       use declars_mod, only: jt, jx, lt, noc_cbr
 
-      use loveclim_transfer_mod, only: mgt, zx, zz
+      use loveclim_transfer_mod, only: MGT, zx, zz
+#if ( BATHY >= 1 )
+      use loveclim_transfer_mod, only: MGT_prev
+#endif
       use mod_sync_time, only: tday, tyer
 
       use mbiota_mod, only: SCALE_M, SCALE_B, SCANU, C14RA
@@ -58,6 +61,9 @@ c********************************************************************
      >   OetaC_POMoxid, OetaN_POMoxid, OetaO2_POMoxid,
      >   OetaC_DOMoxid_1D, OetaN_DOMoxid_1D, OetaO2_DOMoxid_1D,
      >   OetaC_POMrain, OetaN_POMrain
+#if ( BATHY >=1 )
+      use marine_bio_mod, only: OetaC_POMoxid_prev
+#endif
 
 #if ( MEDUSA == 1 )
       use marine_bio_mod, only:
@@ -384,6 +390,10 @@ c slow DOC
       do n = 1, NOC_CBR
         do i = 1, LT
 
+#if ( BATHY >= 1 )
+         OetaC_POMoxid_prev(i,:,n) = OetaC_POMoxid_1D(:)
+         !write(*,*) 'OetaC_POMoxid_prev', i,n, OetaC_POMoxid_prev(i,:,n)          
+#endif
           if (MGT(i,1,n).eq.1) then
 
             OetaC_POMoxid(i,:,n) = OetaC_POMoxid_1D(:)
@@ -437,11 +447,11 @@ c slow DOC
 
               endif
 
+            enddo ! moved
+
               ! Finally adapt OetaO2_POMoxid data
               OetaO2_POMoxid(i, :, n) = 
      &          -OetaC_POMoxid(i, :, n) - 2D0 * OetaN_POMoxid(i, :, n)
-
-            enddo
 
           else
 

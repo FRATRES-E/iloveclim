@@ -66,7 +66,9 @@ REAL(pr), dimension(LT, JX, NOC_CBR) :: OetaC_POMrain, OetaN_POMrain
 REAL(pr), dimension(JT) :: OetaC_DOMoxid_1D, OetaN_DOMoxid_1D, OetaO2_DOMoxid_1D
 REAL(pr), dimension(NOC_CBR, LT) :: OetaC_POMsedin, OetaN_POMsedin
 REAL(pr), dimension(NOC_CBR, LT) :: OetaO2_POMsedin
-
+#if ( BATHY >= 1 )
+REAL(pr), dimension(LT, JT, NOC_CBR) :: OetaC_POMoxid_prev
+#endif
 
 !tbd REAl(pr), dimension(JT,5) :: Oeta_floor
 REAL :: oc13frac, oc13fair, oc13bio
