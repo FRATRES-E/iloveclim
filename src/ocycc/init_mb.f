@@ -26,23 +26,25 @@
       USE iso_dioxygen_mod, ONLY: iair16, iair17, iair18
 #endif
 
+#if ( ARGON == 1 )
+      USE marine_bio_mod, ONLY: OARG
+#endif
+
       IMPLICIT NONE
 
       integer(kind=ip) :: i,j,n,km
       REAL(kind=dblp), PARAMETER ::
      &     PHYTO_ini    = 0.01_dblp,
      &     ZOO_ini      = 0.01_dblp,
-     &     OO2_ini      = 250._dblp,    ! mumol/kg
-!     &     OO2_iso01    = 249.4_dblp,   ! mumol/kg
-!     &     OO2_iso02    = 0.09612_dblp, ! mumol/kg
-!     &     OO2_iso03    = 0.51327_dblp, ! mumol/kg
-     &     OO2_iso02    = 0.0959_dblp, ! mumol/kg
-     &     OO2_iso03    = 0.5121_dblp, ! mumol/kg
+     &     OO2_ini      = 250._dblp,            ! mumol/kg
+     &     OO2_iso02    = 0.0959_dblp,          ! mumol/kg
+     &     OO2_iso03    = 0.5121_dblp,          ! mumol/kg
      &     ODIC_ini     = 2257.77165E-06_dblp,
      &     ODOC_ini     = 0.0_dblp,
      &     OPOC_ini     = 0.0_dblp,
      &     OC13_cst_ini = -0.1_dblp,
-     &     OC14_cst_ini = 0.85_dblp !vm coeff 85 donne par Toggweiler, 1989
+     &     OC14_cst_ini = 0.85_dblp,            !vm coeff 85 donne par Toggweiler, 1989
+     &     Ar_ini       = 6_dblp                ! mumol/kg
 !********************************************************************
 
 
@@ -57,14 +59,19 @@
       OPO4(:,:,:)   = OPO4_ini             ! mumol/kg
       ONO3(:,:,:)   = ONO3_ini             ! mumol/kg
       OSI(:,:,:)    = OSI_ini
+
 #if ( OOISO == 0 ) 
-      OO2(:,:,:)  = OO2_ini            ! mumol/kg
+      OO2(:,:,:)  = OO2_ini                ! mumol/kg
 #else
-      OO2(:,:,:,iair)  = OO2_ini            ! mumol/kg
+      OO2(:,:,:,iair)  = OO2_ini           ! mumol/kg
       OO2(:,:,:,iair17)  = OO2_iso02
       OO2(:,:,:,iair18)  = OO2_iso03
       OO2(:,:,:,iair16)  = OO2(:,:,:,iair)-OO2(:,:,:,iair18)-OO2(:,:,:,iair17)
 #endif 
+
+#if ( ARGON == 1 )
+      OARG(:,:,:)  = Ar_ini
+#endif
 
       OALK(:,:,:)  = OALK_ini
 
