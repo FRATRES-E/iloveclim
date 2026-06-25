@@ -30,6 +30,9 @@ REAL, dimension(LT,JT,NOC_CBR) :: OPOC ! OPOC is always zero, it should be remov
 #if ( OXNITREUX == 1 )
 REAL, dimension(LT,JT,NOC_CBR) :: ON2O !vm n2o
 #endif
+#if ( ARGON == 1 )
+REAL, dimension(LT,JT,NOC_CBR) :: OARG
+#endif
 !vm&dmr --- Ajout de la production nette en variable globale
 DOUBLE PRECISION, dimension(LT,JT,NOC_CBR) :: phyto_prod
 
@@ -52,6 +55,9 @@ REAL, dimension(LT,NOC_CBR) :: FODOCS13, oxCO2 = 0.0d0, oxpCO2
 REAL, dimension(LT,NOC_CBR) :: osCO2, oxHCO3, oxCO3
 #if ( OXNITREUX == 1 )
 REAL, dimension(LT,NOC_CBR) :: FON2O !vm: flux n2o
+#endif
+#if ( ARGON == 1 )
+REAL, dimension(LT,NOC_CBR) :: FOAR
 #endif
 
 !* PRODUCTION
