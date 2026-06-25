@@ -169,6 +169,14 @@
 
         TYPE(IO_GRID_VAR)                       :: mu_F18O
         REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_F18O
+
+        TYPE(IO_GRID_VAR)                       :: mu_F16O
+        REAL(dblp), DIMENSION(:,:), ALLOCATABLE :: my_F16O
+#endif
+
+#if ( ARGON == 1)
+        TYPE(IO_GRID_VAR)                         :: mu_argon_clio
+        REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE :: my_argon_clio
 #endif
 
 #if ( ICEBERG > 0 )
@@ -277,6 +285,11 @@
           allocate(my_FtotalO(imax-2,jmax))
           allocate(my_F17O(imax-2,jmax))
           allocate(my_F18O(imax-2,jmax))
+          allocate(my_F16O(imax-2,jmax))
+#endif
+
+#if ( ARGON == 1)
+          allocate(my_argon_clio(imax-2,jmax,kmax))
 #endif
 
 #if ( ICEBERG > 0 )
@@ -343,6 +356,13 @@
           call mu_F17O%show()
           call mu_F18O%init("O18_flux",test_CLIO_file,"ptlon ptlat time")
           call mu_F18O%show()
+          call mu_F16O%init("O16_flux",test_CLIO_file,"ptlon ptlat time")
+          call mu_F16O%show()
+#endif
+
+#if ( ARGON == 1 )
+          call mu_argon_clio%init("argon",test_CLIO_file,"ptlon ptlat tdepth time")
+          call mu_argon_clio%show()
 #endif
 
 #if ( ICEBERG > 0 )
@@ -395,6 +415,11 @@
           call mu_FtotalO%setf(test_CLIO_file)
           call mu_F17O%setf(test_CLIO_file)
           call mu_F18O%setf(test_CLIO_file)
+          call mu_F16O%setf(test_CLIO_file)
+#endif
+
+#if ( ARGON == 1 )
+          call mu_argon_clio%setf(test_CLIO_file)
 #endif
 
 #if ( ICEBERG > 0 )
@@ -493,6 +518,11 @@
         my_FtotalO(:,:) = d_zero
         my_F17O(:,:) = d_zero
         my_F18O(:,:) = d_zero
+        my_F16O(:,:) = d_zero
+#endif
+
+#if ( ARGON == 1)
+        my_argon_clio(:,:,:) = d_zero
 #endif
 
 #if ( ICEBERG > 0 )
@@ -557,10 +587,14 @@
         use neodymium_mod, only: neod_part, neod_diss
 #endif        
 
-! Ajout par eclermont
+
 #if ( OOISO == 1 )
         use bloc0_mod, only: phyto_clio, respO2_clio, prodO2_clio, reminO2_clio, NCP_clio
         use marine_bio_mod, only: FOO2
+#endif
+
+#if ( ARGON == 1 )
+        use para0_mod, only: ioargon
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -632,6 +666,11 @@
          my_FtotalO(:,:) = my_FtotalO(:,:) + TRANSPOSE(FOO2(2:UBOUND(FOO2,dim=1)-1,:,1))
          my_F18O(:,:) = my_F18O(:,:) + TRANSPOSE(FOO2(2:UBOUND(FOO2,dim=1)-1,:,4))
          my_F17O(:,:) = my_F17O(:,:) + TRANSPOSE(FOO2(2:UBOUND(FOO2,dim=1)-1,:,3))
+         my_F16O(:,:) = my_F16O(:,:) + TRANSPOSE(FOO2(:,:,2))
+#endif
+
+#if ( ARGON == 1 )
+         my_argon_clio(:,:,:) = my_argon_clio(:,:,:)+scal(2:UBOUND(scal,dim=1)-1,:,:,ioargon)/days_year360d
 #endif
 
          if (iday == days_month360d_i) then
@@ -689,6 +728,7 @@
             my_FtotalO(:,:)=undef_dblp
             my_F17O(:,:)=undef_dblp
             my_F18O(:,:)=undef_dblp
+            my_F16O(:,:)=undef_dblp
 #endif
 
 #if ( ICEBERG > 0 )
@@ -706,13 +746,16 @@
             my_3D_remin(:,:,k) = undef_dblp
 #endif
 
-! Ajouter par eclermont :
 #if ( OOISO == 1 )
             my_phyto_clio(:,:,k) = undef_dblp
             my_respO2(:,:,k) = undef_dblp
             my_prodO2(:,:,k) =undef_dblp
             my_reminO2(:,:,k) =undef_dblp
             my_NCP(:,:,k) =undef_dblp
+#endif
+
+#if ( ARGON == 1 )
+            my_argon_clio(:,:,k) = undef_dblp
 #endif
 
            ENDWHERE
@@ -778,7 +821,6 @@
          call mu_fPOC_clio%wrte(my_fPOC_clio,nb_year)
 #endif
 
-! Ajout par eclermont
 #if ( OOISO == 1)
          call mu_phyto_clio%wrte(my_phyto_clio,nb_year)
          call mu_respO2%wrte(my_respO2,nb_year)
@@ -786,8 +828,13 @@
          call mu_FtotalO%wrte(my_FtotalO, nb_year)
          call mu_F17O%wrte(my_F17O, nb_year)
          call mu_F18O%wrte(my_F18O, nb_year)
+         call mu_F16O%wrte(my_F16O, nb_year)
          call mu_reminO2%wrte(my_reminO2, nb_year)
          call mu_NCP%wrte(my_NCP, nb_year)
+#endif
+
+#if ( ARGON == 1 )
+         call mu_argon_clio%wrte(my_argon_clio,nb_year)
 #endif
 
          CALL YEARLY_RE_INIT()
