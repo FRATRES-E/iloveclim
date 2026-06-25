@@ -164,6 +164,7 @@
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
 #if ( COMATM == 1 )
+      use atmdyn_mod, only: ec_ddl, ec_ggtosp, ec_sptogg
       use comatm,         only: nlat, nlon, nsh2, nvl, nsh, nm, ntl, pi
       use comdyn
       use comphys

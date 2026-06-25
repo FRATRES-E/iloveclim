@@ -48,8 +48,10 @@ REAL*8 :: ca13_oc_rest, ca13_la_rest
 REAL*8 :: ca13_at_ini, dc13at_ini
 REAL*8 :: ca_oc_vol,coc_odoc,coc_odocs, coc_odoc13, coc_odocs13 !*8 ?
 REAL*8 :: cav_oc13,cav_la13 !*8 ?
-REAL*8 :: EMIS_CUM
-REAL*8 :: EMIS_C13_CUM
+REAL*8 :: emis_cum
+REAL*8 :: emis_c13_cum
+REAL*8 :: emis_perm_cum
+REAL*8 :: emis_perm_c13_cum
 REAL*8 :: CAV_OC_P = 0.0d0
 REAL*8 :: CAV_LA_P = 0.0d0
 REAL*8 :: c13atm_rest
@@ -60,7 +62,8 @@ REAL*8 :: c13atm, c13init
 #if ( KC14 == 1 )
 
 REAL(KIND=8) :: ca14_oc_ini, ca14_la_ini, cav_oc14_b, cav_oc14=0.0d0, cav_oc_b &
-, cav_la14_b, cav_la14=0.0d0, cav_la_b, ca14_oc_rest, ca14_la_rest
+, cav_la14_b, cav_la14=0.0d0, cav_la_b, cav_oc14_rest, cav_la14_rest             &
+, cav_la14_b_rest, cav_oc14_b_rest, cav_oc_b_rest, cav_la_b_rest
 !dmr&vm --- Fluxes
 REAL(KIND=8) :: FC12OA,FC12LA,FC14OA, FC14LA
 

@@ -76,16 +76,37 @@
        integer(kind=ip), PARAMETER, PUBLIC :: iair18  = 4     ! Molecule 18O-16O
        integer(kind=ip), PARAMETER, PUBLIC :: nairiso = 4     ! Number of isotopes in O2
        
+#if ( OOISO_SCEN == 0 )
        ! jwy -- d18O of ambient air O2 against SMOW (Barkan & Luz, 2005)
        ! jwy -- To convert delta_O2_smow into delta_O2_air
-       real(kind=dblp), PARAMETER, PUBLIC  :: r18air = (1+23.88D-3)*(2005.2D-6)
-       real(kind=dblp), PARAMETER, PUBLIC  :: r17air = (1+12.08D-3)*(379.9D-6)
+       real(kind=dblp), PARAMETER, PUBLIC  :: r18air = (1+23.88D-3)*(2005.2D-6) !PI
+       !real(kind=dblp), PARAMETER, PUBLIC  :: r18air =  0.002055137! LGM 
+       real(kind=dblp), PARAMETER, PUBLIC  :: r17air = (1+12.08D-3)*(379.9D-6) ! PI
+       !real(kind=dblp), PARAMETER, PUBLIC  :: r17air = 0.000384723 ! LGM 12.69544617004481
        real(kind=dblp), PARAMETER          :: rair(nairiso) = [1.d0, 1.d0, r17air, r18air]
 
        ! ecl -- Standard Mean Ocean Water : Standard Ratios
-       real(kind=dblp), PARAMETER, PUBLIC             :: r18smow = 2005.2E-6_dblp !(no unit)
-       real(kind=dblp), PARAMETER, PUBLIC             :: r17smow = 379.9E-6_dblp
+       real(kind=dblp), PARAMETER, PUBLIC             :: r18smow = 2005.2E-6_dblp !PI (no unit)
+       !real(kind=dblp), PARAMETER, PUBLIC             :: r18smow = 2007.205E-6_dblp !LGM (no unit) LGM
+       real(kind=dblp), PARAMETER, PUBLIC             :: r17smow = 379.9E-6_dblp !PI
+       !real(kind=dblp), PARAMETER, PUBLIC             :: r17smow = 380.101E-6_dblp !LGM
        real(kind=dblp), PARAMETER, dimension(nairiso) :: rsmow = [1.0_dblp,1.0_dblp,r17smow,r18smow]
+
+
+       ! ecl -- sum of relative isotope abundances according to rsmow 
+       real(kind=dblp), PARAMETER :: Rsum_iso_smow = 1.0d0 + r17smow + r18smow
+
+#else
+       real(kind=dblp), PUBLIC  :: r18air
+       real(kind=dblp), PUBLIC  :: r17air
+       real(kind=dblp), dimension(nairiso)  :: rair
+       ! ecl -- Standard Mean Ocean Water : Standard Ratios
+       real(kind=dblp), PUBLIC  :: r18smow
+       real(kind=dblp), PUBLIC  :: r17smow
+       real(kind=dblp), dimension(nairiso)  :: rsmow
+       real(kind=dblp) :: Rsum_iso_smow
+
+#endif
 
        ! ecl -- GPP to NPP factor
        real(kind=dblp) :: factor_GNPP_to_NPP = 2._dblp
@@ -93,9 +114,6 @@
        ! ecl -- Parameter for fractionnement during respiration
        integer, PARAMETER :: alphaR18 = 1, alphaR17 = 2
        integer, PARAMETER :: alphaR = 2
-
-       ! ecl -- sum of relative isotope abundances according to rsmow 
-       real(kind=dblp), PARAMETER :: Rsum_iso_smow = 1.0d0 + r17smow + r18smow
 
        ! ecl -- Public subroutines or functions 
        PUBLIC :: compute_ISOO2_mbiodyn, compute_ISOO2_maphot
@@ -109,10 +127,83 @@
       ! ecl - Parameters of fractionation factor during photosynthesis
       real(kind=dblp), PARAMETER :: fphoto18 = 1.0_dblp !1.004 !Not defined =1.0
       real(kind=dblp), PARAMETER :: theta_photo = 1.0_dblp !Not defined = 1.0
+
+#if ( OOISO_SCEN == 1 )
+      integer, parameter :: nb_ooiso_scen= 10 !nb of lines with data
+      real, dimension(nb_ooiso_scen,5) :: r_scenario
+      integer ooiso_r_scenario_id
+      PUBLIC :: read_r_ISOO2, modif_r_ISOO2
+#endif      
+
       contains
-
-
 ! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  SUBROUTINE PART >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+#if ( OOISO_SCEN == 1 )
+! **********************************************************************************************************************************
+      SUBROUTINE read_r_ISOO2()
+! **********************************************************************************************************************************
+
+!     DESCRIPTION : Subroutine to read r values
+
+       integer ii, yy
+
+       !read input file for o2 isotopes r values
+       !First year in file is first year of simulation
+
+       !open
+       open (newunit=ooiso_r_scenario_id,                               &
+            file='inputdata/ooiso_r_scenario.dat')
+
+         do ii=1,nb_ooiso_scen
+           read(ooiso_r_scenario_id,*) yy, r_scenario(ii,1:4)
+           !print *, 'test scenario ooiso ', yy, r_scenario(ii,:)
+         enddo
+
+        close(ooiso_r_scenario_id)
+
+      r17air=r_scenario(0, 1)
+      r18air=r_scenario(0, 2)
+      r17smow=r_scenario(0, 3)
+      r18smow=r_scenario(0, 4)
+      !print*, 'test ooiso r17air ', r17air
+      !print*, 'test ooiso r18air ', r18air
+      !print*, 'test ooiso r17smow ', r17smow
+      !print*, 'test ooiso r18smow ', r18smow
+
+
+      rair = [1.d0, 1.d0, r17air, r18air]
+      rsmow = [1.0_dblp,1.0_dblp,r17smow,r18smow]
+
+      Rsum_iso_smow = 1.0d0 + r17smow + r18smow
+
+      END SUBROUTINE read_r_ISOO2
+
+! **********************************************************************************************************************************
+      SUBROUTINE modif_r_ISOO2()
+! **********************************************************************************************************************************
+  
+!     DESCRIPTION : Subroutine to modify values
+ 
+      USE mod_sync_time, only: NYR
+
+      r17air=r_scenario(NYR, 1)
+      r18air=r_scenario(NYR, 2)
+      r17smow=r_scenario(NYR, 3)
+      r18smow=r_scenario(NYR, 4)
+      !print*, 'test ooiso r17air ', r17air
+      !print*, 'test ooiso r18air ', r18air
+      !print*, 'test ooiso r17smow ', r17smow
+      !print*, 'test ooiso r18smow ', r18smow
+
+
+      rair = [1.d0, 1.d0, r17air, r18air]
+      rsmow = [1.0_dblp,1.0_dblp,r17smow,r18smow]
+
+      Rsum_iso_smow = 1.0d0 + r17smow + r18smow
+
+      END SUBROUTINE modif_r_ISOO2
+
+#endif
 
 ! **********************************************************************************************************************************
       SUBROUTINE compute_ISOO2_mbiodyn(NPPO2,NCP,OO2_cell,OO2_netflux,waterTemp)

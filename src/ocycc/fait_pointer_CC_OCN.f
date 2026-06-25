@@ -15,6 +15,7 @@ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
 #if ( PATH >= 1 )
        use path_mod, only: sea_mask, epais, k_fond, k_surf
+       use bloc0_mod, only: kfs
 #endif
 
       USE declars_mod, only: LT, NOC_CBR, JT
@@ -32,6 +33,10 @@ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
       use loveclim_transfer_mod, only: MGT, DVOL, TM, SM, TM_surface,
      &        ZZ, ZX, mid_level, FRICE, WS_OC, SABST_O, SQRO2, ZMIX_OCN
      &      , OVOL, WIND_ERA5, IRON_LIM, total_area
+
+#if ( BATHY >= 1 )
+      use loveclim_transfer_mod, only: MGT_prev, DVOL_prev, OVOL_prev, diff_MGT
+#endif
 
       use mbiota_mod, only: oc_bottom_cell
 
@@ -58,7 +63,7 @@ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 
          DVOL(i,(kmax+1-k),n) = area(n+1,i)*tms(n+1,i,k)*dz(k)
          MGT(i,(kmax+1-k),n) = tms(n+1,i,k)
-#if ( BATHY >= 1)
+#if ( BATHY >= 1 )
          MGT_prev(i,(kmax+1-k),n) = tms_prev(n+1,i,k)
          DVOL_prev(i,(kmax+1-k),n) = area(n+1,i)*tms_prev(n+1,i,k)*dz(k)
          diff_MGT(i,(kmax+1-k),n) = diff_tms(n+1,i,k)

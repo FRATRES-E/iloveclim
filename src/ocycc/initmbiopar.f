@@ -9,7 +9,10 @@ c********************************************************************
 
       use declars_mod, only: jt, jx, lt, noc_cbr
 
-      use loveclim_transfer_mod, only: mgt, zx, zz
+      use loveclim_transfer_mod, only: MGT, zx, zz
+#if ( BATHY >= 1 )
+      use loveclim_transfer_mod, only: MGT_prev
+#endif
       use mod_sync_time, only: tday, tyer
 
       use mbiota_mod, only: SCALE_M, SCALE_B, SCANU, C14RA
@@ -19,6 +22,10 @@ c********************************************************************
      >              , OrgCFlxAttFactor, SUE_MCA, B_SH_FR, oc_bottom_cell
      >                   , SWR_FRAC
      >                   , O2min1, O2min2
+
+#if ( SILICA == 1 )
+      use mbiota_mod, only: SUE_SI
+#endif
 
 #if ( REMIN == 1 )
       use mbiota_mod, only: SUE_3D, kremin
@@ -54,6 +61,9 @@ c********************************************************************
      >   OetaC_POMoxid, OetaN_POMoxid, OetaO2_POMoxid,
      >   OetaC_DOMoxid_1D, OetaN_DOMoxid_1D, OetaO2_DOMoxid_1D,
      >   OetaC_POMrain, OetaN_POMrain
+#if ( BATHY >=1 )
+      use marine_bio_mod, only: OetaC_POMoxid_prev
+#endif
 
 #if ( MEDUSA == 1 )
       use marine_bio_mod, only:
@@ -380,6 +390,10 @@ c slow DOC
       do n = 1, NOC_CBR
         do i = 1, LT
 
+#if ( BATHY >= 1 )
+         OetaC_POMoxid_prev(i,:,n) = OetaC_POMoxid_1D(:)
+         !write(*,*) 'OetaC_POMoxid_prev', i,n, OetaC_POMoxid_prev(i,:,n)          
+#endif
           if (MGT(i,1,n).eq.1) then
 
             OetaC_POMoxid(i,:,n) = OetaC_POMoxid_1D(:)
@@ -433,11 +447,11 @@ c slow DOC
 
               endif
 
+            enddo ! moved
+
               ! Finally adapt OetaO2_POMoxid data
               OetaO2_POMoxid(i, :, n) = 
      &          -OetaC_POMoxid(i, :, n) - 2D0 * OetaN_POMoxid(i, :, n)
-
-            enddo
 
           else
 
@@ -476,6 +490,30 @@ c slow DOC
         SUE_MCA(J) = dexp(-prom)
 
       enddo
+
+#if ( SILICA == 1 )
+! Flux attenuation factor for Opal
+! ---------------------------------
+
+!         do j=1,JPROD+1 
+!            SUE_SI(j)=1.
+!         enddo 
+!
+!         do j=JPROD+2,JX 
+!         prom=(ZX(j)-100.)/3000.  
+!         SUE_Si(J)=dexp(-prom)
+!          enddo
+
+      SUE_SI(1:JPROD+1) = 1d0
+
+      do j = JPROD+2, JX
+
+        prom = (ZX(j)-zp_xp)/10000.d0 !lOpal = 10000 d'après TSCHUMI et al. 2008 
+        !ZX(j) prof de la couche j et zp_xp prof de fin de la zone photique
+        SUE_SI(J) = dexp(-prom)
+
+      enddo
+#endif
 
 ! Correction for big shell fraction:
 ! - b_sh_fr: fraction of CaCO3 shells that are big enough to fall to
@@ -579,7 +617,7 @@ cnb   3D fixed remineralisation profile (test)
 c-----
 
 cnb - Initialisation des valeurs initiales dans l ocean
-c initial concentrations; units are mumol/kg for PO4, NO3, DOC;
+c initial concentrations; units are mumol/kg for PO4, NO3, DOC; OSI
 c                         mol/kg for DIC;
 c                         eq /kg for ALK
 
@@ -609,8 +647,16 @@ cvm - Nitrous oxide
 #endif 
 
 cnb - Silice
-       OSI_ini=0.0
-
+       OSI_ini=90.0 !selon Tréguer 2021 -> 120000TmolSi (volume océan pas pris d'iLoveClim)
+       !do n=1,NOC_CBR
+        !do j=1,JT
+          !do i=1,LT
+            !Dvol_tot=Dvol(i,j,n)
+          !end do
+        !end do
+      !end do
+      !OSI_ini=1.2*(10**23)/Dvol_tot ! 120 000 Tmol en mumol /Volume total iLoveClim
+       
 cnb - Alkalinite
 
 #if ( LGMSWITCH == 0 )

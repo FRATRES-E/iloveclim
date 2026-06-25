@@ -40,6 +40,23 @@
 #if ( KC14 == 1 )
        REAL :: PRODC14, MPRODC14, LIMC14MASSE, N14LIM
 #endif
+
+! modified the 02/12/2026 EA for the production file in ec14.f
+
+#if ( KC14P == 1)
+       INTEGER, PARAMETER :: NC14max=2
+       REAL, dimension(NC14max) :: PC14M
+       INTEGER :: KTIME
+       INTEGER :: n
+       INTEGER :: NC14
+       INTEGER :: NYR
+       INTEGER :: NYR0
+       INTEGER  :: NYR01
+       INTEGER  :: NYRSR
+       REAL :: PC14VAR
+       REAL, dimension(NC14max) :: TPSC14
+
+#endif
 #if ( O2ATM == 1 )
        REAL :: PA_O, PA0_O
 #endif
@@ -49,6 +66,10 @@
        integer, parameter :: nb_emis= 450 !nb of lines with data in emission file
        !integer, parameter :: nb_emis= 110 !nb of lines with data in emission file
        real, dimension(nb_emis) :: cemis
+#endif
+
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
+       real deepC ! carbone from permafrost module that replaces b4
 #endif
 
        END MODULE carbone_co2

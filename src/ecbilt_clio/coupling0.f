@@ -39,7 +39,7 @@
       USE OCEAN2COUPL_COM, only: ec_oc2co
 
       use landmodel_mod, only: ec_lae2co, ec_la2co
-
+      use atmphys_mod, only: ec_fluxes
 
       implicit none
 

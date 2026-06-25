@@ -52,12 +52,12 @@
 #if ( FROG_EXP > 0 )
 
        use global_constants_mod, only: sp
-       use main_lib_FROG,      only: cpl_fields
+       use main_lib_FROG,      only: cpl_fields, cpl_feedback
 
        implicit none
        private
 
-       public :: INIT_CPL2VAMP, DAILY_UPDATE_VAMPVARS, RESET_VAMPVARS_TIMER, GET_VAMPVARS
+       public :: INIT_CPL2FROG, DAILY_UPDATE_FROGVARS, RESET_FROGVARS_TIMER, GET_FROGVARS, SET_FROG_FEEDBACK
 
 
        ! NOTE_avoid_public_variables_if_possible
@@ -88,7 +88,7 @@
 !       TODO_YYYY-MM-DD - TODO_describe_appropriate_changes to be done or discussed - TODO_name
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function INIT_CPL2VAMP(nb_days_coupling) result(returnValue)
+      function INIT_CPL2FROG(nb_days_coupling) result(returnValue)
 
 !~        use AnotherModule_mod, only: some_variable          ! brief_description [units]
 !~        use AnotherModule_mod, only: some_otherfunction     ! brief_description [units]
@@ -131,7 +131,7 @@
         returnValue = .true.
 
 
-      end function INIT_CPL2VAMP
+      end function INIT_CPL2FROG
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      End of the function someFunction here
@@ -139,7 +139,7 @@
 
 
 
-      SUBROUTINE DAILY_UPDATE_VAMPVARS()
+      SUBROUTINE DAILY_UPDATE_FROGVARS()
 
         use comoutlocal_mod, only: tsurf1
         use comland_mod,     only: dsnow
@@ -176,59 +176,89 @@
 
 
 
-      end subroutine DAILY_UPDATE_VAMPVARS
+      end subroutine DAILY_UPDATE_FROGVARS
 
 
-      SUBROUTINE RESET_VAMPVARS_TIMER()
+      SUBROUTINE RESET_FROGVARS_TIMER()
 
         storing_time_step = 0
 
-      end subroutine RESET_VAMPVARS_TIMER
+      end subroutine RESET_FROGVARS_TIMER
 
 
-      FUNCTION GET_VAMPVARS() result(send_cpl_fields)
+      FUNCTION SET_FROG_FEEDBACK(receive_frog_fields) result(resulting_code)
 
+#if ( FROG_CARBON > 0 )
+        use carbone_co2, only: deepC
+#endif
+        type(cpl_feedback), intent(in) :: receive_frog_fields
+
+        logical :: resulting_code
+
+!dmr --- A remplir en fonction des besoins
+!~         variable_de_destination = receive_frog_fields%deep_C_sumtot
+#if ( FROG_CARBON > 0 )
+         deepC = receive_frog_fields%deep_C_sumtot * 1e-15 ! from gC to GtC 
+#endif
+        resulting_code = .TRUE.
+
+      END FUNCTION SET_FROG_FEEDBACK
+
+
+      FUNCTION GET_FROGVARS() result(send_cpl_fields)
+
+#if ( FROG_CARBON > 0 )
         !use veget_mod, only: b3, b4
         use veget_mod, only: b4, Fv
+        use veget_mod, only: r_leaf
         use comsurf_mod, only: fractn, nld ! fraction of land
         use comatm, only: darea, nlat, nlon
+#endif
 
         type(cpl_fields) :: send_cpl_fields
 !~         real(kind=sp), dimension(:,:,:),allocatable :: send_temp_var
 
+#if ( FROG_CARBON > 0 )
         real, dimension(nlat, nlon) :: darea_2d
         real, dimension(nlat, nlon) :: fracgr
+#endif
         integer :: j
- 
-        do j=1,nlon 
+
+#if ( FROG_CARBON > 0 )
+        do j=1,nlon
           darea_2d(:,j)=darea(:)
         enddo
         fracgr(:,:)=fractn(:,:,nld) !fraction of land in grid cell
+#endif
 
         ALLOCATE(send_cpl_fields%TempForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2),UBOUND(temp2vamper,DIM=3)))
+#if ( FROG_CARBON > 0 )
         !ALLOCATE(send_cpl_fields%B3_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%B4_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%Fv_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
+        ALLOCATE(send_cpl_fields%r_leaf_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%fracgr_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
         ALLOCATE(send_cpl_fields%darea_vegForc(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2)))
-#if ( SNOW_EFFECT == 1 )
-        ALLOCATE(send_cpl_fields%dsnow_thick(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2),UBOUND(temp2vamper,DIM=3)))
 #endif
+        ALLOCATE(send_cpl_fields%dsnow_thick(UBOUND(temp2vamper,DIM=1),UBOUND(temp2vamper,DIM=2),UBOUND(temp2vamper,DIM=3)))
 
         send_cpl_fields%TempForc(:,:,:) = REAL(temp2vamper(:,:,:),KIND=sp)
+#if ( FROG_CARBON > 0 )
         !send_cpl_fields%B3_vegForc(:,:) = REAL(b3(:,:),KIND=sp)
         send_cpl_fields%B4_vegForc(:,:) = REAL(b4(:,:),KIND=sp)
         send_cpl_fields%Fv_vegForc(:,:) = REAL(Fv(:,:),KIND=sp)
+        send_cpl_fields%r_leaf_vegForc(:,:) = REAL(r_leaf(:,:),KIND=sp)
         send_cpl_fields%fracgr_vegForc(:,:) = REAL(fracgr(:,:),KIND=sp)
         send_cpl_fields%darea_vegForc(:,:) = REAL(darea_2d(:,:),KIND=sp)
-#if ( SNOW_EFFECT == 1 )
-        send_cpl_fields%dsnow_thick(:,:,:) = REAL(dsnow2vamper(:,:,:),KIND=sp)
 #endif
+        send_cpl_fields%dsnow_thick(:,:,:) = REAL(dsnow2vamper(:,:,:),KIND=sp)
 
+#if ( FROG_CARBON > 0 )
        !mise a 0 de Fv chaque annee apres envoi au permafrost
        Fv(:,:) = 0.0
+#endif
 
-      END FUNCTION GET_VAMPVARS
+      END FUNCTION GET_FROGVARS
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

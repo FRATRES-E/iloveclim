@@ -221,7 +221,7 @@
        use veget_mod
        use comrunlabel_mod, only: irunlabelf
 
-#if ( FROG_EXP > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
        use veget_mod, only : Fv, Fv_t, Fv_g
 #endif
 
@@ -278,7 +278,7 @@
 
         b4t(lat,lon)=(k3t/t3t*b3t(lat,lon))*t4t
         b4g(lat,lon)=(k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon))*t4g
-#if ( FROG_EXP > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
         Fv_t(lat,lon)=(k3t/t3t*b3t(lat,lon))*t4t
         Fv_g(lat,lon)=(k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon))*t4g
 #endif
@@ -554,8 +554,8 @@
         use veget_mod
 #endif
 
-#if ( FROG_EXP > 0 )
-       use veget_mod, only : Fv, Fv_t, Fv_g
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
+       use veget_mod, only : Fv, Fv_t, Fv_g, r_leaf
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -620,8 +620,16 @@
         b12(lat,lon)=b1(lat,lon)+b2(lat,lon)
         b34(lat,lon)=b3(lat,lon)+b4(lat,lon)
 
-#if ( FROG_EXP > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
         Fv(lat,lon)= Fv(lat,lon)+ Fv_t(lat,lon)*st(lat,lon)+Fv_g(lat,lon)*sg(lat,lon)
+        !nb ratio=leaf/(leaf+wood)
+        if ((b1(lat,lon)+b2(lat,lon)) .gt. 0.0) then 
+             r_leaf(lat,lon)=(b1(lat,lon)+b2g(lat,lon)*sg(lat,lon))/(b1(lat,lon)+b2(lat,lon))
+        else 
+             r_leaf(lat,lon)=0.0
+             !! write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
+        endif
+        !write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
 #endif
 
 #if ( CYCC ==2 )
@@ -704,7 +712,7 @@
        use comatm, only: nlat, nlon
        use comrunlabel_mod, only: irunlabelf
 
-#if ( FROG_EXP > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON >0 )
        use veget_mod, only : Fv, Fv_t, Fv_g
 #endif
 
@@ -1112,7 +1120,7 @@
         b4t(lat,lon)=b4t(lat,lon)+k3t/t3t*b3t(lat,lon)-b4t(lat,lon)/t4t
         b4g(lat,lon)=b4g(lat,lon)+k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon)-b4g(lat,lon)/t4g
 
-#if ( FROG_EXP > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
         Fv_t(lat,lon)=k3t/t3t*b3t(lat,lon) !-b4t(lat,lon)/t4t
         Fv_g(lat,lon)=k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon) !-b4g(lat,lon)/t4g
 

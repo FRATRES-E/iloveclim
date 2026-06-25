@@ -115,31 +115,7 @@
 ! ---  Pretty print of execution time in emic ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!     ! ADDING DATE and TIME !mohr
-      character(len=8)     :: date
-      character(len=10)    :: time
-      character(len=5)     :: zone
-      integer,dimension(8) :: values
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       contains
-
-       subroutine pretty_print_exec_time(str_in)
-
-         character(len=*), intent(in) :: str_in
-
-!! ADDING DATE AND TIME TO CHECK CORRECT EXECUTION... !mohr
-         write(stdout,*) "      "
-         write(stdout,*) "      "
-         call date_and_time(date,time,zone,values) !mohr
-         write(stdout,*) "iLOVECLIM@: "//trim(str_in)
-         write(stdout,*) "DT%% "//date(1:4)//"-"//date(5:6)//"-"//date(7:8)," ", time(1:2)//":"//time(3:4)//":"//time(5:6)
-         write(stdout,*) "      "
-         write(stdout,*) "      "
-
-       end subroutine pretty_print_exec_time
+      !dmr 2026-04-03 => moved to a specific module using FACE
 
       end module comemic_mod
 

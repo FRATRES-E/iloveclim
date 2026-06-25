@@ -28,6 +28,10 @@ use iso_dioxygen_mod, only: GPPO2_func, Ray_respO2
 use iso_dioxygen_mod, only: OO2_saturation
 #endif
 
+#if (SILICA == 1)
+use marine_bio_mod, only: OSI_ini, OSI
+#endif
+
 implicit none
 
 REAL(kind=dblp) :: n0_m, PI_m, PAR_m, lef_m ,pmin_m, dp_m, er_doc, a_m, b_m, c_m, p0_m, g0_m, ex_doc, dz_m, zmin_m, l0_m, d0_m, &
@@ -41,8 +45,25 @@ REAL(kind=dblp), dimension(LT,JT,NOC_CBR,NISOO2) :: prod_O2, resp_O2
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: TPP_m = 0.0_dblp, TPP_D13C = 0.0_dblp, caco3_d13C = 0.0_dblp
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: caco3_m = 0.0_dblp
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: caco3_m_b_sh = 0.0_dblp
+#if ( SILICA == 1)
+REAL(kind=dblp), dimension(LT,NOC_CBR) :: Opal_m = 0.0_dblp
+REAL(kind=dblp) :: RRSIP=0.0_dblp
+REAL(kind=dblp) :: KSI=0.0_dblp
+REAL(kind=dblp) :: Opal_dif=0.0_dblp
+REAL(kind=dblp) :: Si_max=0.0_dblp
+REAL(kind=dblp),  PARAMETER :: KSI_min = 10**(-3) !(mol Si/ m-3) d'après TSCHUMI et al.2008
+REAL(kind=dblp),  PARAMETER :: KSI_max = 7*(10**(-3)) !(mol Si/m-3) d'après TSCHUMI et al.2008
+REAL(kind=dblp),  PARAMETER :: KSI_std = 5*(10**(-3)) !(mol Si/ m-3) d'après TSCHUMI et al.2008
+INTEGER(kind=ip),  PARAMETER :: RRSIP_std = 30 !(mol Si/mol P) utilisé pour calcul RRSIP d'après TSCHUMI et al.2008
+INTEGER(kind=ip),  PARAMETER :: RRCP = 117 !(mol C/mol P) d'après TSCHUMI et al.2008
+#endif
+
 
 REAL(kind=dblp), dimension(JX) :: SUE_MCA !nb tbd?, fhypso
+
+#if ( SILICA == 1 )
+REAL(kind=dblp), dimension(JX) :: SUE_SI
+#endif
 
 !REFACTORING DONE: OrgCFlxAttFactor replaces SUE_M
 REAL(kind=dblp), dimension(LT, JX, NOC_CBR) :: OrgCFlxAttFactor
@@ -569,10 +590,31 @@ contains
 !nb CaCO3
         caco3_m(im,nm)=RR*calred*TPP_m(im,nm)*(1-b_sh_fr)/(1-sigma_m)
         caco3_m_b_sh(im,nm)=RR*calred*TPP_m(im,nm)*b_sh_fr/(1-sigma_m)
-#if( ARAG == 1 )
+#if ( ARAG == 1 )
         caco3_m_ar(im,nm)=-RR_ar*calred*TPP_m(im,nm)/(1-sigma_m)
 #endif
 
+#if ( SILICA == 1 )
+        !write(*,*) "test_silica"
+        !update zone photique (mettre après maj caco3)
+        !calcul le facteur de dissolution de la case -> calcul la production d'Opal particulaire de la case
+        !avec le TPP_dif de iLoveClim(prod exporté de la case) -> ajuste cette prod par le facteur de dissolution
+        !mets à jour Opa_m qui est la somme de tout les TPP_dif sur tous les pas de temps et de prof ->
+        !la silice dissoute de la case est ensuite mis à jour car utilisé pour prod Opal
+
+        !modélisation update Opal/silica/caco3 type Bern3D + dissolution type PISCESS (zone photique)
+        Si_max = OSI(im,j,nm) !à modifier plus tard
+        KSI = KSI_min + KSI_max * ((Si_max**2)/(KSI_std**2+Si_max**2))
+        RRSIP=RRSIP_std*((OSI(im,j,nm))/(KSI+OSI(im,j,nm))) * (5.4*exp(-4.23*min(avanut,rate_m)+1.13))
+        Opal_dif=min(TPP_dif*(RRSiP/RRCP)*(OSI(im,j,nm)/(KSI+OSI(im,j,nm))),0.5*OSI(im,j,nm))
+        !Opal_sum(im,j,nm)=Opal_sum(im,j,nm)+Opal_dif                  !gérer pour sortie
+        Opal_m(im,nm)=Opal_m(im,nm)+Opal_dif*SCALE_B*DVOL(im,j,nm)
+        !reecrire caco3 comme ceci Caco3_m= RR*calred*(TPP_m- Opal_m/RSi :PD)/(1-sigma) -> correction sur valeur iLoveClim
+        caco3_m(im,nm)=(caco3_m(im,nm)*(1-sigma_m)-(Opal_m(im,nm)/RRSiP)*RRCP)/(1-sigma_m)
+        caco3_m_b_sh(im,nm)=caco3_m_b_sh(im,nm)*(1-sigma_m)-((Opal_m(im,nm)/RRSiP)*RRCP)/(1-sigma_m)
+        !and caco3_diff= RR*calred*(TPP_dif- Opal_diff/RSi :PD)/(1-sigma)
+        OSI(im,j,nm)=max(OSI(im,j,nm)-Opal_dif,0._dblp)                            !gérer pour sortie
+#endif
 
         ! ==== N-P-Z-*D*: EVOLUTION OF DOC and DOCS ====
 

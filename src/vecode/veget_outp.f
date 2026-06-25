@@ -14,6 +14,7 @@
       use comemic_mod, only: irunlabel, nwrskip, new_year_veg
      &               , time_in_years, current_int_veg
 
+      use error0_mod, only: ec_error
 
       IMPLICIT NONE
 

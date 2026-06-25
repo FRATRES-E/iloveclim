@@ -139,6 +139,7 @@
 
 #if ( BRINES >= 3 )
       use brines_mod, only: la_date_brines
+      use palaeo_timer_mod, only: palaeo_year
 #endif
 
       use file_libs, ONLY: fileDescriptor, open_f, close_f
@@ -437,6 +438,7 @@
 #endif
 
         use landmodel_mod, only: ec_initlbm
+        use initial0_mod, only: ec_initecbilt
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...

@@ -290,6 +290,12 @@
 #define N2OATM 0
 
 !
+! 0 no carbon in permafrost (FROG)
+! 1 with carbon in permafrost (FROG)
+!
+#define FROG_CARBON 0
+
+!
 ! 0 MEDUSA is not activated
 ! 1 MEDUSA is activated
 !
@@ -380,6 +386,12 @@
 ! 1 wih aragonite in addition to calcite
 !
 #define ARAG 0
+
+!
+! O no biogenic silica
+! 1 wih biogenic silica added
+!
+#define SILICA 0
 
 ! ################    CLIO OCEAN DEFINITIONS   ###############
 

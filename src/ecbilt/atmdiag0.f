@@ -3,8 +3,7 @@
 !dmr -- Added optional components choice - Fri Oct 28 11:02:20 CEST 2011
 !23456789012345678901234567890123456789012345678901234567890123456789012
       subroutine ec_atmout(istep)
-
-
+      use atmdyn_mod, only: ec_sptogg
       USE comatm, only: 
       use comemic_mod, only: iatm
 
@@ -39,7 +38,8 @@
 ! *** ixout: frequency for output instantanous fields in days.
 ! *** written by xueli wang.
 !-----------------------------------------------------------------------
-      use Atmosphere_Output
+      use atmdyn_mod, only: ec_sptogg
+      use atmoutp_mod
 
       USE comatm,  only: radius, om, nlat, nlon, iwater
       USE comdyn,  only: psi, pp, psig, vtot, qgpv, qprime, utot
@@ -204,7 +204,7 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 ! *** complete re-write Didier M. Roche, 2020-01-24
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
 
-      USE Atmosphere_Output, only: open, close, Instantaneous_Data
+      USE atmoutp_mod, only: open, close, Instantaneous_Data
      &  , output, write
      &  , Surface_Temperature         ! tsurf1
      &  , Temperature
@@ -687,7 +687,7 @@ c~ #endif
 ! *** monthly or seasonal mean fields.
 ! *** written by xueli wang and nanne weber, april 1995.
 !-----------------------------------------------------------------------
-      USE Atmosphere_Output
+      USE atmoutp_mod
 
 
       USE comatm,  only: iwater
@@ -1627,7 +1627,7 @@ c~ #endif
 ! *** mean fields.
 ! *** written by xueli wang, september 1995.
 !-----------------------------------------------------------------------
-      USE Atmosphere_Output
+      USE atmoutp_mod
 
 
       USE comatm
@@ -2743,7 +2743,7 @@ c~ #endif
 ! *** this routine calls another routine which computes the yearly mean
 ! *** written by camiel severijns, march 2001.
 !-----------------------------------------------------------------------
-      use Atmosphere_Output
+      use atmoutp_mod
 
       USE comatm
       USE comdyn

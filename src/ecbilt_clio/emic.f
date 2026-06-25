@@ -36,8 +36,6 @@
       use comemic_mod, only: new_year_atm, new_year_veg, time_in_years
      &                     , current_int_atm, current_int_veg
 
-      use comemic_mod, only: pretty_print_exec_time
-
 ! dmr comsurf is needed for the variables:
 ! epss (epsilon, small?)
 ! nld  (n land = number for land in mixed arrays)
@@ -45,6 +43,7 @@
 ! nse  (n sea ice, idem)
       use comsurf_mod, only: noc, nse, nld, epss, fractn, tempsgn
 
+      use atmphys_mod, only: ec_fluxes
 
 #if ( ISM == 2 || ISM == 3 )
 !     dmr FLAG AJOUT GRISLI
@@ -168,19 +167,28 @@
       USE OCEAN2COUPL_COM, only: ec_oc2co
 
 #if ( FROG_EXP > 0)
-      use main_lib_FROG, only: INITIALIZE_VAMP, GET_COUPLING_STEP
-     >                         , STEPFWD_VAMP
+      use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
+     >                         , STEPFWD_FROG, INITIALIZE_FROGVARS
+     >                         , WRITE_FROGRESTART, FEEDBACK_FROG
 
-      use CPL2FROG_mod,    only: INIT_CPL2VAMP, GET_VAMPVARS
-     &                          , DAILY_UPDATE_VAMPVARS 
-     &                          , RESET_VAMPVARS_TIMER
+      use CPL2FROG_mod,    only: INIT_CPL2FROG, GET_FROGVARS
+     &                          , DAILY_UPDATE_FROGVARS
+     &                          , RESET_FROGVARS_TIMER
+     &                          , SET_FROG_FEEDBACK
+
+
+c~       use Carbon,          only: close_carbon_output
 #endif
 
 
       use landmodel_mod, only: ec_la2co, ec_co2la, ec_lbm, ec_lae2co
 c~      >                       , ec_sumfluxland
 
+      use infodisplay_mod, only: write_em, write_im
+      use face, only: styles_samples, colors_samples
 
+      use error0_mod, only: ec_error
+      use ecbilt0_mod, only: ec_update, ec_ecbilt
       implicit none
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
@@ -219,11 +227,13 @@ c~      >                       , ec_sumfluxland
 !       Main code of the program starts here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
 
-      call pretty_print_exec_time("Start Execution")
+      call write_im("Execution started", "EMIC MAIN")
+c~       call styles_samples
+c~       call colors_samples
 
-!$OMP PARALLEL
-      WRITE(*,*) "ECHO OMP ..."
-!$OMP END PARALLEL
+c~ !$OMP PARALLEL
+c~       WRITE(*,*) "ECHO OMP ..."
+c~ !$OMP END PARALLEL
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
 ! dmr   Call of the different components of init => place in a general INIT routine?
@@ -480,12 +490,20 @@ cnb try to call first to have the date t update bathy
 
 
 #if ( FROG_EXP > 0 )
-      well_done = INITIALIZE_VAMP()
-      if (well_done) then
-        WRITE(*,*) "FROG INITIALIZATION COMPLETE"
-      endif
-      well_done = INIT_CPL2VAMP(GET_COUPLING_STEP())
 
+      well_done = INITIALIZE_FROG()
+
+      if (well_done) then
+        call write_im("FROG INITIALIZATION COMPLETE", "EMIC MAIN")
+      endif
+
+      well_done = INIT_CPL2FROG(GET_COUPLING_STEP())
+
+      call DAILY_UPDATE_FROGVARS()
+
+      well_done = INITIALIZE_FROGVARS(GET_FROGVARS())
+
+      call RESET_FROGVARS_TIMER
 #endif
 
 #if ( CLIO_OUT_NEWGEN == 1 )
@@ -498,6 +516,7 @@ cnb try to call first to have the date t update bathy
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
 
 !     *** OCEAN-SEAICE >>
+      call write_im("Finalized init", "EMIC MAIN")
 
 ! dmr  i = the counter of days in the integration
       do i=1,ntotday
@@ -567,7 +586,7 @@ c~ #endif
           if (j.eq.iatm) then ! dmr end of the day !
 
 #if ( FROG_EXP > 0)
-              call DAILY_UPDATE_VAMPVARS()
+              call DAILY_UPDATE_FROGVARS()
 #endif
 
 
@@ -681,9 +700,10 @@ c~ #endif
 #if ( FROG_EXP > 0)
       if (mod(i,days_year360d_i).eq.0) then
         !!!! FROG
-        well_done = STEPFWD_VAMP(GET_VAMPVARS())
+        well_done = STEPFWD_FROG(GET_FROGVARS())
         WRITE(*,*) "CALLED FROG !!!!"
-        call RESET_VAMPVARS_TIMER
+        well_done = SET_FROG_FEEDBACK(FEEDBACK_FROG())
+        call RESET_FROGVARS_TIMER
       endif
 
 #endif
@@ -940,6 +960,15 @@ c~ #endif /* LONG_SED_RUN*/
 #endif
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
+!     Fermeture du fichier 'C_permafrost.txt'
+!-----|--1--------2---------3---------4---------5---------6---------7-|
+
+#if ( FROG_EXP > 0 )
+      well_done = WRITE_FROGRESTART(-1)
+#endif
+
+
+!-----|--1--------2---------3---------4---------5---------6---------7-|
 !     Fermeture de MEDUSA
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
@@ -968,7 +997,7 @@ c~ #endif /* LONG_SED_RUN*/
 !     Finalize the screen printing
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
-      call pretty_print_exec_time("End Execution")
+      call write_im("Execution ended", "EMIC MAIN")
 
 ! --- BdB 05-2019: deallocate array of output years
       deallocate(time_in_years)

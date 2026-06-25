@@ -46,9 +46,11 @@
     module neodymium_mod
        use para0_mod, only:  imax_loc=>imax, jmax_loc=>jmax, kmax_loc=>kmax
        use bloc0_mod, only: ks2, dz, tms, kfs
-       use bloc_mod, only: aire, kfond
+       use bloc_mod, only: aire
+       use loveclim_transfer_mod, only: ZX
+       use declars_mod, only: JX
        use dynami_mod, only: dxc1, dxc2
-       use global_constants_mod, only: dp, str_len
+       use global_constants_mod, only: dp, str_len, ip
        use bloc0_mod, only: fpoc => fPOC_flx_clio !TmolsC.m-2.timestep-1
        use bloc0_mod, only: fcaco3 => fCAL_flx_clio !TmolsC.m-2.timestep-1
        use ncio
@@ -56,18 +58,27 @@
 
        implicit none
 
-       private :: dust_source_calculation
+       !private :: dust_source_calculation
+       public  :: dust_source_calculation
        private :: river_source_calculation
-       private :: benthic_flux_calculation
+       !private :: sediment_flux_calculation
+       public   :: sediment_flux_calculation
+       !private :: boundary_flux_calculation
+       public   :: boundary_flux_calculation
        private :: reversible_scavenging
        private :: downward_flux
        public  :: neodymium_init
        public  :: neodymium_step
        public  :: init_source_netcdf
-       public  :: coeff_init ! private? maybe merge with neodymium_init, check with dmr  
-       
-       
+       public  :: coeff_init ! private? maybe merge with neodymium_init, check with dmr
 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+       integer, parameter :: flag_dust_eNd = 1      ! 0: inactivated, 1:activated
+       integer, parameter :: flag_river_eNd = 1     ! 0: inactivated, 1:activated
+       integer, parameter :: flag_sediment_eNd = 2  ! 0: inactivated, 1:activated, 2: mixed (sediment map substracted by boundary map)
+       integer, parameter :: flag_boundary_eNd = 1  ! 0: inactivated, 1:activated
+       integer, parameter :: flag_particule = 2     ! 0: no particle/reversible scavenging, 1: particles prescribed from NEMO, 2: particles from ocycc (no opal), 3: particles from ocycc + NEMO opal
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
        ! NOTE_avoid_public_variables_if_possible
 
@@ -124,8 +135,8 @@
 ! tva Definitations for the river source component
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-! tva Definition of the input tables for reading the isotopic ratio (eNd) and the Nd concentration of rivers in ppt
-       real(dp), dimension(120,65) :: ir_river, conc_river, ir_river_tmp, conc_river_tmp
+! tva Definition of the input tables for reading the isotopic ratio (eNd) and the Nd concentration of rivers in ppt on the CLIO grid (OLD)
+       real(dp), dimension(120,65) :: ir_river, conc_river, ir_river_tmp, conc_river_tmp     
 ! tva Same as above after longitude transformation (halo point) and unit conversion
        real(dp), dimension(imax_loc,jmax_loc) :: ir_river_transform, conc_river_transform, conc_river_transform_g
 ! tva Converting the river runoff from -kg/m2/day to g/m2/s 
@@ -138,21 +149,24 @@
        real(dp) :: river_source_Nd_tot, area_tot, area2_tot, fwruno_tot, fwruno_area_tot
        
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
-! tva Definitations for the benthic source component
+! tva Definitations for the sediment source component
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 ! tva Definition of the input tables for reading the isotopic ratio (eNd) of the sediment
-       real(dp), dimension(120,65) :: ir_benthic
+       real(dp), dimension(120,65) :: ir_sediment
+       real(dp), dimension(120,65) :: seafloor_without_marge_mask
 ! tva Same as above after longitude transformation (halo point) and unit conversion
-       real(dp), dimension(imax_loc,jmax_loc) :: ir_benthic_transform
-! tva Definition of the Nd sediment global flux in g/yr (TMP for the implementation: Sediment flux from 3.0*10+9 g/yr (best sim Robinson et al. 2022) to g/s)
+       real(dp), dimension(imax_loc,jmax_loc) :: ir_sediment_transform
+       real(dp), dimension(imax_loc,jmax_loc) :: seafloor_without_marge_mask_transform
+       real(dp) ::  seafloor_without_marge_area, seafloor_area
+! tva Definition of the Nd sediment global flux in g/yr (TMP for the implementation: Sediment flux from 3.0*10+9 gram of Nd /yr (best sim Robinson et al. 2022) to g/s)
+! tva IN CASE OF FULL SEDIMENT SOURCE
 ! 2be put later in a namelist or whatever for tuning and/or space phase parameterization!!!!!!!!!
-       !real(dp), parameter :: benthic_source_Nd_global = 3000000000/(86400*365.25) 
-       real(dp), parameter :: benthic_source_Nd_global = 95.06426344208685 ! 3000000000/(86400*365.25) = g/s
+       real(dp), parameter :: sediment_source_Nd_global = 3e9!Flux in g per year
 ! tva Definition of the Nd sediment field tables
-       real(dp), dimension(imax_loc,jmax_loc) :: benthic_source_Nd, benthic_source_144Nd, benthic_source_143Nd
+       real(dp), dimension(imax_loc,jmax_loc) :: sediment_source_Nd, sediment_source_144Nd, sediment_source_143Nd
 !DIAG
-       real(dp) :: benthic_source_Nd_tot, seabed_surf_check
+       real(dp) :: sediment_source_Nd_tot
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
 ! tva Definitations for reversible scavenging component
@@ -177,9 +191,31 @@
 
 ! tva Definition of the vertical sinking of particle in m/s from 1000 m/yr
        real(dp), parameter :: ws=0.0000321502 !1000/(86400*360)
-       
-      contains
+! tva intermediate variable for the Nd removal       
+       real(dp), dimension(imax_loc,jmax_loc,nb_trac) :: z_bottom_store 
 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
+! tva Definitations for the boundary source component
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       real(dp), dimension(120,65,20) :: marge, conc_boundary, eps_boundary
+       real(dp), dimension(imax_loc,jmax_loc,kmax_loc) :: marge_transform, conc_boundary_transform, eps_boundary_transform
+! tva Definition of the sediment boundary source in g/s (Not sure if in gNd/s)
+       real(dp), parameter :: sediment_boundary = 350
+! tva Definition of the coefficient pour exprimer le dlux en g/m2/s (depend de la grille)
+       real(dp), parameter :: coeff_boundary = 17.0922 !80.2546 !17.0922 for NEMO
+       real(dp) :: denitide, expide
+       real(dp), dimension(imax_loc,jmax_loc,kmax_loc) :: bathy, boundary_source_Nd, boundary_source_144Nd, boundary_source_143Nd
+       real(dp) :: boundary_source_Nd_tot
+
+
+        !dmr&tva --- To write the output text file
+        integer(ip) :: eNdinv_id
+        !dmr&tva --- To write the output text file
+
+
+
+      contains
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
 ! INIT PART
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -191,7 +227,11 @@
         real(dp), dimension(:,:,:,:), intent(out) :: tracer_CLIO
         neodymium(:,:,:,:) = 0._dp
         tracer_CLIO(:,:,:,:) = neodymium(:,:,:,:)
-        !write(*,*) "Nd init fond", neodymium(:,:,kfond,nd144)
+
+
+        open(newunit=eNdinv_id,file='outputdata/carbon/eNd_inventory.txt',form='formatted')
+
+
       end subroutine neodymium_init
       
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
@@ -199,11 +239,11 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       subroutine init_source_netcdf
-      integer :: i,j
-      CHARACTER(len=200) :: filin1, filin2
-      CHARACTER(len=200) :: filin3, filin4
-      CHARACTER(len=200) :: filin6
-      CHARACTER(len=200) :: filin7
+      integer :: i,j,k
+      CHARACTER*200 :: filin1, filin2
+      CHARACTER*200 :: filin3, filin4, filin5
+      CHARACTER*200 :: filin6, filin65, filin66, filin67
+      CHARACTER*200 :: filin7
       
 !DUST
 
@@ -220,14 +260,22 @@
        dust_flux_transform (2:121,:)= dust_flux(1:120,:)
        dust_flux_transform (1,:)=dust_flux(120,:)
        dust_flux_transform (122,:)=dust_flux(1,:)
+
+       !quick check of crazy values
+       write(*,*) "min max ir_dust_transform", minval(ir_dust_transform), maxval(ir_dust_transform)
+       write(*,*) "min max ir_dust_transform", minval(dust_flux_transform), maxval(dust_flux_transform)
        
-!RIVERS
-      
+!!RIVERS
+       ! on CLIO
        filin3="inputdata/neodymium/River_eNd_regridded_on_CLIO_remapnn.nc"
+       !filin3="inputdata/neodymium/out-testCLIO3-eps_rivieres-surf.nc"
        call nc_read(filin3,"river_end", ir_river)
+       !call nc_read(filin3,"eps_rivieres", ir_river)
 
        filin4="inputdata/neodymium/River_Nd_ppt_regridded_on_CLIO_remapnn.nc"
+       !filin4="inputdata/neodymium/out-testCLIO3-conc_rivieres-surf.nc"
        call nc_read(filin4,"river_nd_ppt", conc_river)
+       !call nc_read(filin4,"conc_rivieres", conc_river)
        
        !filin5="inputdata/neodymium/CLIO3_NewGen_fwruno.nc"
        !call nc_read(filin5,"fwruno", fwruno)       
@@ -241,7 +289,6 @@
               ir_river_tmp(i,j) = ir_river(i,j)
               conc_river_tmp(i,j) = conc_river(i,j)
             end if
-!            write(*,*) conc_river(i,j), conc_river_tmp(i,j)
           end do
        end do
        
@@ -252,17 +299,101 @@
        conc_river_transform (2:121,:)= conc_river_tmp(1:120,:)
        conc_river_transform (1,:)=conc_river_tmp(120,:)
        conc_river_transform (122,:)=conc_river_tmp(1,:)  
+
+       !quick check of crazy values
+       write(*,*) "min max ir_river_transform", minval(ir_river_transform), maxval(ir_river_transform)
+       write(*,*) "min max conc_river_transform", minval(conc_river_transform), maxval(conc_river_transform)
+
        
-!BENTHIC FLUX
+
+!SEDIMENT FLUX
       
-       filin6="inputdata/neodymium/globalSedimentEpsilon_regridded_on_CLIO_remapnn.nc"
-       call nc_read(filin6,"globalsedimentepsilonnd", ir_benthic)
+       if (flag_sediment_eNd == 1) then
+              filin6="inputdata/neodymium/globalSedimentEpsilon_regridded_on_CLIO_remapnn.nc"
+              call nc_read(filin6,"globalsedimentepsilonnd", ir_sediment)
+       endif 
 
-       ir_benthic_transform(2:121,:)= ir_benthic(1:120,:)
-       ir_benthic_transform(1,:)=ir_benthic(120,:)
-       ir_benthic_transform(122,:)=ir_benthic(1,:)     
+       if (flag_sediment_eNd == 2) then
+              filin6="inputdata/neodymium/globalSedimentEpsilon_margemasked.nc"
+              call nc_read(filin6,"seafloornd_without_margins", ir_sediment)
+              call nc_read(filin6,"seafloornd_mask", seafloor_without_marge_mask)
 
-!READ PARTICLE CONC FIELD IN CASE OF PARTICLE PRESCRIPTION
+              seafloor_without_marge_mask_transform(2:121,:)= seafloor_without_marge_mask(1:120,:)
+              seafloor_without_marge_mask_transform(1,:)=seafloor_without_marge_mask(120,:)
+              seafloor_without_marge_mask_transform(122,:)=seafloor_without_marge_mask(1,:)  
+       endif 
+
+       ir_sediment_transform(2:121,:)= ir_sediment(1:120,:)
+       ir_sediment_transform(1,:)=ir_sediment(120,:)
+       ir_sediment_transform(122,:)=ir_sediment(1,:)  
+       
+       !quick check of crazy values
+       write(*,*) "min max ir_sediment_transform 1", minval(ir_sediment_transform), maxval(ir_sediment_transform)
+       ! write(*,*) "min max seafloor_without_marge_mask_transform 1", minval(seafloor_without_marge_mask_transform), maxval(seafloor_without_marge_mask_transform)
+       
+       !quick fix
+       where (ir_sediment_transform > 1000._dp)
+              ir_sediment_transform = 0._dp
+       end where
+
+       where (seafloor_without_marge_mask_transform > 1000._dp)
+              seafloor_without_marge_mask_transform = 0._dp
+       end where
+
+       write(*,*) "min max ir_sediment_transform 2", minval(ir_sediment_transform), maxval(ir_sediment_transform)
+       ! write(*,*) "min max seafloor_without_marge_mask_transform 2", minval(seafloor_without_marge_mask_transform), maxval(seafloor_without_marge_mask_transform)
+
+
+!BOUNDARY CONTINENTAL MARGIN
+       filin65="inputdata/neodymium/marge_clio.nc"
+       call nc_read(filin65,"marge", marge)
+
+       marge_transform(2:121,:,:)= marge(1:120,:,:)
+       marge_transform(1,:,:)=marge(120,:,:)
+       marge_transform(122,:,:)=marge(1,:,:)
+       
+       filin66="inputdata/neodymium/marge_clio_Nd_epsNd.nc"
+       call nc_read(filin66,"Ndconcmarge", conc_boundary)
+
+       conc_boundary_transform(2:121,:,:)= conc_boundary(1:120,:,:)
+       conc_boundary_transform(1,:,:)=conc_boundary(120,:,:)
+       conc_boundary_transform(122,:,:)=conc_boundary(1,:,:)
+       
+       filin67="inputdata/neodymium/marge_clio_Nd_epsNd.nc"
+       call nc_read(filin67,"epsNdmarge", eps_boundary)
+
+       eps_boundary_transform(2:121,:,:)= eps_boundary(1:120,:,:)
+       eps_boundary_transform(1,:,:)=eps_boundary(120,:,:)
+       eps_boundary_transform(122,:,:)=eps_boundary(1,:,:)
+
+       do i = 1, imax_loc
+              do j = 1, jmax_loc
+                  do k = 1, kmax_loc
+                      if (isnan(conc_boundary_transform(i, j, k))) then
+                            conc_boundary_transform(i, j, k) = 0.0
+                      end if
+                  end do
+              end do
+       end do
+       
+       !quick check of crazy values
+       write(*,*) "min max marge 1", minval(marge_transform), maxval(marge_transform)
+       write(*,*) "min max conc_boundary_transform 1", minval(conc_boundary_transform), maxval(conc_boundary_transform)
+       write(*,*) "min max eps_boundary_transform", minval(eps_boundary_transform), maxval(eps_boundary_transform)
+
+       !quick fix
+       where (conc_boundary_transform < 0._dp)
+              conc_boundary_transform = 0._dp
+       end where
+
+       where (marge_transform > 1000._dp)
+              marge_transform = 0._dp
+       end where
+
+       write(*,*) "min max marge 2", minval(marge_transform), maxval(marge_transform)
+       write(*,*) "min max conc_boundary_transform 2", minval(conc_boundary_transform), maxval(conc_boundary_transform)
+
+!READ AND CONVERT PARTICLE CONC FIELD IN CASE OF PARTICLE PRESCRIPTION
 
        filin7="inputdata/path/Part_conc_NEMO_onCLIO.nc"
         
@@ -283,9 +414,25 @@
        particles_prescribed(122,:,:,ncaco3)=CaCO3_conc_field(1,:,:)
        
        ! from mmol/m3 to g/g
-       particles_prescribed_g_g(:,:,:,nopal) = ((((particles_prescribed(:,:,:,nopal))/1000)*28)/1025000)*tms
-       particles_prescribed_g_g(:,:,:,npoc) = ((((particles_prescribed(:,:,:,npoc))/1000)*12)/1025000)*tms
-       particles_prescribed_g_g(:,:,:,ncaco3) = ((((particles_prescribed(:,:,:,ncaco3))/1000)*100.09)/1025000)*tms
+       particles_prescribed_g_g(:,:,:,nopal) = ((((particles_prescribed(:,:,:,nopal))/1000)*60)/1025000)*tms
+       particles_prescribed_g_g(:,:,:,npoc) = ((((particles_prescribed(:,:,:,npoc))/1000)*32.7)/1025000)*tms
+       particles_prescribed_g_g(:,:,:,ncaco3) = ((((particles_prescribed(:,:,:,ncaco3))/1000)*100)/1025000)*tms
+ 
+       if (flag_particule == 1) then
+              poc = particles_prescribed_g_g(:,:,:,npoc)
+              caco3 = particles_prescribed_g_g(:,:,:,ncaco3)
+              opal = particles_prescribed_g_g(:,:,:,nopal)
+
+              WRITE(*,*)'min max poc', minval(poc), maxval(poc)
+              WRITE(*,*)'min max caco3', minval(caco3), maxval(caco3)
+              WRITE(*,*)'min max opal', minval(opal), maxval(opal)
+
+       end if
+
+       if (flag_particule == 3) then
+              opal = particles_prescribed_g_g(:,:,:,nopal)
+              WRITE(*,*)'min max opal', minval(opal), maxval(opal)
+       end if       
        
       end subroutine init_source_netcdf
       
@@ -296,7 +443,7 @@
       subroutine coeff_init
 !          conversion factor partition coefficient: micro_mol/l-->g/l (water density)
 !          ----------------------------------------------------------------------------
-      integer :: i,j,k
+      integer :: i,j,k,n
       Zwater = 1000
       Zcaco3 = 40. + 12. + 3.*16.
       Zpoc   = 32.7
@@ -304,7 +451,8 @@
       Zdsi  = 28. + 2.* 16.
       !Zlitho = Zcaco3
 
-      ! The following k values need 2be put later in a namelist or whatever for tuning and/or space phase parameterization!!!!!!!!!      
+      ! The following k values need 2be put later in a namelist or whatever for tuning and/or space phase parameterization!!!!!!!!!
+            
       kpoc_143Nd = 1.4e+7
       kpoc_144Nd = 1.4e+7
       !kgoc_143Nd = 5.2e+4
@@ -320,29 +468,35 @@
        do k=1,kmax_loc
         do j=1,jmax_loc
            do i=1,imax_loc
-            kpoc(i,j,k,nd143) = 457800! kpoc_143Nd * Zpoc / Zwater
-            kpoc(i,j,k,nd144) = 457800! kpoc_144Nd * Zpoc / Zwater
+            !kpoc(i,j,k,nd143) = 457800 * 6! kpoc_143Nd * Zpoc / Zwater
+            !kpoc(i,j,k,nd144) = 457800* 6! kpoc_144Nd * Zpoc / Zwater
+            kpoc(i,j,k,nd143) = kpoc_143Nd * Zpoc / Zwater
+            kpoc(i,j,k,nd144) = kpoc_144Nd * Zpoc / Zwater
             !kgoc (ji,jj,jk,1) = kgoc_143 * Zgoc / Zwater
             !kgoc (ji,jj,jk,2) = kgoc_144 * Zgoc / Zwater            
-            kdsi (i,j,k,nd143) = 2160 !kdsi_143Nd * Zdsi / Zwater
-            kdsi (i,j,k,nd144) = 2160 !kdsi_144Nd * Zdsi / Zwater
-            kcaco3(i,j,k,nd143) = 16000!kcaco3_143Nd * Zcaco3 / Zwater
-            kcaco3(i,j,k,nd144) = 16000!kcaco3_144Nd * Zcaco3 / Zwater
+            !kdsi (i,j,k,nd143) = 2160* 6 !kdsi_143Nd * Zdsi / Zwater
+            !kdsi (i,j,k,nd144) = 2160* 6 !kdsi_144Nd * Zdsi / Zwater
+            !kcaco3(i,j,k,nd143) = 16000* 6!kcaco3_143Nd * Zcaco3 / Zwater
+            !kcaco3(i,j,k,nd144) = 16000* 6!kcaco3_144Nd * Zcaco3 / Zwater
+            kdsi(i,j,k,nd143) = kdsi_143Nd * Zdsi / Zwater
+            kdsi(i,j,k,nd144) = kdsi_144Nd * Zdsi / Zwater
+            kcaco3(i,j,k,nd143) = kcaco3_143Nd * Zcaco3 / Zwater
+            kcaco3(i,j,k,nd144) = kcaco3_144Nd * Zcaco3 / Zwater     
             !klitho (ji,jj,jk,1) = klitho_143 * Zlitho / Zwater
             !klitho (ji,jj,jk,2) = klitho_144 * Zlitho / Zwater
            end do
          end do
        end do
 
-!       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "kpoc", kpoc(0,0,0,0)
-!       write (*,*) "!!!!!!!!!!!!!!!"
-       
-!       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "kcaco3", kcaco3(0,0,0,0)
-!       write (*,*) "!!!!!!!!!!!!!!!"       
+       WRITE(*,*) "kpoc(1,1,1,nd143)", kpoc(1,1,1,nd143)
+       WRITE(*,*) "kpoc(1,1,1,nd143)", kpoc(1,1,1,nd143)   
+       WRITE(*,*) "kdsi(1,1,1,nd143)", kdsi(1,1,1,nd143)
+       WRITE(*,*) "kdsi(1,1,1,nd144)", kdsi(1,1,1,nd144)
+       WRITE(*,*) "kcaco3(1,1,1,nd143)", kcaco3(1,1,1,nd143)
+       WRITE(*,*) "kcaco3(1,1,1,nd144)", kcaco3(1,1,1,nd144)   
                         
       end subroutine coeff_init
+
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
 ! CALCULATION OF EPSND BASED ON [ND143] and [ND144] (used in grid_io_nc.f08)
@@ -367,14 +521,13 @@
        
        dust_flux_transform_g_m2_s = dust_flux_transform*1000 !dust flux from kg/m2/s to g/m2/s
        
-       write(*,*) "dust source calculation"
        dust_source_Nd = dust_flux_transform_g_m2_s*conc_dust*beta_dust
        dust_source_144Nd = 0.238*dust_source_Nd !the abundance of 144Nd is 23.8 per cent of the total Nd
        dust_source_143Nd = ((ir_dust_transform/10000)+1)*dust_source_144Nd*CHUR ! Using the eNd definition to calculate 143Nd from 144Nd (Arsouze et al. 2009)
 
 
 !DIAG
-       dust_source_Nd_tot =0.
+       dust_source_Nd_tot =0._dp
        do i=1,imax_loc
           do j=1,jmax_loc
             dust_source_Nd_tot=dust_source_Nd_tot+dust_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)*tms(i,j,ks2)*86400*360
@@ -396,31 +549,21 @@
       subroutine river_source_calculation      
 #if ( NEOD == 1 )
       use ice_mod, only: fwruno
-      integer :: i,j  
+      integer :: i,j
        
        fwruno_g_m2_s = (-1*fwruno*1000)/86400 ! river runoff from -kg/m2/day to g/m2/s
-       conc_river_transform_g = conc_river_transform*1.0E-9*1.0E-3 ! converting Nd ppt into g/kg (1.0E-9)... and convert g to kg (1.0E-3)
+       conc_river_transform_g = conc_river_transform*1.0E-9*1.0E-3 ! converting Nd ppt into g/kg (1.0E-9)... and convert kg to g (1.0E-3)
 
-       
-       write(*,*) "river source calculation"
-       !write(*,*) "check river source calculation" 
        river_source_Nd =  conc_river_transform_g  * river_remob * fwruno_g_m2_s
-
        river_source_144Nd = 0.238*river_source_Nd !the abundance of 144Nd is 23.8 per cent of the total Nd
-       river_source_143Nd = ((ir_river_transform/10000)+1)*river_source_144Nd*CHUR ! Using the eNd definition to calculate 143Nd from 144Nd (Arsouze et al. 2009) 
- 
-!       write(*,*) "river source 144Nd calculation", MINVAL(MINVAL(river_source_144Nd,dim=1),dim=1), MAXVAL(MAXVAL(river_source_144Nd,dim=1),dim=1)
-       !write(*,*) SUM(SUM(river_source_144Nd,dim=1),dim=1)
-
-!       write(*,*) "river source 143Nd calculation", MINVAL(MINVAL(river_source_143Nd,dim=1),dim=1), MAXVAL(MAXVAL(river_source_143Nd,dim=1),dim=1)
-       !write(*,*) SUM(SUM(river_source_143Nd,dim=1),dim=1)       
+       river_source_143Nd = ((ir_river_transform/10000)+1)*river_source_144Nd*CHUR ! Using the eNd definition to calculate 143Nd from 144Nd (Arsouze et al. 2009)  
 
 !DIAG
-       river_source_Nd_tot =0.
-       area_tot=0.
-       area2_tot=0.
-       fwruno_tot =0.
-       fwruno_area_tot =0.
+       river_source_Nd_tot =0._dp
+       area_tot=0._dp
+       area2_tot=0._dp
+       fwruno_tot =0._dp
+       fwruno_area_tot =0._dp
        do i=1,imax_loc
           do j=1,jmax_loc
             area_tot = area_tot + dxc1(i,j)*dxc2(i,j) ! in m2
@@ -432,10 +575,10 @@
           end do
        end do
        
-       write (*,*) "!!!!!!!!!!!!!!!"
-       !write (*,*) "total freshwater to the ocean", fwruno_area_tot*(-1)*360*0.001*0.000000001, "(km3/yr)"
-       write (*,*) "total freshwater to the ocean", fwruno_area_tot*360*86400*0.000001*0.000000001, "(km3/yr)"
-       write (*,*) "!!!!!!!!!!!!!!!" 
+!       write (*,*) "!!!!!!!!!!!!!!!"
+!       !write (*,*) "total freshwater to the ocean", fwruno_area_tot*(-1)*360*0.001*0.000000001, "(km3/yr)"
+!       write (*,*) "total freshwater to the ocean", fwruno_area_tot*360*86400*0.000001*0.000000001, "(km3/yr)"
+!       write (*,*) "!!!!!!!!!!!!!!!" 
 
        write (*,*) "!!!!!!!!!!!!!!!"
        write (*,*) "total Nd river flux", river_source_Nd_tot*0.000000001, "(10^9)g/yr"
@@ -445,9 +588,9 @@
 !       write (*,*) "surface of the ocean", area_tot, area2_tot
 !       write (*,*) "!!!!!!!!!!!!!!!"      
        
-!       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "total freshwater to the ocean", fwruno_tot, ("-kg/m2/day")
-!       write (*,*) "!!!!!!!!!!!!!!!"         
+       write (*,*) "!!!!!!!!!!!!!!!"
+       write (*,*) "total freshwater to the ocean", fwruno_tot, ("-kg/m2/day")
+       write (*,*) "!!!!!!!!!!!!!!!"         
        
 !       write (*,*) "!!!!!!!!!!!!!!!"
 !       write (*,*) "total freshwater to the ocean", fwruno_area_tot, ("-kg/day")
@@ -461,50 +604,139 @@
       end subroutine river_source_calculation
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
-! BENTHIC SOURCE CALCULATION
+! SEDIMENT SOURCE CALCULATION
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      subroutine benthic_flux_calculation
+      subroutine sediment_flux_calculation
 #if ( NEOD == 1 )
       integer :: i,j    
        
-       write(*,*) "benthic source calculation"
-       !benthic_source_Nd = benthic_source_Nd_global/364012054606928! Sediment flux in g/m2/s by dividing by the surface of seabed (364012054606928. m2 in CLIO)
-       benthic_source_Nd = 2.611569101598581E-13 !95.06426344208685/361383969000000
-       benthic_source_144Nd = 0.238*benthic_source_Nd !the abundance of 144Nd is 23.8 per cent of the total Nd
-       benthic_source_143Nd = ((ir_benthic_transform/10000)+1)*benthic_source_144Nd*CHUR ! Using the eNd definition to calculate 143Nd from 144Nd (Arsouze et al. 2009)
-       
-       !write(*,*) "benthic source Nd global", benthic_source_Nd_global
-       !write(*,*) "benthic source Nd", MINVAL(MINVAL(benthic_source_Nd,dim=1),dim=1), MAXVAL(MAXVAL(benthic_source_Nd,dim=1),dim=1)
-       !write(*,*) "benthic source 144Nd", MINVAL(MINVAL(benthic_source_144Nd,dim=1),dim=1), MAXVAL(MAXVAL(benthic_source_144Nd,dim=1),dim=1)       
-       !write(*,*) "benthic source 143Nd", MINVAL(MINVAL(benthic_source_143Nd,dim=1),dim=1), MAXVAL(MAXVAL(benthic_source_143Nd,dim=1),dim=1)
 
+       if (flag_sediment_eNd == 1 ) then
+              seafloor_area =0._dp
+              do i=1,imax_loc
+                     do j=1,jmax_loc
+                            seafloor_area = seafloor_area + tms(i,j,kfs(i,j))*dxc1(i,j)*dxc2(i,j)
+                     end do
+              end do
+
+              sediment_source_Nd = sediment_source_Nd_global/(86400*365.25)! Sediment flux from g/yr to g/s
+              !WRITE(*,*) "sediment_source_Nd tot", minval(sediment_source_Nd), maxval(sediment_source_Nd)
+              sediment_source_Nd = sediment_source_Nd/seafloor_area! Sediment flux divided by the total surface of seafloor (364012054606928. m2 in CLIO)
+              !WRITE(*,*) "sediment_source_Nd tot", minval(sediment_source_Nd), maxval(sediment_source_Nd)
+       end if 
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       if (flag_sediment_eNd == 2 ) then 
+              seafloor_without_marge_area =0._dp
+              do i=1,imax_loc
+                     do j=1,jmax_loc
+                            seafloor_without_marge_area = seafloor_without_marge_area + tms(i,j,kfs(i,j))& 
+                                    *seafloor_without_marge_mask_transform(i,j)*dxc1(i,j)*dxc2(i,j)
+                     end do
+              end do
+
+              sediment_source_Nd = (sediment_source_Nd_global - boundary_source_Nd_tot)/(86400*360)
+              !WRITE(*,*) "sediment_source_Nd_global", sediment_source_Nd_global
+              !WRITE(*,*) "boundary_source_Nd_tot", boundary_source_Nd_tot
+              !WRITE(*,*) "sediment_source_Nd tot", minval(sediment_source_Nd), maxval(sediment_source_Nd)
+              sediment_source_Nd = sediment_source_Nd/(seafloor_without_marge_area)
+              !WRITE(*,*) "seafloor_area, seafloor_without_marge_area", seafloor_area, seafloor_without_marge_area
+              !WRITE(*,*) "sediment_source_Nd tot", minval(sediment_source_Nd), maxval(sediment_source_Nd)
+       end if 
+
+       sediment_source_144Nd = 0.238*sediment_source_Nd !the abundance of 144Nd is 23.8 per cent of the total Nd
+       sediment_source_143Nd = ((ir_sediment_transform/10000)+1)*sediment_source_144Nd*CHUR ! Using the eNd definition to calculate 143Nd from 144Nd (Arsouze et al. 2009)
 
 !DIAG
-       benthic_source_Nd_tot =0.
-       seabed_surf_check =0.
+       sediment_source_Nd_tot =0._dp
        do i=1,imax_loc
           do j=1,jmax_loc
             !write(*,*) "kfs(i,j)", kfs(i,j)
-            benthic_source_Nd_tot=benthic_source_Nd_tot+benthic_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)*tms(i,j,kfs(i,j))*86400*360
-            !seabed_surf_check = seabed_surf_check + tms(i,j,kfs(i,j))*dxc1(i,j)*dxc2(i,j)
+            if (flag_sediment_eNd == 1 ) then
+              sediment_source_Nd_tot=sediment_source_Nd_tot+sediment_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)*tms(i,j,kfs(i,j))*86400*360
+            end if 
+            if (flag_sediment_eNd == 2 ) then
+              sediment_source_Nd_tot=sediment_source_Nd_tot+sediment_source_Nd(i,j)*dxc1(i,j)*dxc2(i,j)&
+                      *seafloor_without_marge_mask_transform(i,j)*tms(i,j,kfs(i,j))*86400*360
+            end if 
           end do
        end do
 
-       !write (*,*) "!!!!!!!!!!!!!!!"
-       !write (*,*) "seabed surf check", seabed_surf_check
-       !write (*,*) "!!!!!!!!!!!!!!!"
+       !if (flag_sediment_eNd == 1 ) then 
+              !write (*,*) "!!!!!!!!!!!!!!!"
+              !write (*,*) "seabed surf check", seaflorr_area
+              !write (*,*) "!!!!!!!!!!!!!!!"
+       !end if
+
+       !if (flag_sediment_eNd == 2 ) then 
+       !       write (*,*) "!!!!!!!!!!!!!!!"
+       !       write (*,*) "seafloor surf check", seafloor_surf_check
+       !       write (*,*) "!!!!!!!!!!!!!!!"              
+       !end if
 
        write (*,*) "!!!!!!!!!!!!!!!"
-       write (*,*) "total Nd benthic flux", benthic_source_Nd_tot*0.000000001, "(10^9)g/yr"
+       write (*,*) "total Nd sediment flux", sediment_source_Nd_tot*0.000000001, "(10^9)g/yr"
        write (*,*) "!!!!!!!!!!!!!!!"
 
 
 #else
-       benthic_source_144Nd = 0._dp
-       benthic_source_143Nd = 0._dp
+       sediment_source_144Nd = 0._dp
+       sediment_source_143Nd = 0._dp
 #endif
-      end subroutine benthic_flux_calculation
+      end subroutine sediment_flux_calculation
+
+      subroutine boundary_flux_calculation
+#if ( NEOD == 1 )
+      integer :: i,j,k,k_rev
+      integer, parameter :: kmax_plus_one = 21
+      real(dp) :: ZX_flipped(kmax_plus_one)
+      real(dp), dimension(imax_loc,jmax_loc) :: marge_transform_z_sum
+      real(dp), dimension(imax_loc,jmax_loc) :: marge_elsewhere_mask
+      real(dp) :: marge_transform_z_sum_sum, marge_elsewhere_mask_sum
+
+       !SWAP ZX
+       k_rev = 21
+       DO k=1, kmax_plus_one
+              ZX_flipped(k) = ZX(k_rev)
+              k_rev = k_rev - 1
+       END DO
+
+       DO k = 1, kmax_loc
+              DO j = 1, jmax_loc
+                 DO i = 1, imax_loc
+                   expide   = MIN( 8.,( ZX_flipped(k) / 500. )**(-1.5) )
+                   denitide = -0.9543 + 0.7662 * LOG( expide ) - 0.235 * LOG( expide )**2
+                   bathy(i,j,k) = (marge_transform(i,j,k)* tms(i,j,k)) * MIN( 1., EXP( denitide ) / 0.5 )
+                   boundary_source_Nd(i,j,k) = sediment_boundary * coeff_boundary * bathy(i,j,k) * &
+                            conc_boundary_transform(i,j,k) * 1e-6 * tms(i,j,k)/(dxc1(i,j)*dxc2(i,j))
+
+                 END DO
+              END DO
+       END DO   
+
+           boundary_source_144Nd = 0.238*boundary_source_Nd
+           boundary_source_143Nd = ((eps_boundary_transform/10000)+1)*boundary_source_144Nd*CHUR
+
+!DIAG
+           boundary_source_Nd_tot =0.
+
+           do k=1, kmax_loc
+            do i=1,imax_loc
+              do j=1,jmax_loc   
+                boundary_source_Nd_tot=boundary_source_Nd_tot+boundary_source_Nd(i,j,k)*dxc1(i,j)*dxc2(i,j)*tms(i,j,k)*86400*360
+              end do
+            end do
+           end do
+    
+           write (*,*) "!!!!!!!!!!!!!!!"
+           write (*,*) "total Nd boundary flux", boundary_source_Nd_tot*0.000000001, "(10^9)g/yr"
+           write (*,*) "!!!!!!!!!!!!!!!"
+
+#endif
+      end subroutine boundary_flux_calculation
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
 ! REVERSIBLE SCAVENGING
@@ -518,36 +750,27 @@
 #if ( NEOD == 1 )
       integer :: i,j,k,n
       real(dp) :: poc_SUM, caco3_SUM
-      fpoc_g_m2_day = fpoc*12*1E12 ! TmolsC to g: (1 x 10^12 moles/Tmol) * (12.01 grams/mole) --> flux from TmolsC/m2/day to g/m2/s
-      poc_g_m3 = fpoc_g_m2_day/1000  ! To get a concentration in g/m3: division by the settling speed (ws in m/s in ws*360 m/day or 1000/360) 
-      !poc = poc_g_m3 /1025000 !  division by the density of seawater to have g/kg
 
-      fcaco3_g_m2_day = fcaco3*100.09*1E12 ! TmolsC to g: (1 x 10^12 moles/Tmol) * (100.09 grams/mole) --> flux from TmolsC/m2/yr to g/m2/yr
-      caco3_g_m3 = fcaco3_g_m2_day/1000  ! To get a concentration in g/m3: division by the settling speed (ws in m/s in ws*360 m/day or 1000/360)
-      !caco3 = caco3_g_m3 /1025000     !  division by the density of seawater to have g/kg
-      
-      poc = particles_prescribed_g_g(:,:,:,npoc)
-      caco3 = particles_prescribed_g_g(:,:,:,ncaco3)
-      opal = particles_prescribed_g_g(:,:,:,nopal)
 
-       !do i=1,imax_loc       
-       !   do j=1,jmax_loc
-       !      do k=1,kmax_loc   
-       !       write(*,*) "fpoc", fpoc(i,j,k)
-       !       write(*,*) "fpoc_g_m2_day", fpoc_g_m2_day(i,j,k)
-       !       write(*,*) "poc_g_m3", poc_g_m3(i,j,k)
-       !       write(*,*) "poc", poc(i,j,k)      
-       !       write(*,*) "fcaco3", fcaco3(i,j,k)              
-       !       write(*,*) "fcaco3_g_m2_day", fcaco3_g_m2_day(i,j,k)
-       !       write(*,*) "caco3_g_m3", caco3_g_m3(i,j,k)
-       !       write(*,*) "caco3", caco3(i,j,k)                          
-       !       end do
-       !   end do
-       !end do
+
+      if (flag_particule == 2 .or. flag_particule == 3) then
+       !CONVERT PARTICLE CONC FIELD FROM OCYCC PARTICLE FLUX
+       fpoc_g_m2_day = fpoc*12.01*1E12 ! TmolsC to g: (1 x 10^12 moles/Tmol) * (12.01 grams/mole) --> flux from TmolsC/m2/day to g/m2/day
+       poc_g_m3 = fpoc_g_m2_day/2.8  ! To get a concentration in g/m3: division by the settling speed (ws in m/s in ws/360 m/day or 1000/360) 
+       poc = poc_g_m3 /1025000 !  division by the density of seawater to have g/g
+
+       fcaco3_g_m2_day = fcaco3*100.09*1E12 ! TmolsC to g: (1 x 10^12 moles/Tmol) * (100.09 grams/mole) --> flux from TmolsC/m2/yr to g/m2/yr
+       caco3_g_m3 = fcaco3_g_m2_day/2.8  ! To get a concentration in g/m3: division by the settling speed (ws in m/s in ws*360 m/day or 1000/360)
+       caco3 = caco3_g_m3 /1025000     !  division by the density of seawater to have g/g
+
+      end if
 
 
       
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Calculation of [Nd] in the dissolve phase for each isotope and each particle type
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
        do n=1,nb_trac
           do i=1,imax_loc       
              do j=1,jmax_loc
@@ -555,30 +778,24 @@
                    if (neodymium(i,j,k,n)<0) then
                      neodymium(i,j,k,n) = 0._dp
                    endif
-                   !denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)  * kcaco3(i,j,k,n))
-                   denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)  * kcaco3(i,j,k,n) +  opal(i,j,k)  * kdsi(i,j,k,n))
-                   neod_diss(i,j,k,n) = neodymium(i,j,k,n) / denum(i,j,k,n)
 
-                   !if (neod_diss(i,j,k,n)<0) then
-                     !neod_diss(i,j,k,n) = 0._dp
-                    ! write(*,*) neodymium(i,j,k,n), denum(i,j,k,n)
-                   !endif
+                   if (flag_particule == 2) then
+                     denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)*kcaco3(i,j,k,n))
+                   end if
+                   if (flag_particule == 1 .or. flag_particule == 3) then                   
+                     denum(i,j,k,n) = (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)*kcaco3(i,j,k,n)+opal(i,j,k)*kdsi(i,j,k,n))
+                   end if
 
-                   !write(*,*) "1 + K*C",i,j,k, (1. +  poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)  * kcaco3(i,j,k,n))
-                   !write(*,*) "caco3",i,j,k, caco3(i,j,k)
-                   !write(*,*) "poc",i,j,k, poc(i,j,k)
-                   !write(*,*) "kcaco3*caco3", kcaco3(i,j,k,n)*caco3(i,j,k) 
-                   !write(*,*) "kpoc*poc", kpoc(i,j,k,n)*poc(i,j,k) 
-                   !write(*,*) "...",i,j,k, (poc(i,j,k) * kpoc(i,j,k,n) + caco3(i,j,k)  * kcaco3(i,j,k,n))
-                   !write(*,*) "denum",i,j,k, denum(i,j,k,n)
-                   !write(*,*) "NDD, NDT, NDD/NDT",i,j,k, neod_diss(i,j,k,n), neodymium(i,j,k,n), neod_diss(i,j,k,n)/neodymium(i,j,k,n)
-                   !write(*,*) "NDD/NDT",i,j,k, neod_diss(i,j,k,n)/neodymium(i,j,k,n)
+                   neod_diss(i,j,k,n) = (neodymium(i,j,k,n) / denum(i,j,k,n))*tms(i,j,k)
+
                  end do
              end do
           end do
        end do
-       
+        
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Calculation of [Nd] in the particulate phase for each isotope and each particle type
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
        do n=1,nb_trac
           do i=1,imax_loc       
              do j=1,jmax_loc
@@ -586,48 +803,24 @@
                    if (neodymium(i,j,k,n)<0) then
                      neodymium(i,j,k,n) = 0._dp
                    endif
-                   !mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k) * kcaco3(i,j,k,n)))
-                   mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k) * kcaco3(i,j,k,n))+  opal(i,j,k)  * kdsi(i,j,k,n))
-                   neod_part(i,j,k,n) = neod_diss(i,j,k,n) * mult(i,j,k,n) *tms(i,j,k)
 
-                   !if (neod_part(i,j,k,n)<0) then
-                     !neod_diss(i,j,k,n) = 0._dp
-                    ! write(*,*) neodymium(i,j,k,n), mult(i,j,k,n)*tms(i,j,k)
-                   !endif
+                   if (flag_particule == 2) then
+                     mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k) * kcaco3(i,j,k,n)))
+                   end if
+                   if (flag_particule == 1 .or. flag_particule == 3) then    
+                     mult(i,j,k,n) = (poc(i,j,k) * kpoc(i,j,k,n) +  (caco3(i,j,k)*kcaco3(i,j,k,n))+opal(i,j,k)*kdsi(i,j,k,n))
+                   end if
+
+                   neod_part(i,j,k,n) = neod_diss(i,j,k,n) * mult(i,j,k,n) *tms(i,j,k)
 
                  end do
              end do
           end do
        end do
-     
-       
-       !caco3_SUM = 0
-       !poc_SUM = 0
-       !do i=1,imax_loc       
-       !   do j=1,jmax_loc
-       !       k=kmax_loc-7 
-             !do k=1,kmax_loc   
-       !         caco3_SUM = caco3_SUM + fcaco3(i,j,k)*dxc1(i,j)*dxc2(i,j)*tms(i,j,k)
-       !         poc_SUM = poc_SUM + fpoc(i,j,k)*dxc1(i,j)*dxc2(i,j)*tms(i,j,k)
-              !end do
-       !   end do
-       !end do
-
-       !write (*,*) "!!!!!!!!!!!!!!!"
-       !write(*,*) "caco3 MIN MAX", MINVAL(MINVAL(MINVAL(caco3,dim=1),dim=1),dim=1), MAXVAL(MAXVAL(MAXVAL(caco3,dim=1),dim=1),dim=1)
-       !write (*,*) "fcaco3 SUM", caco3_SUM, "Tmol/j"
-       !write (*,*) "!!!!!!!!!!!!!!!"
-
-       !write (*,*) "!!!!!!!!!!!!!!!"
-       !write(*,*) "poc MIN MAX", MINVAL(MINVAL(MINVAL(poc,dim=1),dim=1),dim=1), MAXVAL(MAXVAL(MAXVAL(poc,dim=1),dim=1),dim=1)
-       !write (*,*) "fpoc SUM", poc_SUM, "Tmol/j"
-       !write (*,*) "!!!!!!!!!!!!!!!"
 
 
 #endif                    
 
-!      write(*,*) "POC val", MINVAL(MINVAL(poc,dim=1),dim=1), MAXVAL(MAXVAL(poc,dim=1),dim=1)
-      !write(*,*) "POC surf?", poc(:,:,ks2)
 
       end subroutine reversible_scavenging
       
@@ -639,20 +832,13 @@
       
 #if ( NEOD == 1 )
       integer :: i,j,k,n    
+      z_flux = 0.
        do n=1,nb_trac
           !do k=2,kmax_loc    
           do k=19,1,-1    
              do j=1,jmax_loc
                  do i=1,imax_loc   
                     z_flux(i,j,k,n) = ws * (neod_part(i,j,k+1,n))*tms(i,j,k+1) ! g/m3 * m/s --> g/m2/s
-                    !write(*,*) "diss, part, diss+part, ws, z_flux"
-                    !write(*,*) neod_diss(i,j,k,n), neod_part(i,j,k,n), (neod_diss(i,j,k,n) + neod_part(i,j,k,n)), ws, z_flux(i,j,k,n)
-                    !write(*,*) "z_flux",i,j,k, z_flux(i,j,k,n), "(g/m2/s)"
-                    !write(*,*) neod_diss(i,j,k,n), neod_part(i,j,k,n),  z_flux(i,j,k,n)
-                    !if (z_flux(i,j,k,n)< 0) then
-                    !if (z_flux(i,j,k,n)>1E-10) then
-                    ! write(*,*) i, j, k, n, neod_part(i,j,k+1,n),  z_flux(i,j,k,n)
-                    !end if
                  end do
              end do
           end do
@@ -660,55 +846,38 @@
        
       do n=1,nb_trac
           !do k=1,kmax_loc
-          do k=20,1,-1              
+          do k=20,2,-1              
              do j=1,jmax_loc
                  do i=1,imax_loc   
                     z_neod(i,j,k,n) = ((z_flux(i,j,k,n) - z_flux(i,j,k-1,n)) /dz(k))*tms(i,j,k) ! g/m2/s --> g/m3/s
-                    !if (z_neod(i,j,k,n)>1E-10) then
-                    ! write(*,*) z_neod(i,j,k,n), z_flux(i,j,k,n), z_flux(i,j,k+1,n)
-                    !endif
-                    !write(*,*) "terme1-terme2, dz",i,j,k, (z_flux(i,j,k,n) - z_flux(i,j,k+1,n)), dz(k)
-                    !write(*,*) "...",i,j,k, (z_flux(i,j,k,n) - z_flux(i,j,k+1,n)) /dz(k)
-                    !write(*,*) "z_neod",i,j,k, z_neod(i,j,k,n), "(g/m3/s)"
-                    !write(*,*) "terme1, terme2, sous, dz, zneod"
-                    !write(*,*) z_flux(i,j,k,n), z_flux(i,j,k+1,n), (z_flux(i,j,k,n) - z_flux(i,j,k+1,n)), dz(k), z_neod(i,j,k,n)
-                    !write(*,*) "zneod",i,j,k, z_neod(i,j,k,n), "(g/m3/s)"
-                    !if (z_neod(i,j,k,n)>1E-10) then
-                    ! write (*,*) "!!!!!!!!!!!!!!!"
-                    ! write(*,*) i, j, k, n, z_flux(i,j,k,n), z_flux(i,j,k+1,n), (z_flux(i,j,k,n) - z_flux(i,j,k-1,n)), dz(k), ((z_flux(i,j,k,n) - z_flux(i,j,k-1,n)) /dz(k))*tms(i,j,k)
-                    ! write (*,*) "!!!!!!!!!!!!!!!"
-                    !end if
-                    !write (*,*) z_neod(i,j,k,144)
-                    !write (*,*) z_neod(i,j,k,144)*tms(i,j,k)
-                    !write (*,*) z_neod(i,j,k,144)*tms(i,j,k)*86400
-                    !write (*,*) "!!!!!!!!!!!!!!!"
-                    !write(*,*) (z_flux(i,j,k,n) - z_flux(i,j,k+1,n)) /dz(k)
-                    !write(*,*) z_neod(i,j,k,n)
-                    !write (*,*) "!!!!!!!!!!!!!!!"
               end do
              end do
           end do
        end do
        
-       z_neod_SUM = 0.
-       !z_flux_source=0.
-       !z_flux_sumZ=0.
-       do k=1,kmax_loc       
+       do n=1,nb_trac        
               do j=1,jmax_loc
                      do i=1,imax_loc   
-                        !z_flux_source= z_flux_source+ z_flux*dxc1(i,j)*dxc2(i,j)*tms(i,j,ks2)*86400*360
-                         !write (*,*) "z_neod(i,j,k,nd144)", z_neod(i,j,k,nd144)  
-                         !z_neod_SUM = z_neod_SUM + z_neod(i,j,k,nd144)     
-                        z_neod_SUM = z_neod_SUM + ((z_neod(i,j,k,nd144)/0.238))*tms(i,j,k)*dxc1(i,j)*dxc2(i,j)*86400
-                        !write(*,*) "z_neod(i,j,k,nd144)", z_neod(i,j,k,nd144)
-                        !write(*,*) "z_neod_SUM", z_neod_SUM
+                        z_neod(i,j,1,n) = ((z_flux(i,j,1,n)) /dz(1))*tms(i,j,1) ! g/m2/s --> g/m3/s
+                        z_bottom_store(i,j,n) = z_neod(i,j,1,n)
+                        z_neod(i,j,1,n) = 0
                      end do
               end do
+        end do
+        
+
+       z_neod_SUM = 0._dp
+    
+       do j=1,jmax_loc
+              do i=1,imax_loc   
+                     z_neod_SUM = z_neod_SUM + ((z_bottom_store(i,j,nd144)/0.238))*tms(i,j,1)*dxc1(i,j)*dxc2(i,j)*86400
+              end do
        end do
+
        
-       !write (*,*) "!!!!!!!!!!!!!!!"
-       !write(*,*) "z_neod_SUM per model time step", z_neod_SUM
-       !write (*,*) "!!!!!!!!!!!!!!!"
+       write (*,*) "!!!!!!!!!!!!!!!"
+       write(*,*) "z_neod_SUM per model time step", z_neod_SUM
+       write (*,*) "!!!!!!!!!!!!!!!"
        
 
 #endif
@@ -719,32 +888,70 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       subroutine neodymium_step
+
+         !dmr&tva --- To write the output text file
+         !dmr&tva --- [NOTA] not clean to add things from an atmospheric module into the ocean part !!!
+         use comemic_mod, only: iyear, day, iatm
+         use comatm, only: dt
+         !dmr&tva --- To write the output text file
+
+
          integer :: i,j,k,n
-         call dust_source_calculation
-         call river_source_calculation
-         
-         write(*,*) "assignation to the tracer variable"
-         write(*,*) "surface fluxes"
-         
-         neodymium(:,:,ks2,nd143) = neodymium(:,:,ks2,nd143) + ((dust_source_143Nd + river_source_143Nd)/dz(ks2))*tms(:,:,ks2)*86400
-         neodymium(:,:,ks2,nd144) = neodymium(:,:,ks2,nd144) + ((dust_source_144Nd + river_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
 
-         call benthic_flux_calculation
-         write(*,*) "Benthic flux"
+         if (flag_sediment_eNd == 1 .and. flag_boundary_eNd == 1) then
+            print *, "FROM NEODYMIUM_MOD:"
+            print *, "YOU CANNOT HAVE THE BOUNDARY SOURCE ALONG WITH THE FULL SEDIMENT SOURCE!!!"
+            stop
+         end if
 
-         do i=1,imax_loc
-              do j=1,jmax_loc
-               neodymium(i,j,kfs(i,j),nd143) = neodymium(i,j,kfs(i,j),nd143) + (benthic_source_143Nd(i,j)/dz(kfs(i,j))) &
-                                              *tms(i,j,kfs(i,j))*86400
-               neodymium(i,j,kfs(i,j),nd144) = neodymium(i,j,kfs(i,j),nd144) + (benthic_source_144Nd(i,j)/dz(kfs(i,j))) &
-                                              *tms(i,j,kfs(i,j))*86400
-              end do
-         end do   
-         
-         write(*,*) "application of the reversible scavenging"
+         if (flag_dust_eNd == 1 .and. flag_river_eNd == 0) then
+              !call dust_source_calculation -> called in ini
+              neodymium(:,:,ks2,nd143) = neodymium(:,:,ks2,nd143) + ((dust_source_143Nd)/dz(ks2))*tms(:,:,ks2)*86400
+              neodymium(:,:,ks2,nd144) = neodymium(:,:,ks2,nd144) + ((dust_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
+         end if
+
+         if (flag_dust_eNd == 0 .and. flag_river_eNd == 1) then
+              call river_source_calculation
+              neodymium(:,:,ks2,nd143) = neodymium(:,:,ks2,nd143) + ((river_source_143Nd)/dz(ks2))*tms(:,:,ks2)*86400
+              neodymium(:,:,ks2,nd144) = neodymium(:,:,ks2,nd144) + ((river_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
+         end if        
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+         if (flag_dust_eNd == 1 .and. flag_river_eNd == 1) then 
+              !call dust_source_calculation -> called in ini
+              call river_source_calculation
+              neodymium(:,:,ks2,nd143)=neodymium(:,:,ks2,nd143)+((dust_source_143Nd+river_source_143Nd)/dz(ks2))*tms(:,:,ks2)*86400
+              neodymium(:,:,ks2,nd144)=neodymium(:,:,ks2,nd144)+((dust_source_144Nd+river_source_144Nd)/dz(ks2))*tms(:,:,ks2)*86400 
+         end if
+
+         if (flag_boundary_eNd == 1) then 
+              !call boundary_flux_calculation -> called in ini
+              do i=1,imax_loc
+                     do j=1,jmax_loc
+                            do k = 1, kmax_loc
+                            neodymium(i,j,k,nd143)=neodymium(i,j,k,nd143)+(boundary_source_143Nd(i,j,k)/dz(k))*tms(i,j,k)*86400
+                            neodymium(i,j,k,nd144)=neodymium(i,j,k,nd144)+(boundary_source_144Nd(i,j,k)/dz(k))*tms(i,j,k)*86400 
+                            end do
+                     end do
+              end do   
+         end if
+
+         if (flag_sediment_eNd == 1 .or. flag_sediment_eNd == 2) then 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+              !call sediment_flux_calculation -> called in ini
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+              do i=1,imax_loc
+                     do j=1,jmax_loc
+                            neodymium(i,j,kfs(i,j),nd143) = neodymium(i,j,kfs(i,j),nd143) & 
+                                    + (sediment_source_143Nd(i,j)/dz(kfs(i,j)))*tms(i,j,kfs(i,j))*86400
+                            neodymium(i,j,kfs(i,j),nd144) = neodymium(i,j,kfs(i,j),nd144) &
+                                    + (sediment_source_144Nd(i,j)/dz(kfs(i,j)))*tms(i,j,kfs(i,j))*86400       
+                     end do
+              end do   
+         end if
+        
          call reversible_scavenging
          
-         write(*,*) "calculation of the zflux"
          call downward_flux
          neodymium(:,:,:,nd143)= neodymium(:,:,:,nd143) + z_neod(:,:,:,nd143)*tms(:,:,:)*86400
          neodymium(:,:,:,nd144)= neodymium(:,:,:,nd144) + z_neod(:,:,:,nd144)*tms(:,:,:)*86400
@@ -755,8 +962,7 @@
           do k=1,kmax_loc
               do i=1,imax_loc       
                 do j=1,jmax_loc
-                  if (neodymium(i,j,k,n) < 0) then
-                  !write (*,*) neodymium(i,j,k,nd143)
+                  if (neodymium(i,j,k,n) < 0._dp) then
                      neodymium(i,j,k,n) = 0._dp
                   endif 
                 end do
@@ -765,9 +971,9 @@
          end do   
 
 
-         Nd_inventory =0.
-         Nddiss_inventory =0.
-         Ndpart_inventory =0.
+         Nd_inventory =0._dp
+         Nddiss_inventory =0._dp
+         Ndpart_inventory =0._dp
          do k=1,kmax_loc
            do i=1,imax_loc       
              do j=1,jmax_loc
@@ -778,30 +984,45 @@
           end do
         end do               
         
-       write (*,*) "!!!!!!!!!!!!!!!"
-       write (*,*) "TOTAL Nd inventory", Nd_inventory*0.000000000001, "Tg"
-       write (*,*) "TOTAL Nd inventory", Nd_inventory*0.000000001, "Gg"
-       write (*,*) "!!!!!!!!!!!!!!!"
 
-       write (*,*) "!!!!!!!!!!!!!!!"
-       write (*,*) "DISS Nd inventory", Nddiss_inventory*0.000000000001, "Tg"
-       write (*,*) "DISS Nd inventory", Nddiss_inventory*0.000000001, "Gg"
-       write (*,*) "!!!!!!!!!!!!!!!"      
-       
-       write (*,*) "!!!!!!!!!!!!!!!"
-       write (*,*) "PART Nd inventory", Ndpart_inventory*0.000000000001, "Tg"
-       write (*,*) "PART Nd inventory", Ndpart_inventory*0.000000001, "Gg"
-       write (*,*) "!!!!!!!!!!!!!!!"          
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
+        !dmr&tkv --- To write the output text file
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-
+        write(eNdinv_id,110) iyear,int((day+0.5*dt)/(iatm*dt))+1,Nd_inventory, Nddiss_inventory, Ndpart_inventory, z_neod_SUM &
+                           , river_source_Nd_tot
 
-       write (*,*) "!!!!!!!!!!!!!!!"
-       write (*,*) "Nd removal inventory", z_neod_SUM*0.000000000001, "Tg"
-       write (*,*) "Nd removal inventory", z_neod_SUM*0.000000001, "Gg"
-       write (*,*) "!!!!!!!!!!!!!!!"       
-        
+  110 format(i8,i8,f17.1,f17.1,f17.1,f17.1,f17.1)
+
+        !dmr&tkv --- To write the output text file
+
 !       write (*,*) "!!!!!!!!!!!!!!!"
-!       write (*,*) "TOTAL Nd inventory minus removal", (Nd_inventory-z_neod_SUM)*0.000000000001, "Tg"
-!       write (*,*) "TOTAL Nd inventory minus removal", (Nd_inventory-z_neod_SUM)z_neod_SUM*0.000000001, "Gg"
+!       write (*,*) "TOTAL Nd inventory", Nd_inventory*0.000000000001, "Tg"
+!       write (*,*) "TOTAL Nd inventory", Nd_inventory*0.000000001, "Gg"
+!       write (*,*) "!!!!!!!!!!!!!!!"
+
+!       write (*,*) "!!!!!!!!!!!!!!!"
+!       write (*,*) "DISS Nd inventory", Nddiss_inventory*0.000000000001, "Tg"
+!       write (*,*) "DISS Nd inventory", Nddiss_inventory*0.000000001, "Gg"
+!       write (*,*) "!!!!!!!!!!!!!!!"      
+       
+!       write (*,*) "!!!!!!!!!!!!!!!"
+!       write (*,*) "PART Nd inventory", Ndpart_inventory*0.000000000001, "Tg"
+!       write (*,*) "PART Nd inventory", Ndpart_inventory*0.000000001, "Gg"
+!       write (*,*) "!!!!!!!!!!!!!!!"          
+
+       write (*,*) "!!!!!!!!!!!!!!!"
+       write (*,*) "Ndpart/Nddiss", Ndpart_inventory/Nddiss_inventory
+       write (*,*) "!!!!!!!!!!!!!!!" 
+
+!       write (*,*) "!!!!!!!!!!!!!!!"
+!       write (*,*) "Nd removal inventory", z_neod_SUM*0.000000000001, "Tg"
+!       write (*,*) "Nd removal inventory", z_neod_SUM*0.000000001, "Gg"
 !       write (*,*) "!!!!!!!!!!!!!!!"       
+        
+!       !write (*,*) "!!!!!!!!!!!!!!!"
+!       !write (*,*) "TOTAL Nd inventory minus removal", (Nd_inventory-z_neod_SUM)*0.000000000001, "Tg"
+!       !write (*,*) "TOTAL Nd inventory minus removal", (Nd_inventory-z_neod_SUM)z_neod_SUM*0.000000001, "Gg"
+!       !write (*,*) "!!!!!!!!!!!!!!!"          
 
       end subroutine neodymium_step
 
