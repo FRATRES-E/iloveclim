@@ -115,6 +115,17 @@
 
       integer, parameter :: owatert=5
 
+#elif ( OCYCC == 1 && ISOOCN == 0 && ISOATM == 0 && OOISO == 1 )
+!nb with carbon cycle, water isotopes with oxygen isotopes in ocean
+!     tracers for oxygen isotopes in ocean = 17 or 16
+#if ( ARGON == 1 )
+      integer, parameter :: nsmax = 17
+      integer, parameter :: ioargon = 17
+#else      
+      integer, parameter :: nsmax = 16
+      integer, parameter :: ioargon = -1      
+#endif  
+
 !nb for oxygen isotopes in ocean
       integer, parameter :: isoo2_restart=0 !useful or to be suppressed?
 
