@@ -154,6 +154,10 @@
        use iso_dioxygen_mod,  only : modif_r_ISOO2
 #endif
 
+#if ( ARGON == 1 )
+      use marine_bio_mod, ONLY: OARG, FOAR     
+#endif
+
 
        implicit none
 
@@ -215,6 +219,22 @@
                       fodoc13, fodocs, fodocs13, fono3, foo2,fopo4, fodic, foc13, &
                       oc14, oalk, odoc, odoc13, odocs, odocs13, ono3, opo4, oc13, ONO2=ONO2)
 #endif              
+
+
+#if ( ARGON == 0 )
+               call OCN_BIO_FLUXES(tm, sm, frice, oo2, o2_sat_thistime, &
+                      oxpco2, osco2, oxco2, &
+                      oxhco3, oxco3, odic, foc14, foalk, fodoc, &
+                      fodoc13, fodocs, fodocs13, fono3, foo2,fopo4, fodic, foc13, &
+                      oc14, oalk, odoc, odoc13, odocs, odocs13, ono3, opo4, oc13)
+#else
+               call OCN_BIO_FLUXES(tm, sm, frice, oo2, o2_sat_thistime, &
+                      oxpco2, osco2, oxco2, &
+                      oxhco3, oxco3, odic, foc14, foalk, fodoc, &
+                      fodoc13, fodocs, fodocs13, fono3, foo2,fopo4, fodic, foc13, &
+                      oc14, oalk, odoc, odoc13, odocs, odocs13, ono3, opo4, oc13, &
+                      OARG=OARG, FOAR=FOAR)
+#endif
 
 
 #if ( PATH >= 1 )
