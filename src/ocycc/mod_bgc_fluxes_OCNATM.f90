@@ -45,7 +45,7 @@
       SUBROUTINE OCN_BIO_FLUXES(TM, SM, FRICE, OO2, O2_sat_thistime,                                      &
                          oxpCO2, osCO2, oxCO2, oxHCO3, oxCO3, ODIC, FOC14, FOALK, FODOC, FODOC13, FODOCS, & 
                          FODOCS13, FONO3, FOO2, FOPO4, FODIC, FOC13, OC14, OALK, ODOC, ODOC13, ODOCS,     &
-                         ODOCS13, ONO3, OPO4, OC13, ON2O)
+                         ODOCS13, ONO3, OPO4, OC13, ON2O, OARG, FOAR)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !
 !  By: J. Bendtsen
@@ -112,8 +112,14 @@
       real, dimension(LT, JT, NOC_CBR), intent(inout):: OC13             ! from marine_bio_mod      
       
       ! Used by Compute_oxnitrous_flux SUBROUTINE
-      real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: ON2O                ! from marine_bio_mod     
-      
+      real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: ON2O                ! from marine_bio_mod   
+
+#if ( ARGON == 1)
+      ! Used by Compute_argon_flux SUBROUTINE
+      real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: OARG   ! from marine_bio_mod     
+      real, dimension(LT, NOC_CBR), intent(inout), OPTIONAL:: FOAR       ! from marine_bio_mod    
+#endif
+
 ! dmr --- These are the local variables
       INTEGER(kind=ip) :: iiso
       REAL(kind=dblp), dimension(LT,JT,NOC_CBR) :: ODIC_avt1, ODIC_avt2
@@ -127,6 +133,10 @@
 
 if ( PRESENT(ON2O) ) then
        CALL Compute_oxnitrous_flux( TM, SM, FRICE, ON2O )
+endif
+
+if ( PRESENT(OARG) ) then
+       CALL Compute_argon_flux( TM, SM, FRICE, OARG, FOAR )
 endif
 
        CALL Compute_pcO2_flux(TM, FRICE, oxpCO2, osCO2, oxCO2, oxHCO3, oxCO3,  &
@@ -151,19 +161,16 @@ endif
          
        do iiso=1,NISOO2
          CALL CC_surface_flux(FOO2(:,:,iiso), OO2(:,:,:,iiso), LT,JT,NOC_CBR)
-         !WRITE(*,*) "d18O flux",(OO2(84,1,29,4)/OO2(84,1,29,2)/(2005.2E-6)-1)*1000 
-         !WRITE(*,*) "d17O flux",(OO2(84,1,29,3)/OO2(84,1,29,2)/(379.9E-6_dblp)-1)*1000
-
-         !WRITE(*,*) "D17 flux",1000000.*(LOG(1.+((OO2(84,1,29,3)/OO2(84,1,29,2)/(379.9E-6_dblp)-1)*1000)/1000.) &
-         !                    -0.518*LOG(1.+((OO2(84,1,29,4)/OO2(84,1,29,2)/(2005.2E-6)-1)*1000)/1000.)) 
-
-         !READ(*,*)
        enddo
 
        ODIC_avt2 = ODIC
 
        ! dmr --  Bricolage pour un vrai calcul du pCO2 a partir des flux ocean
        ODIC_diff = ODIC_diff + (ODIC_avt2-ODIC_avt1)
+
+       if ( PRESENT(OARG) ) then
+          CALL CC_surface_flux(FOAR, OARG, LT, JT, NOC_CBR)
+       endif
 
        
       END SUBROUTINE OCN_BIO_FLUXES
@@ -193,13 +200,20 @@ endif
         REAL(kind=dblp), PARAMETER  :: Xconv=1._dblp/3.6e+05 
         REAL(kind=dblp)             :: schmitto2, kg_O2
 
- 
-        schmitto2=1638.0-81.83*tm_cell+1.483*tm_cell**2-0.008004*tm_cell**3 
-        kg_O2=Xconv*0.337*surf_wind**2*(schmitto2/660._dblp)**(-0.5)
+        ! Piston velocity : 0.337 (Wanninkhof, 1992) or 0.251 (Wanninkhof,2014)
+        REAL(kind=dblp), parameter  :: pv = 0.251_dblp
 
-! TEST SIMU - Utiliser dans Nicholson, 2012 : 
-!        schmitto2=1920.4-135.6*tm_cell+5.2122*tm_cell**2-0.10939*tm_cell**3+0.00093777*tm_cell**4
-!        kg_O2=Xconv*0.251*surf_wind**2*(schmitto2/660._dblp)**(-0.5)
+        ! Schmitto2 calculation:
+        ! A) According to keeling et al. :
+        !schmitto2=1638.0-81.83*tm_cell+1.483*tm_cell**2-0.008004*tm_cell**3 
+
+        ! B) According to Wanninkhof 2014  -> A + BT + CT**2 + dT**3 + ET**4
+        schmitto2 = 1920.4_dblp - 135.6_dblp*tm_cell + 5.2122_dblp*tm_cell**2 &
+                   - 0.10939_dblp*tm_cell**3 + 0.00093777_dblp*tm_cell**4 
+
+        ! kg_O2 calculation : Waninkof, 2014 
+        kg_O2=Xconv*pv*surf_wind**2*(schmitto2/660._dblp)**(-0.5)
+
 
 ! [NOTA] drm&ec ---  Other equation version found in OOISO == 0 or OOISO == 1:
 ! The schimdt_O2 calculations below do not significantly change the oxygen (and
@@ -243,10 +257,9 @@ endif
       real(kind=dblp), dimension(LT,JT,NOC_CBR), intent(in) :: TM        ! from loveclim_transfer_mod
       real(kind=dblp), dimension(LT, NOC_CBR), intent(in)   :: FRICE     ! from loveclim_transfer_mod
       real(kind=dblp), dimension(LT, JPROD, NOC_CBR), intent(in) :: O2_sat_thistime ! from O2SAT_mod
-      !real(kind=dblp), dimension(LT, JT, NOC_CBR), intent(in) :: O2_sat_thistime ! from O2SAT_mod
       
       real(kind=dblp), dimension(LT, JT, NOC_CBR, NISOO2), INTENT(inout) :: OO2
-      real, dimension(LT, NOC_CBR, NISOO2), intent(inout) :: FOO2              ! from marine_bio_mod
+      real, dimension(LT, NOC_CBR, NISOO2), intent(inout) :: FOO2        ! from marine_bio_mod
 
 
       ! Local variable
@@ -298,24 +311,15 @@ endif
             kg_times_O2dif(iair+1:NISOO2) = 0.0 
           else           
             kg_times_O2dif(iair+1:NISOO2) = O2_transfer_velocity_iso(temp_loc,O2_factor,O2_sat, OO2(i,1,n,:))
-            !kg_times_O2dif(iair+1:NISOO2) = BRICOLE_O2dif(O2_dif, kg_times_O2dif(iair), OO2(i,1,n,:))
           endif
 #endif
 
           DO iiso=iair,NISOO2
             FOO2(i,n,iiso)=(kg_times_O2dif(iiso)*(1-FRICE(i,n))*SQRO2(i,n))
           ENDDO  
-         
-
-         ! FOO2(i,n,iair:nairiso) = 0.0
-           
+                    
           d18O = (FOO2(i,n,4)/FOO2(i,n,2)/(2005.2E-6)-1)*1000 
-          !WRITE(*,*) "FLux O2 d18O",d18O
           d17O = (FOO2(i,n,3)/FOO2(i,n,2)/(379.9E-6_dblp)-1)*1000
-          !WRITE(*,*) "FLux O2 d17O",d17O
-          !WRITE(*,*) "FLux O2 D17",1000000.*(LOG(1.+d17O/1000.)-0.518*LOG(1.+d18O/1000.))
-          !WRITE(*,*) "FLux ",FOO2(i,n,1),FOO2(i,n,2), FOO2(i,n,3), FOO2(i,n,4) 
-          !READ(*,*)
 
         endif !MGT
          
@@ -323,6 +327,88 @@ endif
       enddo long_lp
       
        END SUBROUTINE Compute_oxy_flux
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+       SUBROUTINE Compute_argon_flux( TM, SM, FRICE, OARG, FOAR)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      This routine is used to apply the Ocean-Atmosphere surface fluxes used for 
+!      Argon when the ARGON FLAG == 1 => Beware, this is used with oxygen model to calculate 
+!      biological O2
+!
+!      Auteur : E.Clermont
+!      Date   : 12 février 2026
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+       use loveclim_transfer_mod, only: MGT, SQRO2, WIND_ERA5
+       use marine_bio_mod, only: JPROD 
+       use loveclim_transfer_mod, only: DVOL
+
+#if ( ARGON == 1 )
+       use argon_mod, only: calcul_Argon_fluxes
+#endif
+
+      IMPLICIT NONE 
+      
+      real(kind=dblp), dimension(LT,JT,NOC_CBR), intent(in) :: TM        ! from loveclim_transfer_mod
+      real(kind=dblp), dimension(LT,JT,NOC_CBR), intent(in) :: SM        ! from loveclim_transfer_mod
+      real(kind=dblp), dimension(LT, NOC_CBR), intent(in)   :: FRICE     ! from loveclim_transfer_mod
+
+#if ( ARGON == 1 )
+      real(kind=dblp), dimension(LT, JT, NOC_CBR), INTENT(inout) :: OARG
+      real, dimension(LT, NOC_CBR), intent(inout)                :: FOAR ! from marine_bio_mod
+#endif
+
+      ! Local variable
+      INTEGER(kind=ip)  :: I,N
+      REAL(kind=dblp)   :: norm_wind, temp_loc, salt_loc, kg_times_Ar
+      REAL(kind=dblp), parameter :: wind=4.7 ! m/s cnb
+       
+
+#define LIMIT_OCEAN_TEMP 0
+
+    long_lp:  do n=1,NOC_CBR   ! dmr&ecl --- Begin SPATIAL loop
+    lati_lp:   do i=1,LT
+
+        if (MGT(i,1,n).eq.1) then !MGT
+
+! dmr&ec --- Different options for wind forcing of molecular oxygen exchange       
+#if ( WINDINCC == 2 )
+          norm_wind = fco2ex !dmr&ec - fco2ex has a strange value of 6.E-5, not coherent with wind at 4.7 m.s-1
+#elif ( WINDINCC == 1 )
+         norm_wind = WS_OC(i,n)
+#else
+         norm_wind = wind
+#endif
+
+! ec --- If we choose the average wind at the ocean surface: we can apply a
+! global wind of 4.7 m/s, or we can apply a wind varying with latitude = ERA5.
+#if ( WINDS_ERA5 == 1 )
+         norm_wind = WIND_ERA5(i,n,days_year360d_i)
+#endif
+
+! dmr&ec --- Different options for temp forcing of molecular oxygen exchange       
+#if ( LIMIT_OCEAN_TEMP == 1 )
+          temp_loc=min(35.,TM(i,1,n))
+          salt_loc=SM(i,1,n)
+#else
+          temp_loc=TM(i,1,n)
+          salt_loc=SM(i,1,n) ! à vérifier cette logique
+#endif
+
+#if ( ARGON == 1 )
+! Compute gas exchange coefficient for Argon from Waninkhof and Keeling equations 
+          CALL calcul_Argon_fluxes(temp_loc, salt_loc, norm_wind, OARG(i,1,n), kg_times_Ar)
+          FOAR(i,n)= ( kg_times_Ar * (1-FRICE(i,n)) * SQRO2(i,n) )           
+#endif 
+
+        endif !MGT
+         
+      enddo lati_lp
+      enddo long_lp
+      
+       END SUBROUTINE Compute_argon_flux
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 
