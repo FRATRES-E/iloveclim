@@ -322,6 +322,12 @@
 #define BRINES 0
 
 !
+! O Argon in the ocean is not activated
+! 1 Argon in the ocean is activated: requires OOISO et OCYCC 
+!
+#define ARGON 0
+
+!
 ! O O2 isotopes in ocean are not activated
 ! 1 O2 isotopes in ocean are activated necessitates ocean carbon cycle and O2 isotopes in atmosphere
 !
