@@ -17,7 +17,7 @@
 
         use ncio, only: nc_read
 
-        character(len=str_len), parameter :: filename_NC="../compil/sources/LFe.nc"
+        character(len=str_len), parameter :: filename_NC="/home/acclimate/eclermont/iloveclim-git/inputs/ocycc/LFe.nc"
 
         real(kind=dblp), dimension(imax,jmax,prof) :: ironLim_CLIO, fixed_iron_CLIO
         integer, parameter  :: imaxm2 = imax-2, imaxm1 = imax-1
