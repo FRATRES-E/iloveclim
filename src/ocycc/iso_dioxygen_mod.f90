@@ -100,6 +100,7 @@
        real(kind=dblp), PUBLIC  :: r18air
        real(kind=dblp), PUBLIC  :: r17air
        real(kind=dblp), dimension(nairiso)  :: rair
+
        ! ecl -- Standard Mean Ocean Water : Standard Ratios
        real(kind=dblp), PUBLIC  :: r18smow
        real(kind=dblp), PUBLIC  :: r17smow
@@ -121,12 +122,12 @@
        PUBLIC :: Ray_respO2, Ray_reminO2
 
       ! ecl - Parameters of fractionation factor during respiration
-      real(kind=dblp), PARAMETER :: alpha18_respiration = 0.980_dblp !0.980_dblp !0.988_dblp
-      real(kind=dblp), PARAMETER :: theta_17 = 0.518_dblp !0.518_dblp !0.520_dblp
+      real(kind=dblp), PARAMETER :: alpha18_respiration = 0.980_dblp !BEST:0.983_dblp
+      real(kind=dblp), PARAMETER :: theta_17 = 0.518_dblp !BEST:0.517_dblp
 
       ! ecl - Parameters of fractionation factor during photosynthesis
-      real(kind=dblp), PARAMETER :: fphoto18 = 1.0_dblp !1.004 !Not defined =1.0
-      real(kind=dblp), PARAMETER :: theta_photo = 1.0_dblp !Not defined = 1.0
+      real(kind=dblp), PARAMETER :: fphoto18 = 1.0_dblp !BEST: 1.00288 
+      real(kind=dblp), PARAMETER :: theta_photo = 1.0_dblp !BEST: 0.52140
 
 #if ( OOISO_SCEN == 1 )
       integer, parameter :: nb_ooiso_scen= 10 !nb of lines with data
@@ -644,7 +645,6 @@
 
 !     DESCRIPTION : Function for gaz transfer velocity * O2_diff (kg_times_O2dif). 
 !     -> Formulation following equations of Wanninkhof (1992),  Najjar & al (2007), Nicholson, 2012 (Eq.7)
-!     -> Avec 18alpha_gek = 0.9972 et pslp = 1.0
 !     -> Avec : pslp was 1013./1013, indeed 1 
 
 !     [NOTA]dmr&ec : This is written assuming that the flux associated can be computed as:
@@ -654,10 +654,12 @@
 !                 if (OO2 < O2_sat) donc flux atm to océan
 
 !     Input variable : - tm_cell: temperature of the cell
+!                      - alpha_eq : equilibrium fractionation -> according to Benson & Krause, 1980 
+!                      - alpha_gek: kinetic fractionation 
 !                      - kg_O2: Gaz transfer velocity (function of wind and Schmidt number)
 !                      - O2_sat: Saturation of oxygen in the surface layer
 !                      - OO2_cell: Isotopes of oxygen in the cell 
-!     Output variable : - kg_times_O2dif: kg_O2 * O2_dif
+!     Output variable : kg_times_O2dif: kg_O2 * O2_dif
 
         REAL(kind=dblp),                     INTENT(in) :: tm_cell, kg_O2, O2_sat
         REAL(kind=dblp), DIMENSION(nairiso), INTENT(in) :: OO2_cell
@@ -668,13 +670,24 @@
         REAL(kind=dblp) ::  Rsum_iso, C_sat18, C_sat17
 
 
+        ! Isotopic fractionation coefficients :
+        ! A) CTRL version
+        !REAL(kind=dblp), PARAMETER :: theta_eq = 0.518d0    ! Nicholson et al., 2012
+        !REAL(kind=dblp), PARAMETER :: alpha_gek18 = 0.9972d0 ! Knox et al., 1992
+        !REAL(kind=dblp), PARAMETER :: theta_gek = 0.518d0    ! Nicholson et al., 2012
+
+        ! B) New: Li et al., 2019 -> effect of isotopic fractionations
+        REAL(kind=dblp), PARAMETER :: theta_eq = 0.528d0     ! Reuer, 2007; Palevsky, 2016
+        REAL(kind=dblp), PARAMETER :: alpha_gek18 = 0.9978d0 ! Li et al., 2019
+        REAL(kind=dblp), PARAMETER :: theta_gek = 0.517d0    ! Li et al., 2019
+
         ! Fractionnement à l'équilibre
         alpha_eq18 = 1+((-0.73+427/(tm_cell+273.15))/1000.)
-        alpha_eq17 = (alpha_eq18**0.518d0)*exp((0.6d0*tm_cell+1.8d0)*1E-6)
+        alpha_eq17 = (alpha_eq18**theta_eq)*exp((0.6d0*tm_cell+1.8d0)*1E-6)
 
         ! Piston velocities
-        kg_18 = kg_O2 * 0.9972d0
-        kg_17 = kg_O2 * (0.9972d0**0.518d0)
+        kg_18 = kg_O2 * alpha_gek18
+        kg_17 = kg_O2 * (alpha_gek18**theta_gek)
 
         ! Saturation
         Rsum_iso = 1.0d0 + r17air + r18air
