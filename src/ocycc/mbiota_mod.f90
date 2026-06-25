@@ -428,6 +428,14 @@ contains
         phyto_prod(im,j,nm) = phyto_prod(im,j,nm) * IRON_LIM(im,j,nm)
 #endif
 
+! eclermont : This theorical test has shown that there is far too much 
+! phytoplankton in the Southern Ocean (INTPP >>>), even with the iron 
+! limitation -> it is necessary to introduce more nutrients, especially iron
+
+!        if ( (im.le.20) ) then !im=7-> 60S, im=17-> 30S, im=20 -> 45S ?
+!           phyto_prod(im,j,nm) = phyto_prod(im,j,nm)/2
+!        endif
+
 
 !REFACTORING: This explanation better had to be elsewhere  (or removed)
                                     ! TIME_STM is length of time step per day (1/10. probably for us ...)
