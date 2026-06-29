@@ -114,11 +114,9 @@
       ! Used by Compute_oxnitrous_flux SUBROUTINE
       real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: ON2O                ! from marine_bio_mod   
 
-#if ( ARGON == 1)
       ! Used by Compute_argon_flux SUBROUTINE
       real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: OARG   ! from marine_bio_mod     
       real, dimension(LT, NOC_CBR), intent(inout), OPTIONAL:: FOAR       ! from marine_bio_mod    
-#endif
 
 ! dmr --- These are the local variables
       INTEGER(kind=ip) :: iiso
@@ -136,7 +134,10 @@ if ( PRESENT(ON2O) ) then
 endif
 
 if ( PRESENT(OARG) ) then
+#if ( ARGON == 1 )
        CALL Compute_argon_flux( TM, SM, FRICE, OARG, FOAR )
+#endif
+      CONTINUE
 endif
 
        CALL Compute_pcO2_flux(TM, FRICE, oxpCO2, osCO2, oxCO2, oxHCO3, oxCO3,  &
@@ -318,8 +319,10 @@ endif
             FOO2(i,n,iiso)=(kg_times_O2dif(iiso)*(1-FRICE(i,n))*SQRO2(i,n))
           ENDDO  
                     
+#if ( OOISO == 1 )
           d18O = (FOO2(i,n,4)/FOO2(i,n,2)/(2005.2E-6)-1)*1000 
           d17O = (FOO2(i,n,3)/FOO2(i,n,2)/(379.9E-6_dblp)-1)*1000
+#endif
 
         endif !MGT
          
@@ -330,6 +333,7 @@ endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 
+#if ( ARGON == 1)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
        SUBROUTINE Compute_argon_flux( TM, SM, FRICE, OARG, FOAR)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -345,9 +349,7 @@ endif
        use marine_bio_mod, only: JPROD 
        use loveclim_transfer_mod, only: DVOL
 
-#if ( ARGON == 1 )
        use argon_mod, only: calcul_Argon_fluxes
-#endif
 
       IMPLICIT NONE 
       
@@ -355,10 +357,8 @@ endif
       real(kind=dblp), dimension(LT,JT,NOC_CBR), intent(in) :: SM        ! from loveclim_transfer_mod
       real(kind=dblp), dimension(LT, NOC_CBR), intent(in)   :: FRICE     ! from loveclim_transfer_mod
 
-#if ( ARGON == 1 )
       real(kind=dblp), dimension(LT, JT, NOC_CBR), INTENT(inout) :: OARG
       real, dimension(LT, NOC_CBR), intent(inout)                :: FOAR ! from marine_bio_mod
-#endif
 
       ! Local variable
       INTEGER(kind=ip)  :: I,N
@@ -397,11 +397,9 @@ endif
           salt_loc=SM(i,1,n) ! à vérifier cette logique
 #endif
 
-#if ( ARGON == 1 )
 ! Compute gas exchange coefficient for Argon from Waninkhof and Keeling equations 
           CALL calcul_Argon_fluxes(temp_loc, salt_loc, norm_wind, OARG(i,1,n), kg_times_Ar)
           FOAR(i,n)= ( kg_times_Ar * (1-FRICE(i,n)) * SQRO2(i,n) )           
-#endif 
 
         endif !MGT
          
@@ -410,7 +408,7 @@ endif
       
        END SUBROUTINE Compute_argon_flux
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
        SUBROUTINE Compute_oxnitrous_flux( TM, SM, FRICE, ON2O )
