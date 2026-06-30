@@ -105,6 +105,9 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: WRITE_FROGRESTART
 #endif
+#if ( CYCC == 2 )
+      use restart_cc_mod, only: restart_cc
+#endif
 
       use newunit_mod, only: newunit_id, wisocpl_restart_id
       use landmodel_mod, only: ec_wrendland

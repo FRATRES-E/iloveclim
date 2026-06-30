@@ -19,7 +19,7 @@
       USE marine_bio_mod, ONLY:OALK_ini, ODOCS_ini, ONO3_ini, OPO4_ini, OSI_ini
       
       USE mbiota_mod, ONLY: PHYTO_M, ZOO_M
-      USE carbone_co2, ONLY: c14rstd
+      USE carbone_co2_mod, ONLY: c14rstd
       USE iso_dioxygen_mod, ONLY: iair
 
 #if ( OOISO == 1 )

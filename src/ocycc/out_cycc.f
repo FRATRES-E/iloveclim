@@ -26,7 +26,7 @@
        use global_constants_mod, only: str_len
        use C_res_mod, only: c13_res_fich, ca13_oc_ini, ca13_la_ini
      >              , dc13at_ini, cav_oc13,cav_la13, c13atm
-       USE veget_iso, ONLY: B4T13, B3T13, B2T13, B1T13, B4G13, B3G13
+       USE veget_mod, ONLY: B4T13, B3T13, B2T13, B1T13, B4G13, B3G13
      >             , B2G13, B1G13
 
        USE loveclim_transfer_mod, only: MGT, DVOL
@@ -39,15 +39,15 @@
      >              , cav_oc14, cav_la14
       USE marine_bio_mod, ONLY: FDIC, OC14, FOC14, FOAC14
       USE mbiota_mod, ONLY: SCALE_M
-      USE veget_iso, ONLY: B4T14, B3T14, B2T14, B1T14, B4G14, B3G14
+      USE veget_mod, ONLY: B4T14, B3T14, B2T14, B1T14, B4G14, B3G14
      >             , B2G14, B1G14
 
 
       USE marine_bio_mod, ONLY: ODIC
-      USE carbone_co2, ONLY: C14ATM, C14RSTD, MPRODC14, LIMC14MASSE
+      USE carbone_co2_mod, ONLY: C14ATM, C14RSTD, MPRODC14, LIMC14MASSE
      & , N14LIM
 #endif
-       USE carbone_co2, ONLY: PA_C, PA0_C
+       USE carbone_co2_mod, ONLY: PA_C, PA0_C
 #if ( IMSK == 1 )
        USE input_icemask
 #endif
@@ -419,8 +419,8 @@ cvm - Ocean c14 reservoir
       WRITE(*,*) "2: ", lc14_tot, cav_la, c14rstd
 
 cvm - Calcul de c14_total : ocean + land 
-      dc14atm = ((c14atm/PA_C)/c14rstd - 1.d0) * 1000.d0          !permil
-      dc14ocn = ((oc14_tot/odic_tot)/c14rstd - 1.d0) * 1000.d0  !permil     
+      if (PA_C.GT.0.0) dc14atm = ((c14atm/PA_C)/c14rstd - 1.d0) *1000.d0           !permil
+      if (odic_tot.GT.0.0) dc14ocn = ((oc14_tot/odic_tot)/c14rstd - 1.d0)*1000.d0  !permil
       !dmr [NOTA] fix for first call when cav_la is 0.0d0 - bad!
       if (cav_la.lt.epsilon(cav_la)) then
           dc14lnd = 0.0d0
@@ -435,7 +435,12 @@ cvm - Calcul de C14 en moles par reservoir
       n14lnd = cav_la14 / 14.d0 
       n14tot = n14atm + n14ocn + n14lnd            
       n12tot = carbone_total * 1.d15 / 12.d0 
-      r14tot = n14tot / n12tot * 1d12     !vm : *1e12  = pour manipuler des valeurs faibles
+      !dmr [NOTA] fix for first call when cav_la is 0.0d0 - bad!
+      if (n12tot.lt.epsilon(n12tot)) then
+        r14tot = 0d0
+      else
+        r14tot = n14tot / n12tot * 1d12     !vm : *1e12  = pour manipuler des valeurs faibles
+      endif
       alpha14 = ( r14tot / c14rstd ) / 1d12
 #endif
 

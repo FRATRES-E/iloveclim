@@ -516,7 +516,7 @@ endif
        use loveclim_transfer_mod, only: ZZ, MGT, SQRO2
        use mod_sync_time, only: KENDY, TSTOC
        use C_res_mod, only: c13atm
-       use carbone_co2, only: C14ATM, C14DEC, PA_C
+       use carbone_co2_mod, only: C14ATM, C14DEC, PA_C
        use carbonate_speciation_mod, only: incche
 
        IMPLICIT NONE 

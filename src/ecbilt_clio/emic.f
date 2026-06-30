@@ -1,4 +1,22 @@
 !     dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:27 CET 2009
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!   Copyright 2026 iLOVECLIM / LUDUS coding group
+
+!   Licensed under the Apache License, Version 2.0 (the "License");
+!   you may not use this file except in compliance with the License.
+!   You may obtain a copy of the License at
+
+!       http://www.apache.org/licenses/LICENSE-2.0
+
+!   Unless required by applicable law or agreed to in writing, software
+!   distributed under the License is distributed on an "AS IS" BASIS,
+!   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+!   See the License for the specific language governing permissions and
+!   limitations under the License.
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
 #include "choixcomposantes.h"
 !     dmr -- Ajout du choix optionnel des composantes - Thu Dec 17 11:57:27 CET 2009
 
@@ -75,11 +93,16 @@
 #endif
 
 #if ( CYCC >= 2 )
-      use carbone_co2, only: PA0_C, PA_C
+      use carbone_co2_mod, only: PA0_C, PA_C
+! dmr&clo --- eco2 is now a module procedure (was an external F77 subroutine).
+!             The dispatcher eco2(kod,...) keeps the historical call signature.
+      use eco2_mod,        only: eco2
 #endif
 
 #if ( KC14 == 1 )
       USE mod_sync_time, ONLY: KENDY ! FLAG for end_of_year is true
+! dmr&clo --- c14atm_dp is now a module procedure (was external F77).
+      use c14_prod_mod,  only: c14atm_dp
 #endif
 #if ( F_PALAEO >= 1 )
       use palaeo_timer_mod, only: reload_topo, palaeo_timer
@@ -189,6 +212,9 @@ c~      >                       , ec_sumfluxland
 
       use error0_mod, only: ec_error
       use ecbilt0_mod, only: ec_update, ec_ecbilt
+
+
+      use veget_mod, only: b1t, st
       implicit none
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8--|
@@ -470,6 +496,7 @@ cnb try to call first to have the date t update bathy
 
 !cnb init of carbon cycle moved here after change of mask and topo
 #if ( CYCC >= 2 )
+      WRITE(*,*) "POOLS CC_LAND ==", sum(b1t), sum(st) 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !     dmr   Initialization of atm. CO2 in in Coupled carbon cycle mode
 !-----|--1--------2---------3---------4---------5---------6---------7-|

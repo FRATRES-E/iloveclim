@@ -1,3 +1,9 @@
+!dmr -- Added optional components choice - Tue Jun 14 15:59:05 CEST 2011
+#include "choixcomposantes.h"
+!dmr -- Added optional components choice - Tue Jun 14 15:59:05 CEST 2011
+
+#if ( WINDS_ERA5 == 1 )
+
       MODULE WINDFORC_CLIOERA5
 
 
@@ -209,3 +215,4 @@
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       END MODULE WINDFORC_CLIOERA5
+#endif
