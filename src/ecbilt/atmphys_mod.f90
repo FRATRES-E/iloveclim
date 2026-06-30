@@ -67,7 +67,7 @@ contains
       USE input_icemask, ONLY: icemask
 #endif
 #if ( CYCC == 2 )
-      USE carbone_co2, only: PA_C
+      USE carbone_co2_mod, only: PA_C
 #endif
 
 #if (WISOATM == 1 )

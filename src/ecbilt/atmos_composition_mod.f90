@@ -150,7 +150,7 @@
 
 #if ( CYCC >= 2 )
         use C_res_mod,   only: c13atm
-        use carbone_co2, only: C14ATM0, c14rstd, new_run_c, PA0_C
+        use carbone_co2_mod, only: C14ATM0, c14rstd, new_run_c, PA0_C
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

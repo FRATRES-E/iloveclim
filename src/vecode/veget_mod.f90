@@ -1,114 +1,145 @@
-!dmr -- Added optional components choice - Tue Jun 14 15:59:05 CEST 2011
 #include "choixcomposantes.h"
-!dmr -- Added optional components choice - Tue Jun 14 15:59:05 CEST 2011
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Ce module est un portage en FORTRAN 90 du module VECODE initial
-!       cree en FORTRAN 77.
-!      (dans l'environnement logiciel LUDUS)
+!      MODULE: veget_mod
 !
-!      Auteur : ??, Didier M. Roche
-!      Date   : ??, 06 juin 2018
-!      Derniere modification : 16 octobre 2019
+!>     @author  ??, Didier M. Roche (dmr), refactoring by <author>
+!
+!>     @brief   Global state for the VECODE terrestrial vegetation model.
+!
+!>     @details After refactoring this module holds exactly two categories of data:
+!>
+!>              (1) Run-control scalars — flags and integer parameters that govern the
+!>                  overall behaviour of the model (initialisation mode, scenario type,
+!>                  output frequencies, …).  These are set once during initialisation and
+!>                  read throughout the run.
+!>
+!>              (2) Grid-level 2-D arrays (nlat x nlon) — required for restart I/O,
+!>                  diagnostic output, and deforestation scenario data.  They are the
+!>                  persistent store from which per-cell scalars are extracted at the
+!>                  start of each physics call and into which updated values are written
+!>                  back afterwards.
+!>
+!>              Physical parameters have been moved to veget_phys_params_mod.
+!>              Per-cell computation state lives in veget_cell_state_mod (veget_cell_state_t).
+!>              The former global indices lat/lon and the unused init_flag array
+!>              have been removed.
+!>
+!>     @date    Original : ??, ported to F90 by dmr 06 juin 2018
+!>     @date    Last modification : $LastChangedDate$
+!
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module veget_mod
 
-      use global_constants_mod, only: dblp=>dp, silp=>sp, ip
-      use comatm, only: nlat, nlon
+        use global_constants_mod, only: dblp=>dp, silp=>sp, ip
+        use comatm,               only: nlat, nlon
 
-      implicit none
+        implicit none
 
-      private:: nlat, nlon
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!  modif : 19/05/00 <- size of array replaced by (nlat,nlon)
-!        : may 2007 <- different enrichment factors for tree and grass (/riche/)
-!        : july 2008 <- deforestation scenario (/forets/, parameter mdfor) and cleaning (suppressed array data_crop)
-!
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      integer, parameter           ::  nm=21, nvl=3, nsh=((nm+1)*(nm+2))/2, nsh2=2*nsh, iveg = 600 , mdfor = 1500
-
-      integer                      :: numvegvar
-
-      real(dblp), dimension(nlat)  :: phi
-      real(dblp), dimension(80,20) :: newvegvar
-      real(dblp)                   :: veg_fill_value, veg_missing_value
-      character*60 namevegvar(80,6)
-
-!c---- new variables included to use netCDF output in vecode !mohr
+        private :: nlat, nlon   ! grid dimensions visible internally only
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!~ c 2 files "bio.inc" & "buffer.inc" combined in one : "veget.h" (09/12/99)
+!  (1) Run-control parameters and flags
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      real(dblp) :: a,bet,gamm,gamm2,fmax,avecube,tmin,npp,nppmax,v1,v2,v3,c1t,c2t,c3t,c1g,c2g,c3g,d1t,d2t,d3t,d1g,d2g,d3g         &
-                   ,e1t,e2t,e3t,e1g,e2g,e3g,f1t,f2t,f3t,f1g,f2g,f3g,k1t,k2t,k3t,k1g,k2g,k3g,t1t,t2t,t3t,t4t,t1g,t2g,t3g,t4g
-#if ( PF_CC > 0 )
-      real(dblp) :: t5t,t6t,t5g,t6g
+        !  Spectral mesh parameters (unchanged from original)
+        integer, parameter :: nm   = 21
+        integer, parameter :: nvl  = 3
+        integer, parameter :: nsh  = ((nm+1)*(nm+2))/2
+        integer, parameter :: nsh2 = 2*nsh
+
+        !  Vegetation I/O unit tag (file-unit offset used in legacy I/O)
+        integer, parameter :: iveg = 600
+
+        !  Maximum number of records in the deforestation scenario file
+        integer, parameter :: mdfor = 1500
+
+        !  Run-time flags and counters
+        integer(ip) :: nstat       ! vegetation model status flag
+        integer(ip) :: ieqveg      ! equilibrium vegetation flag
+        integer(ip) :: ieqvegwr    ! equilibrium vegetation write flag
+        integer(ip) :: iscendef    ! deforestation scenario flag:
+                                   !   -1 = constant vegetation,
+                                   !    0 = free evolution,
+                                   !   +1 = land-use scenario
+        integer(ip) :: ivegstrt    ! reference year for the land-use anomaly (A.D.)
+
+        !  Deforestation scenario time axis
+        integer(ip) :: i0dfor      ! year-1 of first record in VEGET.dat (A.D.)
+        integer(ip) :: ndfor       ! number of records actually present (≤ mdfor)
+
+        !  CO2 vegetation feedback switch
+        real(dblp)  :: fco2veg     ! 1.0 → carbon flux from vegetation feeds atm. CO2
+                                   ! 0.0 → flux diagnosed but not fed back
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  (2a) Grid-level state arrays — vegetation cover (persistent across time steps)
+!       Extracted cell-by-cell before physics calls; written back afterwards.
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        real(dblp), dimension(nlat,nlon) :: st   = 0.0_dblp  ! tree   fraction   [–]
+        real(dblp), dimension(nlat,nlon) :: sg   = 0.0_dblp  ! grass  fraction   [–]
+        real(dblp), dimension(nlat,nlon) :: sd   = 0.0_dblp  ! desert fraction   [–]
+        real(dblp), dimension(nlat,nlon) :: snlt            ! needleleaf fraction [–]
+
+        !  Reference fractions (deforestation / constant-veg scenarios)
+        real(dblp), dimension(nlat,nlon) :: stR, sgR, sdR, snltR
+        real(dblp), dimension(nlat,nlon) :: st_const        ! tree   reference    [–]
+        real(dblp), dimension(nlat,nlon) :: sd_const        ! desert reference    [–]
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  (2b) Grid-level carbon pool arrays — persistent state for restart
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        real(dblp), dimension(nlat,nlon) :: b1t, b2t, b3t, b4t   ! tree  pools   [kgC m^-2]
+        real(dblp), dimension(nlat,nlon) :: b1g, b2g, b3g, b4g   ! grass pools   [kgC m^-2]
+        real(dblp), dimension(nlat,nlon) :: b1,  b2,  b3,  b4    ! cell totals   [kgC m^-2]
+
+#if ( CYCC == 2 )
+        real(dblp), dimension(nlat,nlon) :: b1t13, b2t13, b3t13, b4t13
+        real(dblp), dimension(nlat,nlon) :: b1t14, b2t14, b3t14, b4t14
+        real(dblp), dimension(nlat,nlon) :: b1g13, b2g13, b3g13, b4g13
+        real(dblp), dimension(nlat,nlon) :: b1g14, b2g14, b3g14, b4g14
+        real(dblp), dimension(nlat,nlon) :: bc13, bc14
+        real(dblp), dimension(nlat,nlon) :: sg4        ! C4 grass fraction        [–]
+        real(dblp), dimension(nlat,nlon) :: anup13     ! annual 13C uptake        [kgC m^-2 yr^-1]
 #endif
-      real(dblp) :: ps1,ps2,ps3,ps4,ps5,soilt,forshare_st,t1tn,t1td, desshare_st,nlshare_st,deng,dentd,dentn,laig,lait,ave_t       &
-                   ,ave_pr,ave_pr05,desmin,desmax,ave_pr05_des,ades,acr,k0t,k0g,k4g
 
-      integer(ip):: lon, lat
-      integer(ip), dimension(nlat,nlon) :: init_flag
-
-      real(dblp), dimension(nlat,nlon) :: b1t,b2t,b3t,b4t,b1g,b2g,b3g,b4g,carea
-
-      real(dblp) :: gdd0,gdd0_min,gdd0_max,fr_ndx,co2ghg,acwd,acwt,acwg,acwn,zrd,zrt,zrg,zrn &
-                   ,rsd,rst,rsg,rsn
-#if ( PF_CC > 0 )
-      real(dblp), dimension(nlat,nlon) :: pf_percent,b5t, b6t, b5g, b6g
-#endif
+!  FROG_EXP fields — originally guarded by #if ( FROG_EXP > 0 ); now unconditional.
+        real(dblp), dimension(nlat,nlon) :: Fv           ! integrated C flux      [kgC m^-2]
+        real(dblp), dimension(nlat,nlon) :: Fv_t, Fv_g  ! tree / grass components
+        real(dblp), dimension(nlat,nlon) :: r_leaf       ! leaf / (leaf+wood) C   [–]
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!~ *********************************************************************
-!~ ***  BUFFER COMMON: DATA TRANSFER CLIMATE <-> TERRESTR VEG MODEL  ***
-!~ *********************************************************************
+!  (2c) Diagnostic arrays (output / restart)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      integer(ip):: nstat,ieqveg,ieqvegwr,iscendef,ivegstrt
-      real(dblp), dimension(nlat,nlon) :: st = 0.0_dblp,sg =0.0_dblp,sd= 0.0_dblp, snlt,anup,pnpp,b12,b34,b1,b2,b3,b4,anup_moy, &
-                    stock,st_moy,stR,sgR,sdR,snltR
-#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
-      real(dblp), dimension(nlat,nlon) :: Fv, Fv_t, Fv_g
-      real(dblp), dimension(nlat,nlon) :: r_leaf !ratio of carbon in leaves/(leaves+wood)
-#endif
+        real(dblp), dimension(nlat,nlon)   :: anup        ! annual carbon uptake  [kgC m^-2 yr^-1]
+        real(dblp), dimension(nlat,nlon)   :: pnpp        ! net primary prod.     [kgC m^-2 yr^-1]
+        real(dblp), dimension(nlat,nlon)   :: stock       ! total carbon stock     [kgC m^-2]
+        real(dblp), dimension(nlat,nlon)   :: st_moy      ! time-mean tree frac.  [–]
+        real(dblp), dimension(nlat,nlon,2) :: blai        ! LAI (1=tree,2=grass)  [m^2 m^-2]
 
-!~ [DEPRECATED] -- variables for the LOCH model
-!~ anuploch,stockloch,
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  (2d) Deforestation scenario data (read once from VEGET.dat)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      real(dblp), dimension(nlat,nlon,2) :: blai
+        real(dblp), dimension(nlat,nlon,mdfor) :: farea      ! crop fraction R&F  [–]
+        real(silp), dimension(mdfor)           :: VegetTime  ! scenario time axis  [yr]
 
-!~ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
-!~ c-AM (2007)
-!~ c CO2 enrichment :
-!~ c  betat for tree, betag for grass
-!~ c  nppt = tree npp, nppg = grass npp
-       real(dblp) :: BETAG,BETAT,NPPG,NPPT
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  (2e) NetCDF output metadata (set during initialisation, used by veget_outp)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!~ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
-!~ c-AM (2008)
-!~ c Deforestation scenario (data read in VEGET.dat):
-!~ c  farea = fraction of the mesh occupied by crops according to R&F (1999)
-!~ c  ndfor = nbr of records in deforestation scenario (ndfor =< mdfor)
-!~ c  i0dfor = year-1 of first available data in VEGET.dat (date A.D.)
-!~ c Reference vegetation distribution against which deforestation is evaluated:
-!~ c  sd_const(nlat,nlon) = reference desert distribution.
-!~ c  st_const(nlat,nlon) = reference tree distribution.
-!~ c Would CO2 flux from vegetation influence atm. CO2 or not : fco2veg
+        real(dblp), dimension(nlat)      :: phi            ! Gaussian latitudes   [rad]
+        integer                          :: numvegvar       ! number of output vars
+        real(dblp), dimension(80,20)     :: newvegvar       ! output variable data
+        character(len=60)                :: namevegvar(80,6)! output variable names
+        real(dblp)                       :: veg_fill_value
+        real(dblp)                       :: veg_missing_value
 
-       real(dblp), dimension(nlat,nlon,mdfor) :: farea
-       real(dblp), dimension(nlat,nlon)       :: sd_const,st_const
-       real(dblp)                             :: fco2veg
-       real(silp), dimension(mdfor)           :: VegetTime
-       integer(ip)                            :: i0dfor,ndfor
-!~        COMMON /FORETS/farea(nlat,nlon,mdfor),sd_const(nlat,nlon),
-!~      &                st_const(nlat,nlon),fco2veg,i0dfor,ndfor,VegetTime(mdfor)
-!~ c---- VegetTime variable added by !mohr
-!~ c---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
-       end module veget_mod
+      end module veget_mod
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr --- The End of All Things (op. cit.)

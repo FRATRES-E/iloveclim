@@ -1,1494 +1,874 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!
-!>      VUA and IPSL/LSCE by the iLOVECLIM / LUDUS coding group / Within the LUDUS code environement
-!
-!       LICENSING TERMS:
-!>      \copyright
-!!      This file is part of iLOVECLIM/VECODE
-!!      iLOVECLIM/VECODE is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
-!!      as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-!!
-!!      Foobar is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-!!      of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-!!
-!!      You should have received a copy of the GNU General Public License along with Foobar.
-!!      If not, see <http://www.gnu.org/licenses/>.
-!
+
+!   Copyright 2026 iLOVECLIM / LUDUS coding group
+
+!   Licensed under the Apache License, Version 2.0 (the "License");
+!   you may not use this file except in compliance with the License.
+!   You may obtain a copy of the License at
+
+!       http://www.apache.org/licenses/LICENSE-2.0
+
+!   Unless required by applicable law or agreed to in writing, software
+!   distributed under the License is distributed on an "AS IS" BASIS,
+!   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+!   See the License for the specific language governing permissions and
+!   limitations under the License.
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!dmr -- Adding the choice of components through the pre-processing options
 #include "choixcomposantes.h"
-!dmr -- Adding the choice of components through the pre-processing options
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: veget_sub_mod
 !
-!>     @author  Didier M. Roche (dmr)
+!>     @author  Didier M. Roche (dmr), refactoring by dmr, clo
 !
-!>     @brief This module veget_sub_mod is a fortran90 module port of initial veget_sub.f
+!>     @brief   Point-wise physics routines for the VECODE terrestrial vegetation model.
 !
-!>     @date Creation date: October, 17th, 2019
-!>     @date Last modification: $LastChangedDate$
-!>     @author Last modified by : dmr
+!>     @details All routines operate exclusively on a single veget_cell_state_t value.
+!>              No global grid indices (lat, lon) are accessed.  The orchestration loop
+!>              in veget.f90 is responsible for extracting cell state before the call
+!>              and writing it back afterwards.
+!>
+!>              Changes from original veget_sub_mod.f90:
+!>                - All array(lat,lon) accesses replaced by cell%field scalar accesses.
+!>                - Physical parameters moved to veget_phys_params_mod; imported via use.
+!>                - fracgr / darea arguments removed (were only used in the deprecated
+!>                  CYCC==1 / LOCH carbon cycle path, now deleted).
+!>                - PF_CC permafrost blocks removed (abandoned implementation).
+!>                - FROG_EXP conditional removed; fields included unconditionally.
+!>                - CYCC conditionals retained for the isotope carbon cycle.
+!>                - CYCC==1 (LOCH model) block removed (deprecated, commented-out in
+!>                  veget.f and marked [DEPRECATED] in original veget_mod).
+!>                - ccparam is an internal helper; it is public only so the isotope
+!>                  restart-init loop in veget can set residence times without ccstat.
+!>                - indxv / farea lookup replaced by cell%crop_fraction resolved by
+!>                  get_crop_fraction() in the orchestrator.
 !
-!>     @version This is svn version: $LastChangedRevision$
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
+!>     @date    Original creation : October 17th, 2019 (dmr)
+!>     @date    Refactored        : 2026-06-30 (dmr, clo)
+!>     @date    Last modification : $LastChangedDate$
 !
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module veget_sub_mod
 
-       use global_constants_mod, only: dblp=>dp, ip, str_len, stdout
+        use global_constants_mod,  only: dblp=>dp, ip, str_len, stdout
+        use veget_cell_state_mod,  only: veget_cell_state_t
+        use veget_phys_params_mod
 
-       implicit none
-       private
+        implicit none
+        private
 
-       public :: ccstat, ccstatR, initcpar, ccparam, climpar, ccdyn, ccdynR
-
-      ! NOTE_avoid_public_variables_if_possible
+        public :: initcpar, ccstat, ccstatR, ccdyn, ccdynR
+#if ( CYCC == 2 )
+        public :: ccstat_isotope
+        ! ccparam exposed so the isotope-restart init loop can set the per-cell
+        ! residence times (t1t..t4g) WITHOUT calling full ccstat, which would
+        ! overwrite the b* pools just read from the vegetation restart.
+        public :: ccparam
+#endif
 
       contains
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: initcpar
+!      FUNCTION: initcpar
 !
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
+!>     @brief  Initialise all physical parameters (veget_phys_params_mod) to their
+!>             default values.  Called once at model start-up before any grid cell
+!>             is processed.
 !
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
+!>     @returns .true. on success
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function INITCPAR() result(returnValue)
+      subroutine initcpar()
 
 #if ( CYCC == 2 )
-        USE veget_iso, ONLY: c13frac,c13frac4
-        USE C_res_mod, ONLY: c13init
+        ! c13frac, c13frac4 now in veget_phys_params_mod (imported at module level)
+        use C_res_mod, only: c13init
 #endif
 
-        use comatm, only: nlat, nlon
-        use veget_mod
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in] void
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        ! --- forest fraction potential ---
+        a        = 7000.0_dblp
+        bet      = 0.002_dblp
+        gamm     = 0.00017_dblp
+        gamm2    = 0.00025_dblp
+        fmax     = 0.9_dblp
+        gdd0_min = 1000.0_dblp
+        gdd0_max = 1800.0_dblp
+        ades     = 0.0011_dblp
+        acr      = 28.0_dblp
 
-       logical         :: returnValue
+        ! --- NPP (Lieth formula) ---
+        nppmax = 1.3_dblp
+        v1     = 0.000664_dblp
+        v2     = 0.119_dblp
+        v3     = 3.73_dblp
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        ! --- carbon allocation — trees ---
+        c1t = 0.046_dblp ;  c2t = 0.58_dblp  ;  c3t = 1.6_dblp
+        d1t = 0.22_dblp  ;  d2t = 7.19_dblp  ;  d3t = 5.5_dblp
+        e1t = 17.9_dblp  ;  e2t = 167.3_dblp ;  e3t = 15.0_dblp
+        k0t = 0.6_dblp
+        k2t = 1.0_dblp
+        k3t = 0.025_dblp
 
-! initialisation of variables
-         ades=0.0011
-         acr=28
-         a=7000.
-         bet=0.002
-         gamm=0.00017
-!        gamm2=0.00025
-         gdd0_min=1000.
-         gdd0_max=1800.
-!jmc0    gdd0_min=1000.
-!jmc0    gdd0_max=1700.
-         fmax=0.9
-         nppmax=1.3
-         v1=0.000664
-         v2=0.119
-         v3=3.73
-         c1t=0.046
-         c2t=0.58
-         c3t=1.6
-         c1g=0.069
-         c2g=0.38
-         c3g=1.6
-         d1t=0.22
-         d2t=7.19
-         d3t=5.5
-         d1g=0.6
-         d2g=0.41
-         d3g=6.0
-         e1t=17.9
-         e2t=167.3
-         e3t=15.
-         e1g=0.67
-         e2g=50.5
-         e3g=100.
-         f1t=0.43
-         f2t=24.3
-         f3t=13.
-         f1g=0.34
-         f2g=17.8
-         f3g=50.
-         k2t=1.
-         k3t=0.025
-         k0t=0.6
-         k0g=0.2
-         k2g=0.55
-         k4g=0.025
-         k3g=0.025
-         t3g=1.
-         t1tn=4
-         t1td=1
-         deng=20
-         dentd=20
-         dentn=6
-         ps5=0.04
-         soilt=5
-!dmr --- The following parameters are not declared in VECODE -- CLIMBER
-         acwd=100
-         acwt=100
-         acwg=100
-         acwn=100
-         zrd=1.
-         zrt=1.
-         zrg=0.6
-         zrn=0.6
-         rsd=0.
-         rst=300.
-         rsg=130.
-         rsn=160.
-!dmr ---
+        ! --- carbon allocation — grasses ---
+        c1g = 0.069_dblp ;  c2g = 0.38_dblp  ;  c3g = 1.6_dblp
+        d1g = 0.6_dblp   ;  d2g = 0.41_dblp  ;  d3g = 6.0_dblp
+        e1g = 0.67_dblp  ;  e2g = 50.5_dblp  ;  e3g = 100.0_dblp
+        k0g = 0.2_dblp
+        k2g = 0.55_dblp
+        k3g = 0.025_dblp
+        k4g = 0.025_dblp
+
+        ! --- soil temperature decomposition ---
+        ps5   = 0.04_dblp
+        soilt = 5.0_dblp
+
+        ! --- needleleaf thresholds ---
+        t1tn = 4.0_dblp
+        t1td = 1.0_dblp
+
+        ! --- LAI density parameters ---
+        deng  = 20.0_dblp
+        dentd = 20.0_dblp
+        dentn = 6.0_dblp
+
+        ! --- desert propagation densities ---
+        deng_prop  = 20.0_dblp
+        dentd_prop = 20.0_dblp
+        dentn_prop = 6.0_dblp
+
+        ! --- soil water / stomatal resistance ---
+        acwd = 100.0_dblp ;  acwt = 100.0_dblp
+        acwg = 100.0_dblp ;  acwn = 100.0_dblp
+        zrd  = 1.0_dblp   ;  zrt  = 1.0_dblp
+        zrg  = 0.6_dblp   ;  zrn  = 0.6_dblp
+        rsd  = 0.0_dblp   ;  rst  = 300.0_dblp
+        rsg  = 130.0_dblp ;  rsn  = 160.0_dblp
+
 #if ( CYCC == 2 )
-!dmr&nb --- Adding the carbon isotopes initialization ...
-
-!         c14init=100. /* Moved to ccstat_isotopes */
-!         c14tdec=1./8240. /* Moved to c14dec in carbone_co2 */
-!        the same decay rate of c14 is determined in ocn_bio.f: C14dec
-
-         c13frac=1-18./1000.
-         c13frac4=1-5./1000.
-         c13init=c13frac
+        ! --- carbon isotope initialisations ---
+        c13frac  = 1.0_dblp - 18.0_dblp / 1000.0_dblp
+        c13frac4 = 1.0_dblp -  5.0_dblp / 1000.0_dblp
+        c13init  = c13frac
 #endif
 
-!dmr --- following was done in CLIMBER, but seems inconsitent with iLOVECLIM
-!cnb - initialisation des reservoirs de carbon
-!      if (KTVM.eq.2) then
-!
-!      do i=1,IT
-!        do k=1,NS
-!
-!        b1(i,k)=b1t(i,k)*st(i,k)+b1g(i,k)*sg(i,k)
-!        b2(i,k)=b2t(i,k)*st(i,k)+b2g(i,k)*sg(i,k)
-!        b3(i,k)=b3t(i,k)*st(i,k)+b3g(i,k)*sg(i,k)
-!        b4(i,k)=b4t(i,k)*st(i,k)+b4g(i,k)*sg(i,k)
-!
-!        enddo
-!      enddo
-!
-!      endif
-!cnb ---
 
-!dmr&nb ---
-
-        returnValue = .true.
-
-        return
-
-      end function initcpar
+      end subroutine initcpar
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ccstat
+!      FUNCTION: ccparam  (private)
 !
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
+!>     @brief  Compute current-year carbon cycle parameters and equilibrium fractions
+!>             from the cell's climate forcing.  Writes results into the parameter
+!>             module scalars (k1t, t1t, … forshare_st, …) and into cell%nppt/nppg.
+!>             Called internally by ccstat, ccstatR, ccdyn, ccdynR.
 !
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
+!>     @param[inout] cell   vegetation state for the current grid cell
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function CCSTAT(fracgr,darea) result(returnValue)
+      subroutine ccparam(cell)
 
-       use comemic_mod, only: iyear
-       use comatm, only: nlat, nlon
-       use veget_mod
-       use comrunlabel_mod, only: irunlabelf
+        type(veget_cell_state_t), intent(inout) :: cell
 
-#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
-       use veget_mod, only : Fv, Fv_t, Fv_g
-#endif
+        ! local
+        real(dblp) :: npp1, npp2, avefor, differ, pcr
+        real(dblp) :: db1, db2, db3
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in]  fracgr   fraction of grass-type plants
-!>    @param[in] darea    area of the cells
+!  Potential tree fraction
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       real(kind=dblp), dimension(nlat, nlon), intent(in) :: fracgr
-       real(kind=dblp), dimension(nlat),       intent(in) :: darea
+        ! avefor = cell%ave_pr**4
+        avefor = cell%ave_pr*cell%ave_pr*cell%ave_pr*cell%ave_pr
+        differ = cell%gdd0 - gdd0_min
+        db1    = -bet  * differ
+        db2    =  gamm * differ
+        db3    =  differ * differ
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical                                            :: returnValue
-       real(kind=dblp)                                    :: tempor1
-       integer(kind=ip)                                   :: indxv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!...1) calculation of initial carbon cycle parameters
-
-        returnValue =  CCPARAM()
-
-! calculation of equilibrium storages
-
-
-!~ [TODO] lat, lon indexes are coming from a global module [UGLY]
-!~        change to have it by reference for the function
-
-
-! leaves biomass
-! b1t is leaves phytomass for trees, b1g - for grass (kg C/m2)
-! t1t is residence time of carbon in trees, t1g - in grass (years)
-
-        b1t(lat,lon)=k1t*t1t*nppt
-        b1g(lat,lon)=k1g*t1g*nppg
-
-!   stems and roots biomass
-
-        b2t(lat,lon)=(1-k1t)*t2t*nppt
-        b2g(lat,lon)=(1-k1g)*t2g*nppg
-
-!   litter
-
-        b3t(lat,lon)=(k0t*b1t(lat,lon)/t1t+k2t/t2t*b2t(lat,lon))*t3t
-        b3g(lat,lon)=(k0g*b1g(lat,lon)/t1g+k2g/t2g*b2g(lat,lon))*t3g
-
-! mortmass and soil organic matter
-
-        b4t(lat,lon)=(k3t/t3t*b3t(lat,lon))*t4t
-        b4g(lat,lon)=(k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon))*t4g
-#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
-        Fv_t(lat,lon)=(k3t/t3t*b3t(lat,lon))*t4t
-        Fv_g(lat,lon)=(k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon))*t4g
-#endif
-
-! initialization of fraction dynamic variables
-
-!
-! until year 1992: distribution min & max is prescribed:
-! after year 1992: vegetation is allowed to grow in the grid cell where no deforestation
-! takes place in 1992. Vegetation can decline everywhere
-!
-        indxv=992
-        if ((iscendef.eq.1).AND.((irunlabelf+iyear).ge.ivegstrt)) then
-         if (irunlabelf+iyear.eq.ivegstrt) st_const(lat,lon)=st(lat,lon)
-         tempor1=9.0E+19
-         if((irunlabelf+iyear).le.1992) then
-          indxv=(irunlabelf+iyear)-1000
-          if(indxv.eq.0) indxv=1
-          if (farea(lat,lon,indxv).lt.9.0E+19) tempor1=st_const(lat,lon)-farea(lat,lon,indxv)
-         else
-          if((farea(lat,lon,indxv).lt.9.0E+19).AND.(farea(lat,lon,indxv).gt.0.D0)) tempor1=st_const(lat,lon)-farea(lat,lon,indxv)
-         endif
-         st(lat,lon)=min(forshare_st,tempor1)
+        if (differ < 0.0_dblp) then
+          cell%forshare_st = 0.0_dblp
         else
-         st(lat,lon)=forshare_st
-        endif
-        if(st(lat,lon).lt.0.) st(lat,lon)=0.
-
-        sd(lat,lon)=desshare_st
-!~ [DEPRECATED]
-!~ #if ( ISM == 1 )
-!~         if (flgism) then
-!~          if (sd(lat,lon).lt.soiltype(lat,lon,ca)) then
-!~           sd(lat,lon)=soiltype(lat,lon,ca)
-!~           if ((sd(lat,lon)+st(lat,lon)).gt.1.) st(lat,lon)=1-sd(lat,lon)
-!~          endif
-!~         endif
-!~ #endif
-!~ [DEPRECATED]
-        snlt(lat,lon)=nlshare_st
-        if(sd(lat,lon).lt.0.) sd(lat,lon)=0.
-        sg(lat,lon)=1.-st(lat,lon)-sd(lat,lon)
-        if(sg(lat,lon).lt.0.) sg(lat,lon)=0.
-
-        returnValue = CLIMPAR(fracgr,darea)
-
-        return
-
-      end function ccstat
+          cell%forshare_st = (1.0_dblp - exp(db1)) * avefor &
+                           / (avefor + a * db3 * exp(db2))
+        end if
+        if (cell%forshare_st > fmax) cell%forshare_st = fmax
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
+!  Potential desert fraction
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+        cell%desshare_st = 0.0_dblp
+
+        ! northern deserts
+        if (cell%gdd0 < 100.0_dblp) then
+          cell%desshare_st = 1.0_dblp
+        else if (cell%gdd0 < gdd0_min) then
+          cell%desshare_st = (gdd0_min - cell%gdd0) / (gdd0_min - 100.0_dblp)
+        end if
+
+        ! southern deserts
+        if (cell%gdd0 >= gdd0_max) then
+          pcr = acr * exp(gamm2 / 2.0_dblp * differ)
+          if (cell%ave_pr05 <= pcr) then
+            cell%desshare_st = 1.0_dblp
+            cell%forshare_st = 0.0_dblp
+          else
+            db2 = (cell%ave_pr05 - pcr) / exp(gamm2 * differ)
+            cell%desshare_st = 1.03_dblp / (1.0_dblp + ades * db2 * db2) - 0.03_dblp
+            if (cell%desshare_st < 0.0_dblp) cell%desshare_st = 0.0_dblp
+          end if
+        end if
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ccparam
-!
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
-!
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
+!  NPP — Lieth's formula
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function CCPARAM() result(returnValue)
+        db1  = -v1 * cell%ave_pr
+        db2  = -v2 * cell%ave_t
+        npp1 = 1.0_dblp - exp(db1)
+        npp2 = 1.0_dblp / (1.0_dblp + v3 * exp(db2))
+        cell%npp = nppmax * min(npp1, npp2)
+
+        ! CO2 enrichment (betat/betag already include the 1/log(2) factor)
+        cell%nppt = cell%npp * (1.0_dblp + betat * log(co2ghg / 280.0_dblp))
+        cell%nppg = cell%npp * (1.0_dblp + betag * log(co2ghg / 280.0_dblp))
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Allocation fractions and residence times (functions of NPP)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        k1t = c1t + c2t / (1.0_dblp + c3t * cell%nppt)
+        k1g = c1g + c2g / (1.0_dblp + c3g * cell%nppg)
+
+        t1t = d1t + d2t / (1.0_dblp + d3t * cell%nppt)
+        t1g = d1g + d2g / (1.0_dblp + d3g * cell%nppg)
+
+        t2t = e1t + e2t / (1.0_dblp + e3t * cell%nppt)
+        t2g = e1g + e2g / (1.0_dblp + e3g * cell%nppg)
+
+        ! soil decomposition — temperature-sensitive residence times
+        t3t = 16.0_dblp  * exp(-ps5 * (cell%ave_t - soilt))
+        t3g = 40.0_dblp  * exp(-ps5 * (cell%ave_t - soilt))
+        t4t = 900.0_dblp * exp(-ps5 * (cell%ave_t - soilt))
+        t4g = t4t
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Potential needleleaf fraction
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        cell%nlshare_st = (t1t - t1td) / (t1tn - t1td)
+        cell%nlshare_st = min(1.0_dblp, max(0.0_dblp, cell%nlshare_st))
 
 #if ( CYCC == 2 )
-        USE veget_iso
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  C4 grass fraction
+!  [BUG] cell%tatmsmin is not yet connected to the atmospheric model; it was
+!  hardcoded to 0.0 in the original code, which forces g4share_st = 0 always.
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        if (cell%tatmsmin < 12.0_dblp) then
+          cell%g4share_st = 0.0_dblp
+        else if (cell%tatmsmin < 15.5_dblp) then
+          cell%g4share_st = 1.0_dblp - (15.5_dblp - cell%tatmsmin) / 3.5_dblp
+        else
+          cell%g4share_st = 1.0_dblp
+        end if
 #endif
 
-#if ( COMATM == 1 )
-        use comatm, only: nlat, nlon
-        use veget_mod
+      end subroutine ccparam
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      SUBROUTINE: climpar  (private)
+!
+!>     @brief  Compute LAI, area-weighted carbon stocks, annual uptake and NPP
+!>             for the current cell.  Called at the end of ccstat and ccdyn.
+!
+!>     @param[inout] cell   vegetation state for the current grid cell
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine climpar(cell)
+
+        type(veget_cell_state_t), intent(inout) :: cell
+
+        real(dblp) :: prev_stock   ! total carbon stock at start of step
+#if ( CYCC == 2 )
+        real(dblp) :: prev_bc13
 #endif
 
-
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in] void
+!  LAI
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical         :: returnValue
-       real(kind=dblp) :: npp1,npp2,avefor,differ,pcr
-       real(kind=dblp) :: db1,db2,db3
+        cell%laig  = cell%b1g * deng
+        cell%lait  = cell%b1t * (dentn * cell%snlt + dentd * (1.0_dblp - cell%snlt))
+        cell%blai(1) = cell%lait
+        cell%blai(2) = cell%laig
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
+!  Save previous total carbon stock for annual uptake calculation
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+        prev_stock = cell%b1 + cell%b2 + cell%b3 + cell%b4
+#if ( CYCC == 2 )
+        prev_bc13 = cell%bc13
+#endif
 
-! calculation of current cycle parameters
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Area-weighted carbon pool totals
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-! potential trees share
+        cell%b1 = cell%b1t * cell%st + cell%b1g * cell%sg
+        cell%b2 = cell%b2t * cell%st + cell%b2g * cell%sg
+        cell%b3 = cell%b3t * cell%st + cell%b3g * cell%sg
+        cell%b4 = cell%b4t * cell%st + cell%b4g * cell%sg
 
-       avefor=ave_pr*ave_pr*ave_pr*ave_pr
-       differ=gdd0-gdd0_min
-       db1=-bet*differ
-       db2=gamm*differ
-       db3=differ*differ
+        ! FROG_EXP: integrated vegetation carbon flux and leaf/wood ratio
+        ! (originally guarded by #if FROG_EXP > 0; now unconditional)
+        cell%Fv   = cell%Fv + cell%Fv_t * cell%st + cell%Fv_g * cell%sg
+        if ((cell%b1 + cell%b2) > 0.0_dblp) then
+          cell%r_leaf = (cell%b1 + cell%b2g * cell%sg) / (cell%b1 + cell%b2)
+        else
+          cell%r_leaf = 0.0_dblp
+        end if
 
-       if(differ.lt.0) then
-          forshare_st=0
-       else
-          forshare_st=(1-exp(db1))*avefor/(avefor+a*db3*exp(db2))
-       endif
-       if (forshare_st.gt.fmax) forshare_st=fmax
+#if ( CYCC == 2 )
+        cell%bc14 = ( cell%b1t14 + cell%b2t14 + cell%b3t14 + cell%b4t14 ) * cell%st &
+                  + ( cell%b1g14 + cell%b2g14 + cell%b3g14 + cell%b4g14 ) * cell%sg
 
-! potential desert share - desshare_st
+        cell%bc13 = ( cell%b1t13 + cell%b2t13 + cell%b3t13 + cell%b4t13 ) * cell%st &
+                  + ( cell%b1g13 + cell%b2g13 + cell%b3g13 + cell%b4g13 ) * cell%sg
+#endif
 
-       desshare_st=0
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Annual carbon uptake and stock diagnostics
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-! northern deserts
+        cell%stock = cell%b1 + cell%b2 + cell%b3 + cell%b4
+        cell%anup  = cell%stock - prev_stock
 
-       if(gdd0.lt.100) desshare_st=1
+#if ( CYCC == 2 )
+        cell%anup13 = cell%bc13 - prev_bc13
+#endif
 
-       if(gdd0.ge.100.and.gdd0.lt.gdd0_min) desshare_st=(gdd0_min-gdd0)/(gdd0_min-100.)
+        cell%pnpp = cell%nppt * cell%st + cell%nppg * cell%sg
 
-! southern deserts
+      end subroutine climpar
 
-          if (gdd0.ge.gdd0_max) then
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      FUNCTION: ccstat
+!
+!>     @brief  Initialise the vegetation state of a cell to its equilibrium
+!>             (static run or first call with kveget < 0).
+!>             Sets carbon pools, cover fractions, and computes LAI and stocks.
+!
+!>     @param[inout] cell        vegetation state for the current grid cell
+!>     @param[in]    irunlabelf  run label year offset (comrunlabel_mod)
+!>     @param[in]    iyear       current model year
+!>     @returns      .true. on success
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-            pcr=acr*exp(gamm2/2.*differ)
+      subroutine ccstat(cell, irunlabelf, iyear)
 
-            if (ave_pr05.le.pcr) then
-                desshare_st=1
-                forshare_st=0
+        use veget_mod, only: iscendef, ivegstrt
+
+        type(veget_cell_state_t), intent(inout) :: cell
+        integer(ip),              intent(in)    :: irunlabelf, iyear
+
+        real(dblp) :: tempor1
+
+        call ccparam(cell)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Equilibrium carbon pools (per unit fractional area)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        cell%b1t = k1t * t1t * cell%nppt
+        cell%b1g = k1g * t1g * cell%nppg
+
+        cell%b2t = (1.0_dblp - k1t) * t2t * cell%nppt
+        cell%b2g = (1.0_dblp - k1g) * t2g * cell%nppg
+
+        cell%b3t = (k0t * cell%b1t / t1t + k2t / t2t * cell%b2t) * t3t
+        cell%b3g = (k0g * cell%b1g / t1g + k2g / t2g * cell%b2g) * t3g
+
+        cell%b4t = (k3t / t3t * cell%b3t) * t4t
+        cell%b4g = (k4g / t2g * cell%b2g + k3g / t3g * cell%b3g) * t4g
+
+        ! FROG_EXP: initialise flux tracking pools to their equilibrium values
+        cell%Fv_t = cell%b4t
+        cell%Fv_g = cell%b4g
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Equilibrium cover fractions
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        ! Land-use scenario: constrain tree fraction against crop fraction
+        if ((iscendef == 1) .and. ((irunlabelf + iyear) >= ivegstrt)) then
+          if (irunlabelf + iyear == ivegstrt) cell%st_const = cell%st
+          tempor1 = 9.0e19_dblp
+          if (cell%crop_fraction < 9.0e19_dblp) then
+            tempor1 = cell%st_const - cell%crop_fraction
+          end if
+          cell%st = min(cell%forshare_st, tempor1)
+        else
+          cell%st = cell%forshare_st
+        end if
+        if (cell%st < 0.0_dblp) cell%st = 0.0_dblp
+
+        cell%sd   = cell%desshare_st
+        cell%snlt = cell%nlshare_st
+        if (cell%sd < 0.0_dblp) cell%sd = 0.0_dblp
+        cell%sg = 1.0_dblp - cell%st - cell%sd
+        if (cell%sg < 0.0_dblp) cell%sg = 0.0_dblp
+
+        call climpar(cell)
+
+
+      end subroutine ccstat
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      FUNCTION: ccstatR
+!
+!>     @brief  Compute the equilibrium (reference) cover fractions for a cell
+!>             without modifying the actual st/sg/sd state.  Used in parallel with
+!>             ccstat when irad == 1 (radiative reference vegetation).
+!
+!>     @param[inout] cell   vegetation state for the current grid cell
+!>     @returns      .true. on success
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine ccstatR(cell)
+
+        type(veget_cell_state_t), intent(inout) :: cell
+
+
+        call ccparam(cell)
+
+        cell%stR   = cell%forshare_st
+        cell%sdR   = cell%desshare_st
+        cell%snltR = cell%nlshare_st
+        if (cell%sdR < 0.0_dblp) cell%sdR = 0.0_dblp
+        cell%sgR = 1.0_dblp - cell%stR - cell%sdR
+        if (cell%sgR < 0.0_dblp) cell%sgR = 0.0_dblp
+
+        call climpar(cell)
+
+
+      end subroutine ccstatR
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      FUNCTION: ccdyn
+!
+!>     @brief  Advance the vegetation state of a cell by one year (dynamic run).
+!>             Updates cover fractions, carbon pools, LAI and diagnostics.
+!
+!>     @param[inout] cell        vegetation state for the current grid cell
+!>     @param[in]    irunlabelf  run label year offset (comrunlabel_mod)
+!>     @param[in]    iyear       current model year
+!>     @returns      .true. on success
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine ccdyn(cell, irunlabelf, iyear)
+
+#if ( CYCC == 2 )
+        ! Isotope pool arrays (B4T14, B3T13, etc.) are now fields of cell% —
+        ! no import from veget_iso needed. c13frac/c13frac4 imported at module
+        ! level from veget_phys_params_mod.
+        use carbone_co2_mod,  only: C14ATM, C14DEC, PA_C
+        use mod_sync_time,only: KENDY
+        use C_res_mod,    only: c13atm
+#endif
+        use veget_mod, only: iscendef, ivegstrt
+
+        type(veget_cell_state_t), intent(inout) :: cell
+        integer(ip),              intent(in)    :: irunlabelf, iyear
+
+        real(dblp) :: fd, dd, nld, dst, dsd, dstime
+        real(dblp) :: temp_st, temp_sg
+        real(dblp) :: tempor1, tempor2
+        ! saved b4/b3 before correction (conservation law)
+        real(dblp) :: b4t_prev, b3t_prev
+#if ( CYCC == 2 )
+        real(dblp) :: tempor3, tempor4, tempor5, tempor6
+        real(dblp) :: G4D
+#endif
+
+        call ccparam(cell)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Cover fraction dynamics
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        fd  = cell%forshare_st - cell%st
+        dd  = cell%desshare_st - cell%sd
+        nld = cell%nlshare_st  - cell%snlt
+#if ( CYCC == 2 )
+        G4D = cell%g4share_st  - cell%sg4
+#endif
+        temp_st = cell%st
+        temp_sg = cell%sg
+
+        ! forest — exponential filter
+        if (abs(fd) < 100.0_dblp * tiny(fd)) then
+          dst = 0.0_dblp
+        else
+          dst = fd * (1.0_dblp - exp(-1.0_dblp / t2t))
+        end if
+        cell%st = temp_st + dst
+        if (cell%st < 0.0_dblp) cell%st = 0.0_dblp
+
+        ! desert — exponential filter with characteristic time adjustment
+        dsd     = dd * (1.0_dblp - exp(-1.0_dblp / t2g))
+        tempor1 = cell%sd + dsd + cell%st
+        if (tempor1 > 0.9_dblp) then
+          dstime = (t2g * (1.0_dblp - tempor1) + t2t * (tempor1 - 0.9_dblp)) * 10.0_dblp
+          dsd    = dd * (1.0_dblp - exp(-1.0_dblp / dstime))
+        end if
+        cell%sd = cell%sd + dsd
+        if (cell%sd < 0.0_dblp) cell%sd = 0.0_dblp
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Constant-vegetation scenario (iscendef == -1)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        if ((iscendef == -1) .and. (irunlabelf + iyear - ivegstrt >= 0)) then
+          if (irunlabelf + iyear == ivegstrt) then
+            cell%st_const = cell%st
+            cell%sd_const = cell%sd
+          else
+            cell%st = cell%st_const
+            cell%sd = cell%sd_const
+          end if
+        end if
+
+        tempor2 = 1.0_dblp - cell%sd
+        if (tempor2 < 0.0_dblp) tempor2 = 0.0_dblp
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Land-use scenario (iscendef == +1) — scenario version B (Brovkin / EMIC protocol)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        if ((iscendef == 1) .and. (irunlabelf + iyear - ivegstrt >= 0)) then
+          if (irunlabelf + iyear == ivegstrt) then
+            cell%st_const = cell%st
+            cell%sd_const = cell%sd
+          else
+            cell%sd   = cell%sd_const
+            tempor2   = 1.0_dblp - cell%sd_const
+            cell%st   = cell%st_const
+            if (cell%crop_fraction < 9.0e19_dblp) then
+              cell%st = cell%st_const - cell%crop_fraction
+            end if
+            if (cell%st < 0.0_dblp) cell%st = 0.0_dblp
+          end if
+        end if
+
+        ! update dst for carbon conservation correction below
+        dst = cell%st - temp_st
+
+        cell%sg = tempor2 - cell%st
+        if (cell%sg < 0.0_dblp) cell%sg = 0.0_dblp
+
+#if ( CYCC == 2 )
+        cell%sg4  = cell%g4share_st - G4D * exp(-1.0_dblp / t2g)
+#endif
+        cell%snlt = cell%nlshare_st - nld * exp(-1.0_dblp / t2t)
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Carbon pool conservation — correct b3/b4 for fractional area changes
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        ! save b4t / b3t before mixing (needed for grass correction below)
+        b4t_prev = cell%b4t
+        b3t_prev = cell%b3t
+#if ( CYCC == 2 )
+        tempor3 = cell%b4t14 ;  tempor4 = cell%b3t14
+        tempor5 = cell%b4t13 ;  tempor6 = cell%b3t13
+#endif
+
+        ! trees advancing into grass area
+        if (cell%st > 0.0_dblp) then
+          if (dst > 0.0_dblp) then
+            if (dst <= temp_sg) then
+              cell%b4t = (cell%b4t * temp_st + cell%b4g * dst) / cell%st
+              cell%b3t = (cell%b3t * temp_st + cell%b3g * dst) / cell%st
+#if ( CYCC == 2 )
+              cell%b4t14 = (cell%b4t14 * temp_st + cell%b4g14 * dst) / cell%st
+              cell%b3t14 = (cell%b3t14 * temp_st + cell%b3g14 * dst) / cell%st
+              cell%b4t13 = (cell%b4t13 * temp_st + cell%b4g13 * dst) / cell%st
+              cell%b3t13 = (cell%b3t13 * temp_st + cell%b3g13 * dst) / cell%st
+#endif
             else
-                db2=(ave_pr05-pcr)/exp(gamm2*differ)
-                desshare_st=1.03/(1+ades*db2*db2)-0.03
-                if (desshare_st.lt.0) desshare_st=0
-            endif
+              cell%b4t = (cell%b4t * temp_st + cell%b4g * temp_sg) / cell%st
+              cell%b3t = (cell%b3t * temp_st + cell%b3g * temp_sg) / cell%st
+#if ( CYCC == 2 )
+              cell%b4t14 = (cell%b4t14 * temp_st + cell%b4g14 * temp_sg) / cell%st
+              cell%b3t14 = (cell%b3t14 * temp_st + cell%b3g14 * temp_sg) / cell%st
+              cell%b4t13 = (cell%b4t13 * temp_st + cell%b4g13 * temp_sg) / cell%st
+              cell%b3t13 = (cell%b3t13 * temp_st + cell%b3g13 * temp_sg) / cell%st
+#endif
+            end if
+          end if
+          cell%b2t = cell%b2t * temp_st / cell%st
+          cell%b1t = cell%b1t * temp_st / cell%st
+#if ( CYCC == 2 )
+          cell%b2t14 = cell%b2t14 * temp_st / cell%st
+          cell%b1t14 = cell%b1t14 * temp_st / cell%st
+          cell%b2t13 = cell%b2t13 * temp_st / cell%st
+          cell%b1t13 = cell%b1t13 * temp_st / cell%st
+#endif
+        end if
 
-         endif
-
-! calculation of NPP, Lieth's formula
-
-        db1=-v1*ave_pr
-!        if (gdd0.ge.gdd0_max) db1=-v1*ave_pr05
-        db2=-v2*ave_t
-        npp1=(1.-exp(db1))
-        npp2=1./(1.+v3*exp(db2))
-        if(npp1.lt.npp2) then
-                npp=nppmax*npp1
+        ! grass pools — corrected for tree advance or retreat
+        if (cell%sg > 0.0_dblp) then
+          if (dst > 0.0_dblp) then
+            if (dst <= temp_sg) then
+              cell%b4g = cell%b4g * (temp_sg - dst) / cell%sg
+              cell%b3g = cell%b3g * (temp_sg - dst) / cell%sg
+#if ( CYCC == 2 )
+              cell%b4g14 = cell%b4g14 * (temp_sg - dst) / cell%sg
+              cell%b3g14 = cell%b3g14 * (temp_sg - dst) / cell%sg
+              cell%b4g13 = cell%b4g13 * (temp_sg - dst) / cell%sg
+              cell%b3g13 = cell%b3g13 * (temp_sg - dst) / cell%sg
+#endif
             else
-                npp=nppmax*npp2
-        endif
-
-! CO2 enrichment factor
-!
-!-AM (may 2007)
-! Modified in order to account for different enhancement factors for tree and grass
-!  -> betat & betag
-! also division by log(2) is now included in beta_x (see veget.f)
-!       npp=npp*(1.0+((0.25/LOG(2.))*LOG(co2ghg/280.)))
-        nppt=npp*(1.0+(betat*LOG(co2ghg/280.)))
-        nppg=npp*(1.0+(betag*LOG(co2ghg/280.)))
-
-! allocation factors and residence time of leaves biomass
-
-        k1t=c1t+c2t/(1+c3t*nppt)
-        k1g=c1g+c2g/(1+c3g*nppg)
-
-        t1t=d1t+d2t/(1+d3t*nppt)
-        t1g=d1g+d2g/(1+d3g*nppg)
-
-!   residence time of stems and roots biomass
-
-        t2t=e1t+e2t/(1+e3t*nppt)
-        t2g=e1g+e2g/(1+e3g*nppg)
-
-!   residence time of fast carbon pool
-
-        t3t=16.*exp(-ps5*(ave_t-soilt))
-        t3g=40.*exp(-ps5*(ave_t-soilt))
-
-! residence time of slow soil organic matter
-
-        t4t=900.*exp(-ps5*(ave_t-soilt))
-        t4g=t4t
-
-#if ( PF_CC > 0 )
-
-!dmr --- should be used only on permafrost areas
-
-!kc **tuneable residence times**
-!kc new residence time for permafrost fast soil
-!kc boost South edges soil carbon
-
-        t6t=t3t*(60*fr_ndx+80)
-        t6g=t3g*(60*fr_ndx+80)
-
-!kc new residence time for permafrost slow soil
-
-!        t5t=t4t
-        t5t=t4t*(0.1*fr_ndx+0.1)
-        t5g=t5t
-
-!print *,'t3t',t3t,'t3g',t3g,'t4t',t4t
+              cell%b4g = 0.0_dblp ;  cell%b3g = 0.0_dblp
+#if ( CYCC == 2 )
+              cell%b4g14 = 0.0_dblp ;  cell%b3g14 = 0.0_dblp
+              cell%b4g13 = 0.0_dblp ;  cell%b3g13 = 0.0_dblp
 #endif
+            end if
+          else
+            ! trees retreating — grass pools gain tree organic matter
+            cell%b4g = (cell%b4g * temp_sg - b4t_prev * dst) / cell%sg
+            cell%b3g = (cell%b3g * temp_sg - b3t_prev * dst) / cell%sg
+#if ( CYCC == 2 )
+            cell%b4g14 = (cell%b4g14 * temp_sg - tempor3 * dst) / cell%sg
+            cell%b3g14 = (cell%b3g14 * temp_sg - tempor4 * dst) / cell%sg
+            cell%b4g13 = (cell%b4g13 * temp_sg - tempor5 * dst) / cell%sg
+            cell%b3g13 = (cell%b3g13 * temp_sg - tempor6 * dst) / cell%sg
+#endif
+          end if
+          cell%b2g = cell%b2g * temp_sg / cell%sg
+          cell%b1g = cell%b1g * temp_sg / cell%sg
+#if ( CYCC == 2 )
+          cell%b2g14 = cell%b2g14 * temp_sg / cell%sg
+          cell%b1g14 = cell%b1g14 * temp_sg / cell%sg
+          cell%b2g13 = cell%b2g13 * temp_sg / cell%sg
+          cell%b1g13 = cell%b1g13 * temp_sg / cell%sg
+#endif
+        end if
 
-!calculation of potential nedleleaves trees ratio
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Slow soil organic matter (b4)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        nlshare_st=(t1t-t1td)/(t1tn-t1td)
-        if (nlshare_st.gt.1) nlshare_st=1
-        if (nlshare_st.lt.0) nlshare_st=0
+        cell%b4t = cell%b4t + k3t / t3t * cell%b3t - cell%b4t / t4t
+        cell%b4g = cell%b4g + k4g / t2g * cell%b2g + k3g / t3g * cell%b3g - cell%b4g / t4g
+
+        ! FROG_EXP: fast carbon flux into slow pool (input to soil)
+        cell%Fv_t = k3t / t3t * cell%b3t
+        cell%Fv_g = k4g / t2g * cell%b2g + k3g / t3g * cell%b3g
 
 #if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul des C4
+        cell%b4t14 = cell%b4t14 + k3t / t3t * cell%b3t14 - cell%b4t14 / t4t
+        cell%b4g14 = cell%b4g14 + k4g / t2g * cell%b2g14 + k3g / t3g * cell%b3g14 - cell%b4g14 / t4g
+        cell%b4t13 = cell%b4t13 + k3t / t3t * cell%b3t13 - cell%b4t13 / t4t
+        cell%b4g13 = cell%b4g13 + k4g / t2g * cell%b2g13 + k3g / t3g * cell%b3g13 - cell%b4g13 / t4g
+#endif
 
-!dmr&nb A_REPRENDRE
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Fast soil organic matter (b3)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-! calculation of c4 grass fraction
-        !! [BUG] TATMSMIN NEVER INITIALIZED !!!
-        TATMSMIN(lat,lon) = 0.0d0
+        cell%b3t = cell%b3t + cell%b1t / t1t * k0t + k2t / t2t * cell%b2t - cell%b3t / t3t
+        cell%b3g = cell%b3g + cell%b1g / t1g * k0g + k2g / t2g * cell%b2g - cell%b3g / t3g
 
-!        if(TATMSMIN(lat,lon).lt.14) then
-        if(TATMSMIN(lat,lon).lt.12) then
-            g4share_st=0
+#if ( CYCC == 2 )
+        cell%b3t14 = cell%b3t14 + cell%b1t14 / t1t * k0t + k2t / t2t * cell%b2t14 - cell%b3t14 / t3t
+        cell%b3g14 = cell%b3g14 + cell%b1g14 / t1g * k0g + k2g / t2g * cell%b2g14 - cell%b3g14 / t3g
+        cell%b3t13 = cell%b3t13 + cell%b1t13 / t1t * k0t + k2t / t2t * cell%b2t13 - cell%b3t13 / t3t
+        cell%b3g13 = cell%b3g13 + cell%b1g13 / t1g * k0g + k2g / t2g * cell%b2g13 - cell%b3g13 / t3g
+#endif
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Leaves biomass (b1)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        cell%b1t = cell%b1t + k1t * cell%nppt - cell%b1t / t1t
+        cell%b1g = k1g * cell%nppg * t1g     ! grass leaves: instantaneous equilibrium
+
+#if ( CYCC == 2 )
+        cell%b1t14 = cell%b1t14 + k1t * cell%nppt * (C14ATM / PA_C) - cell%b1t14 / t1t
+        cell%b1g14 = k1g * cell%nppg * (C14ATM / PA_C) * t1g
+
+        cell%b1t13 = cell%b1t13 + k1t * cell%nppt * c13atm * C13FRAC - cell%b1t13 / t1t
+        cell%b1g13 = k1g * cell%nppg * c13atm &
+                   * (C13FRAC * (1.0_dblp - cell%sg4) + C13FRAC4 * cell%sg4) * t1g
+#endif
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Stems and roots (b2)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        cell%b2t = cell%b2t + (1.0_dblp - k1t) * cell%nppt - cell%b2t / t2t
+        cell%b2g = cell%b2g + (1.0_dblp - k1g) * cell%nppg - cell%b2g / t2g
+
+#if ( CYCC == 2 )
+        cell%b2t14 = cell%b2t14 + (1.0_dblp - k1t) * cell%nppt * (C14ATM / PA_C) - cell%b2t14 / t2t
+        cell%b2g14 = cell%b2g14 + (1.0_dblp - k1g) * cell%nppg * (C14ATM / PA_C) - cell%b2g14 / t2g
+
+        cell%b2t13 = cell%b2t13 + (1.0_dblp - k1t) * cell%nppt * c13atm * C13FRAC - cell%b2t13 / t2t
+        cell%b2g13 = cell%b2g13 &
+                   + (1.0_dblp - k1g) * cell%nppg &
+                   * c13atm * (C13FRAC * (1.0_dblp - cell%sg4) + C13FRAC4 * cell%sg4) &
+                   - cell%b2g13 / t2g
+
+        ! annual 14C radioactive decay
+        if (KENDY == 1) then
+          cell%b1t14 = cell%b1t14 * (1.0_dblp - C14DEC)
+          cell%b2t14 = cell%b2t14 * (1.0_dblp - C14DEC)
+          cell%b3t14 = cell%b3t14 * (1.0_dblp - C14DEC)
+          cell%b4t14 = cell%b4t14 * (1.0_dblp - C14DEC)
+          cell%b1g14 = cell%b1g14 * (1.0_dblp - C14DEC)
+          cell%b2g14 = cell%b2g14 * (1.0_dblp - C14DEC)
+          cell%b3g14 = cell%b3g14 * (1.0_dblp - C14DEC)
+          cell%b4g14 = cell%b4g14 * (1.0_dblp - C14DEC)
+        end if
+#endif
+
+        call climpar(cell)
+
+
+      end subroutine ccdyn
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      FUNCTION: ccdynR
+!
+!>     @brief  Advance the reference vegetation fractions (stR/sgR/sdR) by one year
+!>             without touching the actual carbon pools or cover fractions.
+!>             Used in parallel with ccdyn when irad == 1.
+!
+!>     @param[inout] cell   vegetation state for the current grid cell
+!>     @returns      .true. on success
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      subroutine ccdynR(cell)
+
+        type(veget_cell_state_t), intent(inout) :: cell
+
+        real(dblp) :: fd, dd, nld, dst, dsd, dstime, tempor1
+        real(dblp) :: temp_st, temp_sg
+
+        call ccparam(cell)
+
+        fd  = cell%forshare_st - cell%stR
+        dd  = cell%desshare_st - cell%sdR
+        nld = cell%nlshare_st  - cell%snltR
+        temp_st = cell%stR
+        temp_sg = cell%sgR
+
+        ! forest — exponential filter
+        if (abs(fd) < 100.0_dblp * tiny(fd)) then
+          dst = 0.0_dblp
         else
-!          if(TATMSMIN(lat,lon).lt.17) then
-!           g4share_st=1-(17-TATMSMIN(lat,lon))/(17.-14.)
-          if(TATMSMIN(lat,lon).lt.15.5) then
-           g4share_st=1-(15.5-TATMSMIN(lat,lon))/3.5
-        else
-           g4share_st=1
-        endif
-        endif
+          dst = fd * (1.0_dblp - exp(-1.0_dblp / t2t))
+        end if
+        cell%stR = cell%stR + dst
+        if (cell%stR < 0.0_dblp) cell%stR = 0.0_dblp
 
-!dmr&nb A_REPRENDRE
+        cell%snltR = cell%nlshare_st - nld * exp(-1.0_dblp / t2t)
 
-!dmr&nb --- Fin ajout du calcul des C4
-#endif
+        ! desert — exponential filter with characteristic time adjustment
+        dsd     = cell%desshare_st - dd * exp(-1.0_dblp / t2g) - cell%sdR
+        tempor1 = cell%sdR + dsd + cell%stR
+        if (tempor1 > 0.9_dblp) then
+          dstime = t2g * (1.0_dblp - tempor1) * 10.0_dblp &
+                 + t2t * (tempor1 - 0.9_dblp) * 10.0_dblp
+          dsd = cell%desshare_st - dd * exp(-1.0_dblp / dstime) - cell%sdR
+        end if
+        cell%sdR = cell%sdR + dsd
+        if (cell%sdR < 0.0_dblp) cell%sdR = 0.0_dblp
 
-        returnValue = .true.
+        cell%sgR = 1.0_dblp - cell%stR - cell%sdR
+        if (cell%sgR < 0.0_dblp) cell%sgR = 0.0_dblp
 
-        return
 
-      end function ccparam
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ccparam
-!
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
-!
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      function climpar(fracgr,darea) result(returnValue)
+      end subroutine ccdynR
 
 #if ( CYCC == 2 )
-        USE veget_iso
-#endif
-
-#if ( COMATM == 1 )
-        use comatm, only: nlat,nlon
-        use veget_mod
-#endif
-
-#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
-       use veget_mod, only : Fv, Fv_t, Fv_g, r_leaf
-#endif
-
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in]  fracgr   fraction of grass-type plants
-!>    @param[in] darea    area of the cells
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       real(kind=dblp), dimension(nlat, nlon), intent(in) :: fracgr
-       real(kind=dblp), dimension(nlat),       intent(in) :: darea
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical         :: returnValue
-       real(kind=dblp) :: tempor1
-
-#if ( CYCC == 2 )
-!dmr&nb --- 31 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-!dmr&nb A_REPRENDRE
-       real(kind=dblp) :: tempor2=0.0_dblp
-#endif
-
-       integer(ip)     :: KTVM
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-         KTVM=2
-! calculation of annual averaged LAI - lai
-
-         laig=b1g(lat,lon)*deng
-         lait=b1t(lat,lon)*(dentn*snlt(lat,lon)+dentd*(1-snlt(lat,lon)))
-
-         BLAI(lat,lon,1)=lait
-         BLAI(lat,lon,2)=laig
-
-! calculation of annual carbon uptake
-
-        if (KTVM.eq.2) then
-           tempor1=b1(lat,lon)+b2(lat,lon)+b3(lat,lon)+b4(lat,lon)
-
-#if ( CYCC ==2 )
-!dmr&nb --- 31 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-!dmr&nb A_REPRENDRE
-          tempor2=bc13(lat,lon)
-#endif
-        else
-           tempor1=0.D0
-        endif
-
-        b1(lat,lon)=b1t(lat,lon)*st(lat,lon)+b1g(lat,lon)*sg(lat,lon)
-        b2(lat,lon)=b2t(lat,lon)*st(lat,lon)+b2g(lat,lon)*sg(lat,lon)
-        b3(lat,lon)=b3t(lat,lon)*st(lat,lon)+b3g(lat,lon)*sg(lat,lon)
-        b4(lat,lon)=b4t(lat,lon)*st(lat,lon)+b4g(lat,lon)*sg(lat,lon)
-        b12(lat,lon)=b1(lat,lon)+b2(lat,lon)
-        b34(lat,lon)=b3(lat,lon)+b4(lat,lon)
-
-#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
-        Fv(lat,lon)= Fv(lat,lon)+ Fv_t(lat,lon)*st(lat,lon)+Fv_g(lat,lon)*sg(lat,lon)
-        !nb ratio=leaf/(leaf+wood)
-        if ((b1(lat,lon)+b2(lat,lon)) .gt. 0.0) then 
-             r_leaf(lat,lon)=(b1(lat,lon)+b2g(lat,lon)*sg(lat,lon))/(b1(lat,lon)+b2(lat,lon))
-        else 
-             r_leaf(lat,lon)=0.0
-             !! write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
-        endif
-        !write(*,*) 'r_leaf in veget_submod', r_leaf(lat,lon)
-#endif
-
-#if ( CYCC ==2 )
-!dmr&nb --- 31 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-!dmr&nb A_REPRENDRE
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-        bc14(lat,lon)=(b1t14(lat,lon)+b2t14(lat,lon)+b3t14(lat,lon)+b4t14(lat,lon))*st(lat,lon)                                 &
-                     +(b1g14(lat,lon)+b2g14(lat,lon)+b3g14(lat,lon)+b4g14(lat,lon))*sg(lat,lon)
-
-!~        print *,lat,lon,b1t14(lat,lon),b1g14(lat,lon),b4t14(lat,lon)
-
-        bc13(lat,lon)=(b1t13(lat,lon)+b2t13(lat,lon)+b3t13(lat,lon)+b4t13(lat,lon))*st(lat,lon)                                 &
-                     +(b1g13(lat,lon)+b2g13(lat,lon)+b3g13(lat,lon)+b4g13(lat,lon))*sg(lat,lon)
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-
-        anup(lat,lon)=(b1(lat,lon)+b2(lat,lon)+b3(lat,lon)+b4(lat,lon)-tempor1)
-        stock(lat,lon)=b1(lat,lon)+b2(lat,lon)+b3(lat,lon)+b4(lat,lon)
-#if ( CYCC == 1 )
-        stockloch(lat,lon)=fracgr(lat,lon)*darea(lat)*stock(lat,lon)*1E-12
-        anuploch(lat,lon)=fracgr(lat,lon)*darea(lat)*anup(lat,lon)*1E-12
-        anuploch(lat,lon)=fco2veg*anuploch(lat,lon)
-#elif ( CYCC ==2 )
-!dmr&nb --- 31 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-!dmr&nb A_REPRENDRE
-
-        anup13(lat,lon)=bc13(lat,lon)-tempor2
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-
-!...      NET PRIMARY PRODUCTION
-
-!       pnpp(lat,lon)=npp*(1-sd(lat,lon))
-        pnpp(lat,lon)=nppt*st(lat,lon)+nppg*sg(lat,lon)
-
-        returnValue = .true.
-
-        return
-
-      end function climpar
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ccdyn
+!      SUBROUTINE: ccstat_isotope
 !
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
+!>     @author  Didier M. Roche (dmr), Veronique Mariotti (vm)
 !
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
+!>     @brief   Initialise carbon isotope pools (13C, 14C) for a single grid cell
+!>              when no isotope restart is available (new_run_c /= 0).
+!>              Called once per cell from the restart initialisation loop in veget.f90,
+!>              immediately after ccstat has computed the equilibrium carbon pools and
+!>              ccparam has set the residence times t1t..t4g.
+!>
+!>     @details In the original code (ccstat_isotope.f) this routine operated on the
+!>              full 2-D arrays using the last-computed scalar residence times — an
+!>              implicit bug since t1t..t4g held the values of the last cell visited.
+!>              The point-wise port eliminates that race: ccparam is called by ccstat
+!>              before this routine runs, so the cell's own residence times are current.
+!>
+!>     @param[inout] cell   vegetation state for the current grid cell
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      function ccdyn(fracgr,darea) result(returnValue)
+      subroutine ccstat_isotope(cell)
 
-#if ( CYCC == 2 )
-       use veget_iso, ONLY : B4T14, B3T14, B4T13, B3T13, B2T14, B1T14, B2T13, B1T13, B4G14, B3G14, B4G13, B3G13, B2G14, B1G14  &
-                    , B2G13, B1G13, BC13, BC14, G4SHARE_ST, SG4, C13FRAC, C13FRAC4
-       use carbone_co2, ONLY: C14ATM, C14DEC, PA_C
-       use mod_sync_time, ONLY: KENDY
-       use C_res_mod, ONLY: c13atm
-#endif
+        ! c13frac, c13frac4 now in veget_phys_params_mod (imported at module level)
+        use carbone_co2_mod, only: c14rstd, c14dec
+        use C_res_mod,   only: c13init, c13atm
 
-       use comemic_mod, only: iyear
-       use veget_mod
-       use comatm, only: nlat, nlon
-       use comrunlabel_mod, only: irunlabelf
+        type(veget_cell_state_t), intent(inout) :: cell
 
-#if ( FROG_EXP > 0 && FROG_CARBON >0 )
-       use veget_mod, only : Fv, Fv_t, Fv_g
+        real(dblp) :: c14init
+
+        c14init = c14rstd   ! standard modern 14C activity ratio
+
+        ! leaves
+        cell%b1t14 = c14init * exp(-c14dec * t1t) * cell%b1t
+        cell%b1g14 = c14init * exp(-c14dec * t1g) * cell%b1g
+        cell%b1t13 = cell%b1t * c13init * c13atm
+        cell%b1g13 = cell%b1g * c13init * c13atm
+
+        ! stems and roots
+        cell%b2t14 = cell%b2t * c14init * exp(-c14dec * t2t)
+        cell%b2g14 = cell%b2g * c14init * exp(-c14dec * t2g)
+        cell%b2t13 = cell%b2t * c13init * c13atm
+        cell%b2g13 = cell%b2g * c13init * c13atm
+
+        ! fast litter
+        cell%b3t14 = cell%b3t * c14init * exp(-c14dec * t3t)
+        cell%b3g14 = cell%b3g * c14init * exp(-c14dec * t3g)
+        cell%b3t13 = cell%b3t * c13init * c13atm
+        cell%b3g13 = cell%b3g * c13init * c13atm
+
+        ! slow soil organic matter
+        cell%b4t14 = cell%b4t * c14init * exp(-c14dec * t4t)
+        cell%b4g14 = cell%b4g * c14init * exp(-c14dec * t4g)
+        cell%b4t13 = cell%b4t * c13init * c13atm
+        cell%b4g13 = cell%b4g * c13init * c13atm
+
+      end subroutine ccstat_isotope
+
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in]  fracgr   fraction of grass-type plants
-!>    @param[in] darea    area of the cells
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       real(kind=dblp), dimension(nlat, nlon), intent(in) :: fracgr
-       real(kind=dblp), dimension(nlat),       intent(in) :: darea
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical         :: returnValue
-
-! temporal var*/
-       integer(kind=ip):: indxv
-       real(kind=dblp) :: tempor1,tempor2,db2,fd,dst,dd,nld,dstime, dsd,temp_sg,temp_st
-
-#if ( CYCC == 2 )
-!dmr&nb 12 Novembre 2009
-!dmr&nb --- Ajout du calcul des isotopes C13, C14
-        real(kind=dblp):: tempor3,tempor4,tempor5,tempor6
-!dmr&nb --- Fin ajout du calcul des isotopes C13, C14
-        real(kind=dblp):: G4D
-#endif
-
-#if ( PF_CC > 0 )
-        real(kind=dblp):: b4t_hold, b4g_hold, b3t_hold, b3g_hold
-        real(kind=dblp):: w_frac, p_frac
-#endif
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! calculation of current carbon cycle parameters
-
-        returnValue = ccparam()
-
-
-#if( PF_CC > 0 )
-
-       p_frac = pf_percent(lat,lon)
-       w_frac = 1.0 - pf_percent(lat,lon)
-#endif
-
-! calculation of fraction dynamic variables
-
-        fd=forshare_st-st(lat,lon)
-        dd=desshare_st-sd(lat,lon)
-        nld=nlshare_st-snlt(lat,lon)
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul des C4
-
-        g4d=g4share_st-sg4(lat,lon)
-!dmr&nb --- Fin ajout du calcul des C4
-#endif
-
-        temp_st=st(lat,lon)
-        temp_sg=sg(lat,lon)
-
-
-! calculation of forest dynamics; exponential filtre
-        if (abs(fd).lt.100.*tiny(fd)) then
-          fd = 0.0d0
-          dst = 0.0d0
-        else
-          dst=fd*(1.d0-exp(-1./t2t))
-        endif
-
-        st(lat,lon)=temp_st+dst
-        if (st(lat,lon).lt.0.) st(lat,lon)=0.
-
-! desert dynamics; exponential filtre
-        dsd=dd*(1.-exp(-1./t2g))
-! calculation of characteristic time of desert propagation
-        tempor1=sd(lat,lon)+dsd+st(lat,lon)
-        if (tempor1.gt.0.9) then
-             dstime=(t2g*(1.-tempor1)+t2t*(tempor1-0.9))*10.
-             dsd=dd*(1.-exp(-1./dstime))
-        endif
-        sd(lat,lon)=sd(lat,lon)+dsd
-        if (sd(lat,lon).lt.0.) sd(lat,lon)=0.
-
-#if ( ISM == 1 )
-        if (flgism) then
-         if (sd(lat,lon).lt.soiltype(lat,lon,ca)) then
-           sd(lat,lon)=soiltype(lat,lon,ca)
-           if ((sd(lat,lon)+st(lat,lon)).gt.1.) st(lat,lon)=1.-sd(lat,lon)
-           if (st(lat,lon).lt.0.) st(lat,lon)=0.
-         endif
-        endif
-#endif
-!
-!
-        indxv=irunlabelf+iyear-i0dfor
-        tempor1=0.
-!
-! ----------------------
-! Constant vegetation:
-! ----------------------
-        if ((iscendef.eq.-1).AND.(indxv.ge.0)) then
-! Defines ref. tree and desert fractions:
-         if (indxv.eq.0) then
-          st_const(lat,lon)=st(lat,lon)
-          sd_const(lat,lon)=sd(lat,lon)
-         else
-          st(lat,lon)=st_const(lat,lon)
-          sd(lat,lon)=sd_const(lat,lon)
-         endif
-        endif
-!
-! Available fraction for vegetation
-        tempor2=1.-sd(lat,lon)
-        if(tempor2.lt.0.) tempor2=0.
-!
-! ----------------------
-! Deforestation scenario:
-! ----------------------
-! Forests/trees are replaced with grassland (cropland) in accordance with R&F 1700-1992 scenario.
-!
-! Once the end of the deforestation scenario file is reached the land use is kept at its state
-!  as in the last year.
-!
-! Three versions: version A1 & A2 (AM & MFL, july 2008);
-!                 version B (VB & AM, sept. 2008)
-!                 version C (ED & AM for MILMO);
-!
-! SCENARIO version A ================= goes from here ====>>
-!
-!        if ((iscendef.eq.1).AND.(indxv.gt.0)) then
-!         if(indxv.gt.ndfor) indxv=ndfor
-! Version A1
-! Scenario conc/efor
-! actual fraction of trees is the minimum of
-!     [potential fraction , fraction not occupied by cultures]
-!         if(farea(lat,lon,indxv).lt.9.0E+19)
-!     &       tempor1=tempor2-farea(lat,lon,indxv)
-!         if(tempor1.lt.0.) tempor1=0.
-!         st(lat,lon)=min(st(lat,lon),tempor1)
-! Version A2
-! Scenario Conc/Efor
-! the tree fraction is reduced by the crop fraction
-!         if(farea(lat,lon,indxv).lt.9.0E+19)
-!     &    st(lat,lon)=st(lat,lon)-farea(lat,lon,indxv)
-!         if(st(lat,lon).lt.0.) st(lat,lon)=0.
-!        endif
-!
-! SCENARIO version A ======================== to there ====<<
-!
-! If replacing one version by the other be careful to comment and decomment
-!  all instructions comprised between the tags "from here" and "to there".
-!
-! SCENARIO version B ================= goes from here ====>>
-!
-! Scenario as implemented by Victor Brovkin,
-!  complies with the rules edicted in EMIC intercomparison project.
-! Deforestation is computed with respect to a reference vegetation distribution;
-! the reference distribution corresponds to that as in year ivgstrt.
-! It goes like this:
-!  - crop = 0 => sd=sd_ref; st=st_ref & sg=1-st-sd=sg_ref;
-!  - crop > 0 => sd=sd_ref; st=max(0,st_ref-crop) ; sg=1-sd-st;
-!
-        if ((iscendef.eq.1).AND.(indxv.ge.0)) then
-! Defines ref. tree and desert fractions:
-         if (indxv.eq.0) then
-          st_const(lat,lon)=st(lat,lon)
-          sd_const(lat,lon)=sd(lat,lon)
-         else
-          if(indxv.gt.ndfor) indxv=ndfor
-          sd(lat,lon)=sd_const(lat,lon)
-          tempor2=1.-sd_const(lat,lon)
-          st(lat,lon)=st_const(lat,lon)
-          if(farea(lat,lon,indxv).lt.9.0E+19) then
-           st(lat,lon)=st_const(lat,lon)-farea(lat,lon,indxv)
-          endif
-          if(st(lat,lon).lt.0.) st(lat,lon)=0.
-         endif
-        endif
-!
-! SCENARIO version B ======================== to there ====<<
-!
-! If replacing one version by the other be careful to comment and decomment
-!  all instructions comprised between the tags "from here" and "to there".
-!
-! SCENARIO version C ================= goes from here ====>>
-!
-! Scenario as formerly written (MILMO)
-! The tree fraction is the mimimum among:
-!      - potential tree fraction
-!      - reference tree-fraction (st_const) less the crop fraction (farea)
-! This is not exactly the scenario preconised by V.B. for EMICs
-!        (since veg. cover does not necessarily correspond to the reference cover: st smaller, sd evolves...)
-! It may produce deforestation fluxes even if farea=0 (if st < st_const)
-!
-! this part NEEDs TO BE VERIFIED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-!        if ((iscendef.eq.1).AND.(indxv.ge.0)) then
-!         if (indxv.eq.0) then
-! Defines ref. tree fraction:
-!          st_const(lat,lon)=st(lat,lon)
-!         else
-!          if(indxv.le.ndfor) then
-!           if(farea(lat,lon,indxv).lt.9.0E+19)
-!     &       tempor1=st_const(lat,lon)-farea(lat,lon,indxv)
-!          else
-!           indxv=ndfor
-!           if((farea(lat,lon,indxv).lt.9.0E+19).and.(farea(lat,lon,indxv).gt.0.D0))
-!     &       tempor1=st_const(lat,lon)-farea(lat,lon,indxv)
-!          endif
-!          if(tempor1.lt.0.) tempor1=0.
-!          st(lat,lon)=min(st(lat,lon),tempor1)
-!         endif
-!
-! SCENARIO version C ======================== to there ====<<
-!
-!
-! do not forget to update dst (needed for corrections below)
-        dst=st(lat,lon)-temp_st
-
-        sg(lat,lon)=tempor2-st(lat,lon)
-        if (sg(lat,lon).lt.0) sg(lat,lon)=0.
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul des C4
-
-        sg4(lat,lon)=g4share_st-g4d*exp(-1./t2g)
-!dmr&nb --- Fin ajout du calcul des C4
-#endif
-
-        snlt(lat,lon)=nlshare_st-nld*exp(-1./t2t)
-
-! calculation of dynamics of storages
-
-! calculation of changes of storages due to conservation law
-
-! correction for trees
-
-        tempor1=b4t(lat,lon)
-        tempor2=b3t(lat,lon)
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-        tempor3=b4t14(lat,lon)
-        tempor4=b3t14(lat,lon)
-        tempor5=b4t13(lat,lon)
-        tempor6=b3t13(lat,lon)
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-
-        if(st(lat,lon).gt.0) then
-!dmr&nb --- Si les arbres avancent ...
-         if(dst.gt.0) then
-          if(dst.le.temp_sg) then !cnb si la progression est inferieur a espace d herbes
-            b4t(lat,lon)=(b4t(lat,lon)*temp_st+b4g(lat,lon)*dst)/st(lat,lon)
-            b3t(lat,lon)=(b3t(lat,lon)*temp_st+b3g(lat,lon)*dst)/st(lat,lon)
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-            b4t14(lat,lon)=(b4t14(lat,lon)*temp_st+b4g14(lat,lon)*dst)/st(lat,lon)
-            b3t14(lat,lon)=(b3t14(lat,lon)*temp_st+b3g14(lat,lon)*dst)/st(lat,lon)
-
-            b4t13(lat,lon)=(b4t13(lat,lon)*temp_st+b4g13(lat,lon)*dst)/st(lat,lon)
-            b3t13(lat,lon)=(b3t13(lat,lon)*temp_st+b3g13(lat,lon)*dst)/st(lat,lon)
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-          else !cnb sinon
-            b4t(lat,lon)=(b4t(lat,lon)*temp_st+b4g(lat,lon)*temp_sg)/st(lat,lon) !cnb
-            b3t(lat,lon)=(b3t(lat,lon)*temp_st+b3g(lat,lon)*temp_sg)/st(lat,lon) !cnb
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009 !cnb
-!dmr&nb --- Ajout du calcul isotopes C13, C14 !cnb
-
-            b4t14(lat,lon)=(b4t14(lat,lon)*temp_st+b4g14(lat,lon)*temp_sg)/st(lat,lon) !cnb
-            b3t14(lat,lon)=(b3t14(lat,lon)*temp_st+b3g14(lat,lon)*temp_sg)/st(lat,lon) !cnb
-
-            b4t13(lat,lon)=(b4t13(lat,lon)*temp_st+b4g13(lat,lon)*temp_sg)/st(lat,lon) !cnb
-            b3t13(lat,lon)=(b3t13(lat,lon)*temp_st+b3g13(lat,lon)*temp_sg)/st(lat,lon) !cnb
-#endif
-          endif !cnb
-         endif
-         b2t(lat,lon)=b2t(lat,lon)*temp_st/st(lat,lon)
-         b1t(lat,lon)=b1t(lat,lon)*temp_st/st(lat,lon)
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-         b2t14(lat,lon)=b2t14(lat,lon)*temp_st/st(lat,lon)
-         b1t14(lat,lon)=b1t14(lat,lon)*temp_st/st(lat,lon)
-
-         b2t13(lat,lon)=b2t13(lat,lon)*temp_st/st(lat,lon)
-         b1t13(lat,lon)=b1t13(lat,lon)*temp_st/st(lat,lon)
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-        endif
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! correction for grass
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       if(sg(lat,lon).gt.0) then
-!dmr&nb --- Si les arbres avancent ...
-               if(dst.gt.0) then
-                if(dst.le.temp_sg) then !cnb si la progression des arbres est inferieur a l espace d herbes
-                b4g(lat,lon)=b4g(lat,lon)*(temp_sg-dst)/sg(lat,lon)
-                b3g(lat,lon)=b3g(lat,lon)*(temp_sg-dst)/sg(lat,lon)
-!nb                if (b4g(lat,lon).lt.0) b4g(lat,lon)=0 !cnb
-!nb                if (b3g(lat,lon).lt.0) b3g(lat,lon)=0 !cnb
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-                 b4g14(lat,lon)=b4g14(lat,lon)*(temp_sg-dst)/sg(lat,lon)
-                 b3g14(lat,lon)=b3g14(lat,lon)*(temp_sg-dst)/sg(lat,lon)
-
-                 b4g13(lat,lon)=b4g13(lat,lon)*(temp_sg-dst)/sg(lat,lon)
-                 b3g13(lat,lon)=b3g13(lat,lon)*(temp_sg-dst)/sg(lat,lon)
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-               else !cnb si les arbres progressent au dela des herbes y a plus d herbes
-                 b4g(lat,lon)=0.0
-                 b3g(lat,lon)=0.0
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-                 b4g14(lat,lon)=0.0
-                 b3g14(lat,lon)=0.0
-
-                 b4g13(lat,lon)=0.0
-                 b3g13(lat,lon)=0.0
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-                endif !cnb si progression arbres inferieur a espace d herbes
-
-               else
-!dmr&nb --- Si les arbres n'avancent pas (reculent)
-          b4g(lat,lon)=(b4g(lat,lon)*temp_sg-tempor1*dst)/sg(lat,lon)
-          b3g(lat,lon)=(b3g(lat,lon)*temp_sg-tempor2*dst)/sg(lat,lon)
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-           b4g14(lat,lon)=(b4g14(lat,lon)*temp_sg-tempor3*dst)/sg(lat,lon)
-           b3g14(lat,lon)=(b3g14(lat,lon)*temp_sg-tempor4*dst)/sg(lat,lon)
-
-           b4g13(lat,lon)=(b4g13(lat,lon)*temp_sg-tempor5*dst)/sg(lat,lon)
-           b3g13(lat,lon)=(b3g13(lat,lon)*temp_sg-tempor6*dst)/sg(lat,lon)
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-               endif
-        b2g(lat,lon)=b2g(lat,lon)*temp_sg/sg(lat,lon)
-        b1g(lat,lon)=b1g(lat,lon)*temp_sg/sg(lat,lon)
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-         b2g14(lat,lon)=b2g14(lat,lon)*temp_sg/sg(lat,lon)
-         b1g14(lat,lon)=b1g14(lat,lon)*temp_sg/sg(lat,lon)
-
-         b2g13(lat,lon)=b2g13(lat,lon)*temp_sg/sg(lat,lon)
-         b1g13(lat,lon)=b1g13(lat,lon)*temp_sg/sg(lat,lon)
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-       endif
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! slow soil organic matter
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#if ( PF_CC > 0 )
-
-!kc place holder for b4 terms
-
-        b4t_hold=b4t(lat,lon)
-        b4g_hold=b4g(lat,lon)
-!        b4t14_hold=b4t14(lat,lon)
-!        b4g14_hold=b4g14(lat,lon)
-!        b4t13_hold=b4t13(lat,lon)
-!        b4g13_hold=b4g13(lat,lon)
-
-!kc for non permafrost effected fraction
-
-        b4t(lat,lon)=w_frac*(b4t_hold+k3t/t3t*b3t(lat,lon)-b4t_hold/t4t)
-        b4g(lat,lon)=w_frac*(b4g_hold+k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon)-b4g_hold/t4g)
-
-!kc for permafrost fraction of cell for b4 and c14 and c13
-
-        IF ( p_frac.GT.0.0) THEN
-        b5t(lat,lon)=p_frac*(b4t_hold+k3t/t3t*b3t(lat,lon)-b4t_hold/t5t)
-        b5g(lat,lon)=p_frac*(b4g_hold+k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon)-b4g_hold/t5g)
-        ENDIF
-#else
-
-
-        b4t(lat,lon)=b4t(lat,lon)+k3t/t3t*b3t(lat,lon)-b4t(lat,lon)/t4t
-        b4g(lat,lon)=b4g(lat,lon)+k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon)-b4g(lat,lon)/t4g
-
-#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
-        Fv_t(lat,lon)=k3t/t3t*b3t(lat,lon) !-b4t(lat,lon)/t4t
-        Fv_g(lat,lon)=k4g/t2g*b2g(lat,lon)+k3g/t3g*b3g(lat,lon) !-b4g(lat,lon)/t4g
-
-#endif
-
-
-#endif
-#if ( CYCC == 2 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-        b4t14(lat,lon)=b4t14(lat,lon)+k3t/t3t*b3t14(lat,lon)-b4t14(lat,lon)/t4t
-        b4g14(lat,lon)=b4g14(lat,lon)+k4g/t2g*b2g14(lat,lon)+k3g/t3g*b3g14(lat,lon)-b4g14(lat,lon)/t4g
-
-        b4t13(lat,lon)=b4t13(lat,lon)+k3t/t3t*b3t13(lat,lon)-b4t13(lat,lon)/t4t
-        b4g13(lat,lon)=b4g13(lat,lon)+k4g/t2g*b2g13(lat,lon)+k3g/t3g*b3g13(lat,lon)-b4g13(lat,lon)/t4g
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#endif
-
-#if( PF_CC > 0 )
-
-!kc add permafrost carbon back in to b4 components
-
-        b4t(lat,lon)=b4t(lat,lon)+b5t(lat,lon)
-        b4g(lat,lon)=b4g(lat,lon)+b5g(lat,lon)
-
-#endif
-
-!   fast soil organic matter
-
-#if( PF_CC > 0 )
-
-!kc place holder for fast soil terms
-        b3t_hold=b3t(lat,lon)
-        b3g_hold=b3g(lat,lon)
-!        b3t14_hold=b3t14(lat,lon)
-!        b3g14_hold=b3g14(lat,lon)
-!        b3t13_hold=b3t13(lat,lon)
-!        b3g13_hold=b3g13(lat,lon)
-
-!kc non-permafrost fraction of cell, b3, permafrost effected b6
-
-        b3t(lat,lon)=w_frac*(b3t_hold+b1t(lat,lon)/t1t*k0t+k2t/t2t*b2t(lat,lon)-b3t_hold/t3t)
-        b3g(lat,lon)=w_frac*(b3g_hold+b1g(lat,lon)/t1g*k0g+k2g/t2g*b2g(lat,lon)-b3g_hold/t3g)
-
-
-        IF ( p_frac.GT.0.0) THEN
-        b6t(lat,lon)=p_frac*(b3t_hold+b1t(lat,lon)/t1t*k0t+k2t/t2t*b2t(lat,lon)-b3t_hold/t6t)
-        b6g(lat,lon)=p_frac*(b3g_hold+b1g(lat,lon)/t1g*k0g+k2g/t2g*b2g(lat,lon)-b3g_hold/t6g)
-        ENDIF
-
-
-#else
-        b3t(lat,lon)=b3t(lat,lon)+b1t(lat,lon)/t1t*k0t+k2t/t2t*b2t(lat,lon)-b3t(lat,lon)/t3t
-        b3g(lat,lon)=b3g(lat,lon)+b1g(lat,lon)/t1g*k0g+k2g/t2g*b2g(lat,lon)-b3g(lat,lon)/t3g
-
-#endif
-
-#if ( CYCC == 2 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-        b3t14(lat,lon)=b3t14(lat,lon)+b1t14(lat,lon)/t1t*k0t+k2t/t2t*b2t14(lat,lon)-b3t14(lat,lon)/t3t
-
-        b3g14(lat,lon)=b3g14(lat,lon)+b1g14(lat,lon)/t1g*k0g+k2g/t2g*b2g14(lat,lon)-b3g14(lat,lon)/t3g
-
-        b3t13(lat,lon)=b3t13(lat,lon)+b1t13(lat,lon)/t1t*k0t+k2t/t2t*b2t13(lat,lon)-b3t13(lat,lon)/t3t
-
-        b3g13(lat,lon)=b3g13(lat,lon)+b1g13(lat,lon)/t1g*k0g+k2g/t2g*b2g13(lat,lon)-b3g13(lat,lon)/t3g
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#endif
-
-#if ( PF_CC > 0 )
-!kc sum b3 components back together
-
-        b3t(lat,lon)=b3t(lat,lon)+b6t(lat,lon)
-        b3g(lat,lon)=b3g(lat,lon)+b6g(lat,lon)
-
-!        IF ((lat.EQ.27).AND.(lon.EQ.11)) then
-!        WRITE(*,*) "/ /", b4t(lat,lon)+b4g(lat,lon),
-!     &  p_frac, lat, lon
-!        ENDIF
-!        PAUSE
-
-!        b3t14(lat,lon)=b3t14(lat,lon)+b6t14(lat,lon)
-!        b3g14(lat,lon)=b3g14(lat,lon)+b6g14(lat,lon)
-!        b3t13(lat,lon)=b3t13(lat,lon)+b6t13(lat,lon)
-!        b3g13(lat,lon)=b3g13(lat,lon)+b6g13(lat,lon)
-
-!kc Soil respiration
-
-!      rsoil_g(lat,lon)=w_frac*((-b3g_hold/t3g)+(-b4g_hold/t4g))
-!     >                +p_frac*((-b3g_hold/t6g)+(-b4g_hold/t5g))
-!      rsoil_t(lat,lon)=w_frac*((-b3g_hold/t3t)+(-b4g_hold/t4t))
-!     >                +p_frac*((-b3g_hold/t6t)+(-b4g_hold/t5t))
-
-!kc Veg respiration
-
-!       rveg_g(lat,lon)=-b2g(lat,lon)/t2g
-!       rveg_t(lat,lon)=(-b1t(lat,lon)/t1t)+(-b2t(lat,lon)/t2t)
-
-#endif
-
-
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! leaves biomass
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-        b1t(lat,lon)=b1t(lat,lon)+k1t*nppt-b1t(lat,lon)/t1t
-        b1g(lat,lon)=k1g*nppg*t1g
-
-#if ( CYCC == 2 )
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-
-        b1t14(lat,lon)=b1t14(lat,lon)+k1t*nppt*(c14atm/PA_C)-b1t14(lat,lon)/t1t
-
-          IF(KENDY.EQ.1) then
-            IF(lat.eq.1.and.lon.eq.1) WRITE(*,*) 'ccdyn.f Flux al C14'
-          ENDIF
-
-        b1g14(lat,lon)=k1g*nppg*(c14atm/PA_C)*t1g
-
-
-        b1t13(lat,lon)=b1t13(lat,lon)+k1t*nppt*c13atm*c13frac-b1t13(lat,lon)/t1t
-
-
-        b1g13(lat,lon)=k1g*nppg*c13atm*(c13frac*(1-sg4(lat,lon))+c13frac4*sg4(lat,lon))*t1g
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-
-!   stems and roots biomass
-
-        b2t(lat,lon)=b2t(lat,lon)+(1-k1t)*nppt-b2t(lat,lon)/t2t
-        b2g(lat,lon)=b2g(lat,lon)+(1-k1g)*nppg-b2g(lat,lon)/t2g
-
-#if ( CYCC == 2 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-        b2t14(lat,lon)=b2t14(lat,lon)+(1-k1t)*nppt*(c14atm/PA_C)-b2t14(lat,lon)/t2t
-
-        b2g14(lat,lon)=b2g14(lat,lon)+(1-k1g)*nppg*(c14atm/PA_C)-b2g14(lat,lon)/t2g
-
-        b2t13(lat,lon)=b2t13(lat,lon)+(1-k1t)*nppt*c13atm*c13frac-b2t13(lat,lon)/t2t
-
-        b2g13(lat,lon)=b2g13(lat,lon)+(1-k1g)*nppg*c13atm*(c13frac*(1-sg4(lat,lon))+c13frac4*sg4(lat,lon))-b2g13(lat,lon)/t2g
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr&nb --- 12 novembre 2009
-!dmr&nb --- Ajout du calcul isotopes C13, C14
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!   c14 annual decay
-        IF(KENDY.EQ.1) then
-          b1t14(lat,lon)=b1t14(lat,lon)*(1-c14dec)
-          b2t14(lat,lon)=b2t14(lat,lon)*(1-c14dec)
-          b3t14(lat,lon)=b3t14(lat,lon)*(1-c14dec)
-          b4t14(lat,lon)=b4t14(lat,lon)*(1-c14dec)
-          b1g14(lat,lon)=b1g14(lat,lon)*(1-c14dec)
-          b2g14(lat,lon)=b2g14(lat,lon)*(1-c14dec)
-          b3g14(lat,lon)=b3g14(lat,lon)*(1-c14dec)
-          b4g14(lat,lon)=b4g14(lat,lon)*(1-c14dec)
-          IF(lat.eq.1.and.lon.eq.1)  WRITE(*,*) 'ccdyn.f lnd C14 decay'
-        ENDIF
-
-!dmr&nb --- Fin ajout du calcul isotopes C13, C14
-#endif
-
-        returnValue = climpar(fracgr,darea)
-
-        returnValue = .true.
-
-        return
-
-      end function ccdyn
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ccstatR
-!
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
-!
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      function ccstatR(fracgr,darea) result(returnValue)
-
-       use comemic_mod, only:
-       use comatm, only: nlat, nlon
-       use veget_mod
-       use comrunlabel_mod, only: irunlabelf
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in]  fracgr   fraction of grass-type plants
-!>    @param[in] darea    area of the cells
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       real(kind=dblp), dimension(nlat, nlon), intent(in) :: fracgr
-       real(kind=dblp), dimension(nlat),       intent(in) :: darea
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical         :: returnValue
-       real(kind=dblp) :: tempor1
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-        returnValue = CCPARAM()
-
-
-        stR(lat,lon)=forshare_st
-        sdR(lat,lon)=desshare_st
-        snltR(lat,lon)=nlshare_st
-        if(sdR(lat,lon).lt.0.) sdR(lat,lon)=0.
-        sgR(lat,lon)=1.-stR(lat,lon)-sdR(lat,lon)
-        if(sgR(lat,lon).lt.0.) sgR(lat,lon)=0.
-
-        returnValue=CLIMPAR(fracgr,darea)
-
-        returnValue = .true.
-
-        return
-
-      end function ccstatR
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      ROUTINE: ccdynR
-!
-!>     @brief This function is a fortran90 port of the initial 77 subroutine
-!
-!      DESCRIPTION:
-!
-!>     Here add the long_description of the module ...
-!!      more blablas ...
-!!      more blablas ...
-!
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      function ccdynR(fracgr,darea) result(returnValue)
-
-      use comemic_mod, only:
-      use veget_mod
-      use comatm, only: nlat, nlon
-      use comrunlabel_mod, only: irunlabelf
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   By reference variables ...
-!>    @param[in]  fracgr   fraction of grass-type plants
-!>    @param[in] darea    area of the cells
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       real(kind=dblp), dimension(nlat, nlon), intent(in) :: fracgr
-       real(kind=dblp), dimension(nlat),       intent(in) :: darea
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  Local variables ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       logical          :: returnValue
-! temporal var*/
-        integer(kind=ip):: indxv
-        real(kind=dblp) :: tempor1,tempor2,db2,fd,dst,dd,nld,dstime, dsd,temp_sg,temp_st
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Main code of the function starts here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-! calculation of current carbon cycle parameters
-
-        returnValue = ccparam()
-
-! calculation of fraction dynamic variables
-
-        fd=forshare_st-stR(lat,lon)
-        dd=desshare_st-sdR(lat,lon)
-        nld=nlshare_st-snltR(lat,lon)
-        temp_st=stR(lat,lon)
-        temp_sg=sgR(lat,lon)
-
-
-        if (abs(fd).lt.100.*tiny(fd)) then
-          fd = 0.0d0
-          dst = 0.0d0
-        else
-          dst=fd*(1.d0-exp(-1./t2t))
-        endif
-
-! calculation of forest dynamics; exponential filtre
-!-AM    dst=forshare_st-fd*exp(-1./t2t)-st(lat,lon)
-
-!
-!
-         stR(lat,lon)=stR(lat,lon)+dst
-!
-        if (stR(lat,lon).lt.0.) stR(lat,lon)=0.
-!
-        snltR(lat,lon)=nlshare_st-nld*exp(-1./t2t)
-
-! desert dynamics; exponential filtre
-        dsd=desshare_st-dd*exp(-1./t2g)-sdR(lat,lon)
-        tempor1=sdR(lat,lon)+dsd+stR(lat,lon)
-
-! calculation of characteristic time of desert propagation
-        if (tempor1.gt.0.9) then
-             dstime=t2g*(1-tempor1)*10.+t2t*(tempor1-0.9)*10.
-             dsd=desshare_st-dd*exp(-1./dstime)-sdR(lat,lon)
-        endif
-
-        sdR(lat,lon)=sdR(lat,lon)+dsd
-        if (sdR(lat,lon).lt.0) sdR(lat,lon)=0.
-!
-!
-        sgR(lat,lon)=1.-stR(lat,lon)-sdR(lat,lon)
-
-        if (sgR(lat,lon).lt.0) sgR(lat,lon)=0.
-
-        returnValue = .true.
-
-        return
-
-      end function ccdynR
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the function here
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      End of the module here
+!      End of module
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       end module veget_sub_mod
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      The End of All Things (op. cit.)
+! dmr --- The End of All Things (op. cit.)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

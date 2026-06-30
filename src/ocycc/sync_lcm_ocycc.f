@@ -43,6 +43,10 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
        USE path_mod, only: particles_fluxes_field, ncaco3, npoc, nopal
 #endif
 
+#if ( ARGON == 1 )
+       USE marine_bio_mod, ONLY: OARG
+#endif
+
 #if ( NEOD > 0 )
 !       use neodymium_mod, only: neodymium,
 !      & scalstart_neodymium, scalend_neodymium
@@ -177,6 +181,7 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          ODOCS(i,(kmax+1-k),n) = scal(n+1,i,k,4)
          ODIC(i,(kmax+1-k),n) = scal(n+1,i,k,5)
          OPO4(i,(kmax+1-k),n) = scal(n+1,i,k,6)
+
 !vm: on enleve le traceur ONO3
 #if ( OXNITREUX == 1 )
          ON2O(i,(kmax+1-k),n) = scal(n+1,i,k,7)
@@ -189,6 +194,7 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          ODOC13(i,(kmax+1-k),n) = scal(n+1,i,k,11)
          ODOCS13(i,(kmax+1-k),n) = scal(n+1,i,k,12)
          OC14(i,(kmax+1-k),n) = scal(n+1,i,k,13)
+
 #if ( OOISO == 0 )
          OO2(i,(kmax+1-k),n) = scal(n+1,i,k,9)
 #else
@@ -198,6 +204,9 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          OO2(i,(kmax+1-k),n,iair18) = scal(n+1,i,k,oo2iso18)
 #endif
 
+#if ( ARGON == 1 )
+         OARG(i,(kmax+1-k),n) = scal(n+1,i,k,ioargon)
+#endif
 
          
             endif
@@ -237,6 +246,7 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          scal(n+1,i,k,4) = ODOCS(i,(kmax+1-k),n)
          scal(n+1,i,k,5) = ODIC(i,(kmax+1-k),n)
          scal(n+1,i,k,6) = OPO4(i,(kmax+1-k),n)
+
 !vm: on enleve le traceur ONO3
 #if ( OXNITREUX == 1 )
          scal(n+1,i,k,7) = ON2O(i,(kmax+1-k),n)
@@ -249,6 +259,7 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          scal(n+1,i,k,11) = ODOC13(i,(kmax+1-k),n)
          scal(n+1,i,k,12) = ODOCS13(i,(kmax+1-k),n)
          scal(n+1,i,k,13) = OC14(i,(kmax+1-k),n)
+
 #if ( OOISO == 0 )
          scal(n+1,i,k,9) = OO2(i,(kmax+1-k),n)
 #else
@@ -256,6 +267,10 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
          scal(n+1,i,k,oo2iso16) = OO2(i,(kmax+1-k),n,iair16)
          scal(n+1,i,k,oo2iso17) = OO2(i,(kmax+1-k),n,iair17)
          scal(n+1,i,k,oo2iso18) = OO2(i,(kmax+1-k),n,iair18)
+#endif
+
+#if ( ARGON == 1 )
+         scal(n+1,i,k,ioargon) = OARG(i,(kmax+1-k),n)
 #endif
 
 ! ### #if ( MEDUSA == 1 )

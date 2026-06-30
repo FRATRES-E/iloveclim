@@ -61,7 +61,7 @@
 
        USE C_res_mod, ONLY: C13ATM
 
-       USE carbone_co2, ONLY: PA0_C, PA_C, C14ATM0, C14ATM
+       USE carbone_co2_mod, ONLY: PA0_C, PA_C, C14ATM0, C14ATM
 
 !nb & fl in the future faire avec 3D
 !       use update_clio_bathy_tools, only: mean_neighbours_with_mask

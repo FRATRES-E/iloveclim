@@ -293,7 +293,7 @@ contains
       use comemic_mod, only: iyear
       use newunit_mod, only: newunit_id
 #if ( CYCC >= 2 )
-      use carbone_co2, only: PA_C
+      use carbone_co2_mod, only: PA_C
 #endif
 #if ( ISOATM >= 1 )
       use write_isoatm_mod, only: write_isoatm

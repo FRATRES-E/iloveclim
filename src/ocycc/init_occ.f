@@ -38,7 +38,9 @@ c********************************************************************
 #if ( OOISO_SCEN == 1 )
        use iso_dioxygen_mod,  only : read_r_ISOO2
 #endif
-
+#if ( ARGON == 1 )
+       use marine_bio_mod, only: FOAR
+#endif
 
       IMPLICIT NONE
 
@@ -88,6 +90,9 @@ c     =================
         FODOCS13(:,:) = 0.0
 #if ( OXNITREUX == 1 )
         FON2O(:,:) = 0.0
+#endif
+#if ( ARGON == 1 )
+        FOAR(:,:) = 0.0
 #endif
 
       else

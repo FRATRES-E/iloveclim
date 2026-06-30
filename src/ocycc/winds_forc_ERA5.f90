@@ -1,3 +1,9 @@
+!dmr -- Added optional components choice - Tue Jun 14 15:59:05 CEST 2011
+#include "choixcomposantes.h"
+!dmr -- Added optional components choice - Tue Jun 14 15:59:05 CEST 2011
+
+#if ( WINDS_ERA5 == 1 )
+
       MODULE WINDFORC_CLIOERA5
 
 
@@ -15,8 +21,8 @@
 
         use ncio, only: nc_read
 
-        character(len=str_len), parameter :: filename_NC_uwinds="../compil/sources/climato_Ucomponent_1930_1960-CLIO-T-masked.nc"
-        character(len=str_len), parameter :: filename_NC_vwinds="../compil/sources/climato_Vcomponent_1930_1960-CLIO-T-masked.nc"
+        character(len=str_len), parameter :: filename_NC_uwinds="/home/acclimate/eclermont/iloveclim-git/inputs/ocycc/climato_Ucomponent_1930_1960-CLIO-T-masked.nc"
+        character(len=str_len), parameter :: filename_NC_vwinds="/home/acclimate/eclermont/iloveclim-git/inputs/ocycc/climato_Vcomponent_1930_1960-CLIO-T-masked.nc"
 
         real(kind=dblp), dimension(imax,jmax,days_year360d_i,2) :: winds_CLIO_uv, fixed_winds_CLIO_uv
 
@@ -209,3 +215,4 @@
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       END MODULE WINDFORC_CLIOERA5
+#endif

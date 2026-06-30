@@ -80,10 +80,13 @@
        subroutine cycc_init(self, day, month)
          use comsurf_mod,  only: nld, fractn
          use comatm,       only: darea
-         use carbone_co2,  only: PA0_C, PA_C
+         use carbone_co2_mod,  only: PA0_C, PA_C
+! dmr&clo --- eco2 is now a module procedure (was an external F77 subroutine).
+!             The dispatcher eco2(kod,...) keeps the historical call signature.
+         use eco2_mod,        only: eco2
+
          class(cycc_component_t), intent(inout) :: self
          integer(ip),             intent(in)    :: day, month
-         external :: ECO2
 
          self%name = "CYCC"
          call ECO2(0_ip, fractn(1,1,nld), darea)
@@ -108,15 +111,16 @@
        subroutine cycc_step(self, phase, iday, jstep, kstep)
          use comsurf_mod, only: nld, fractn
          use comatm,      only: darea
+! dmr&clo --- eco2 is now a module procedure (was an external F77 subroutine).
+!             The dispatcher eco2(kod,...) keeps the historical call signature.
+         use eco2_mod,    only: eco2
 #if ( KC14 == 1 )
          use mod_sync_time, only: KENDY      ! end-of-year flag, set by sync_timer (via OCYCC's ocycc_step)
+! dmr&clo --- c14atm_dp is now a module procedure (was external F77).
+         use c14_prod_mod,  only: c14atm_dp
 #endif
          class(cycc_component_t), intent(inout) :: self
          integer(ip),             intent(in)    :: phase, iday, jstep, kstep
-         external :: ECO2
-#if ( KC14 == 1 )
-         external :: C14ATM_DP
-#endif
 
 #if ( KC14 == 1 )
          if (KENDY == 1) then                ! once per year, emic.f L716-718. Runs BEFORE ECO2(1) (emic.f order).
