@@ -73,11 +73,11 @@
 ! ---
       SUBROUTINE WRTE_RESTART_OCYCC
 
-         use marine_bio_mod, only: OPO4, ONO3,  OSI, OALK,  ODIC, ODOC, OPOC, OC13, OC14, ODOCS, ODOC13, ODOCS13                  &
-                                , FOPO4, FONO3, FOSI, FOALK, FODIC, FODOC, FODOCS, FOC13, FODOC13
-         use C_res_mod,      only: C13ATM
-         use carbone_co2,    only: PA_C, PA0_C
-         use mbiota_mod,     only: PHYTO_M, ZOO_M
+         use marine_bio_mod, only  : OPO4, ONO3,  OSI, OALK,  ODIC, ODOC, OPOC, OC13, OC14, ODOCS, ODOC13, ODOCS13,               &
+                                     FOPO4, FONO3, FOSI, FOALK, FODIC, FODOC, FODOCS, FOC13, FODOC13
+         use C_res_mod,       only : C13ATM
+         use carbone_co2_mod, only : PA_C, PA0_C
+         use mbiota_mod,     only  : PHYTO_M, ZOO_M
 
 
          integer(kind=ip), parameter :: len_char = 7, nb_vars = 26

@@ -663,7 +663,7 @@
          my_reminO2(:,:,:) = my_reminO2(:,:,:) + reminO2_clio(2:UBOUND(reminO2_clio,dim=1)-1,:,:)/days_year360d
          my_NCP(:,:,:) = my_NCP(:,:,:) + NCP_clio(2:UBOUND(NCP_clio,dim=1)-1,:,:)/days_year360d
 
-         my_FtotalO(:,:) = my_FtotalO(:,:) + TRANSPOSE(:,:,1))
+         my_FtotalO(:,:) = my_FtotalO(:,:) + TRANSPOSE(FOO2(:,:,1))
          my_F18O(:,:) = my_F18O(:,:) + TRANSPOSE(FOO2(:,:,4))
          my_F17O(:,:) = my_F17O(:,:) + TRANSPOSE(FOO2(:,:,3))
          my_F16O(:,:) = my_F16O(:,:) + TRANSPOSE(FOO2(:,:,2))
