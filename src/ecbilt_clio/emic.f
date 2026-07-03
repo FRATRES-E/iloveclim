@@ -106,6 +106,9 @@
 #endif
 #if ( F_PALAEO >= 1 )
       use palaeo_timer_mod, only: reload_topo, palaeo_timer
+#if ( F_PALAEO == 1 )
+      use ec_masq_mod, only: ec_masq, load_topo_masq 
+#endif
 #endif
 #if ( BATHY >= 2 )
       use update_clio_bathy_tools, only: reload_bathy, la_date
