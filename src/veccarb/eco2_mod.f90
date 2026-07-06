@@ -555,7 +555,7 @@
 #if ( CARAIB == 0 )
               b4t_temp = b4t(i,k)
               b4g_temp = b4g(i,k)
-#if ( FROG_EXP > 0 && CARBON_FROG > 0 )
+#if ( FROG_EXP > 0 && FROG_CARBON > 0 )
               b4t_temp = 0.0_dblp
               b4g_temp = 0.0_dblp
 #endif
