@@ -78,6 +78,13 @@
      &             , saltatlantic, volatlantic,saltatlantic_old
      &             , saltatlantic_new, saltatlantic_dt
 !PB
+!dmr&clo --- D1-b patch: saltatlantic_old must persist between calls to compute the
+!dmr&clo     Atlantic salt-content tendency (dtsaltA). It was a plain local in the legacy
+!dmr&clo     (never save, never in a common) which is precisely why the #if(0) block could
+!dmr&clo     not work. We make it persistent with a local save and guard the very first step
+!dmr&clo     (no previous value yet) so that dtsaltA = 0.0 on the first record.
+      real(dblp), save :: saltatlantic_old_sav = 0._dblp
+      logical,    save :: first_dtsalt = .true.
 
 !---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
 !  1 ) Prepare & debute le remplissage de "vinfor".                    |
@@ -467,9 +474,10 @@
       nv = nv + 1
       vinfor(nv) = vvpsm * dx * rho0*cpo * 1.D-15
 
-!- Calculate Atlantic average salinity for Atlantic salt budget
-!calculations
-#if ( 0 )
+!- Calculate Atlantic average salinity for Atlantic salt budget calculations
+!dmr&clo --- D1-b patch: reactivated (was #if(0)). This mean is the reference salinity
+!dmr&clo     used by Mov30 (l. ~705) and dtsaltA. Leaving it disabled left saltatlantic=0,
+!dmr&clo     which made Mov30 divide by zero (NaN). All variables here are already available.
       saltatlantic=0.0
       volatlantic=0.0
        do j=1,imax
@@ -482,7 +490,6 @@
         enddo
       enddo
       saltatlantic=saltatlantic/volatlantic !m3*g/kg/m3 -> g/kg
-#endif
 !      write(mouchard_id,*) 'Atlantic mean
 !     &                       salinity [g/kg]',saltatlantic
 
@@ -655,8 +662,15 @@
 !     &            'Diffusive salt flux north. bound. [1e9 kg/s]',
 !     &            vinfor(nv)/1e9
 
-! Atlantic salt content tendency
-#if ( 0 )
+! Atlantic salt content tendency (dtsaltA)
+!dmr&clo --- D1-b patch: reactivated (was #if(0)). Reactivating this block restores the
+!dmr&clo     missing "nv = nv + 1" for column dtsaltA. That missing increment was the root
+!dmr&clo     cause of the label/value shift: with the column present in informe (titvar) but
+!dmr&clo     no increment here, the Mov30 result (a NaN from -1/saltatlantic) was written into
+!dmr&clo     the dtsaltA column, and every following value slid by one. Restoring the increment
+!dmr&clo     realigns names and values from here on.
+!dmr&clo --- saltatlantic_old_sav is the persistent (save) copy; first_dtsalt guards the very
+!dmr&clo     first record where no previous value exists (dtsaltA = 0.0 then).
       saltatlantic_new = 0.0
       saltatlantic_dt = 0.0
       do j=1,imax
@@ -667,13 +681,17 @@
           enddo
         enddo
       enddo
-      saltatlantic_dt = (saltatlantic_new-saltatlantic_old)/ddtb
-      saltatlantic_old = saltatlantic_new
+      if (first_dtsalt) then
+        saltatlantic_dt = 0.0
+        first_dtsalt = .false.
+      else
+        saltatlantic_dt = (saltatlantic_new-saltatlantic_old_sav)/ddtb
+      endif
+      saltatlantic_old_sav = saltatlantic_new
 !      write(mouchard_id,*) 'Atlantic salt tendency [1e9 kg/s]'
 !     &                    ,saltatlantic_dt/1e9
       nv = nv + 1
       vinfor(nv) = saltatlantic_dt
-#endif
 
 !- Mov parameter at 30 S (meridional freshwater flux at 30S related to overturning circulation)
       yy = -30.0 ! Set latitude
