@@ -714,7 +714,7 @@
          integer(ip), save, dimension(7) :: i_ice_n, i_ice_s
          integer(ip), save :: i_frag, i_spng, i_berg, i_thex, i_ismm, i_icbn, i_icbs
          integer(ip), save :: nm1n, nm2n
-         integer(ip)       :: itr, m
+         integer(ip)       :: itr
          character(len=8)  :: cc8
 
 !---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
@@ -1094,11 +1094,7 @@
              vinfor(i_scmean(ns)) = vvk(1) * dz(k)
              vinfor(i_scanom(ns)) = vvk(3) * dz(k)
              vinfor(i_sclvl1(ns)) = vvk(2) * zsurfo(k)
-             if (ns <= 2) then
-               m = (ks2+1) - k
-               if (ns == 1) vinfor(i_to_lvl(m)) = vvk(3) * zsurfo(k)
-               if (ns == 2) vinfor(i_so_lvl(m)) = vvk(3) * zsurfo(k)
-             endif
+             if (ns <= 2) call put_level_family(ns, k, vvk(3) * zsurfo(k))
              do k = ks2-1, ks1, -1
                vvk(1) = 0. ; vvk(2) = 0. ; vvk(3) = 0.
                do j = js1, js2
@@ -1112,11 +1108,7 @@
                enddo
                vinfor(i_scmean(ns)) = vinfor(i_scmean(ns)) + vvk(1) * dz(k)
                vinfor(i_scanom(ns)) = vinfor(i_scanom(ns)) + vvk(3) * dz(k)
-               if (ns <= 2) then
-                 m = (ks2+1) - k
-                 if (ns == 1) vinfor(i_to_lvl(m)) = vvk(nnp) * zsurfo(k)
-                 if (ns == 2) vinfor(i_so_lvl(m)) = vvk(nnp) * zsurfo(k)
-               endif
+               if (ns <= 2) call put_level_family(ns, k, vvk(nnp) * zsurfo(k))
              enddo
              vinfor(i_scmean(ns)) = vinfor(i_scmean(ns)) * zvols + scalwr(ns)
              if (ns == 1) tmc = vinfor(i_scmean(ns)) * cpo * rho0
@@ -1263,6 +1255,24 @@
          endif
 
          return
+
+       contains
+
+! dmr&clo --- put_level_family (internal to inforun): writes the per-level |anomaly| value into the T-o/S-o family
+!             column for tracer ns at depth k. Centralizes the depth->display-level reversal m = (ks2+1)-k in ONE place
+!             (was duplicated at the surface and the deeper-levels writes). Reserve R7: the reversal encodes the display
+!             convention "level 1 = surface" (k=ks2) decoupled from the calculation convention (k=ks2 = surface); it is
+!             kept, not removed -- removing it would either gain nothing or flip the evolu column order. Host-associated
+!             access to i_to_lvl / i_so_lvl / ks2 / vinfor, so no arguments beyond ns/k/val.
+         subroutine put_level_family(ns_in, k_in, val)
+           integer(ip), intent(in) :: ns_in, k_in
+           real(dblp),  intent(in) :: val
+           integer(ip) :: mlev
+           mlev = (ks2 + 1) - k_in
+           if (ns_in == 1) vinfor(i_to_lvl(mlev)) = val
+           if (ns_in == 2) vinfor(i_so_lvl(mlev)) = val
+         end subroutine put_level_family
+
        end subroutine inforun
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   PRIVATE HELPERS (flux kernel + factored motifs)
