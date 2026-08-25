@@ -960,7 +960,9 @@
 
 !--Atlantic average salinity (reference for Mov30/dtsaltA)
          saltatlantic = 0.0 ; volatlantic = 0.0
-         do j = 1, imax
+         do j = 1, jmax     ! dmr&clo R9 fix: was 'do j=1,imax' (legacy) -- j indexes latitude (jmax), not imax. The
+!                           !   out-of-bounds iterations j>jmax read empty iszon/iezon ranges, so this changes nothing
+!                           !   numerically (verified: bit-identical output) while removing the OOB access.
            do i = iszon(j,nbsmax), iezon(j,nbsmax)
              do k = 1, kmax
                saltatlantic = saltatlantic + aire(i,j)*dz(k)*tms(i,j,k)*scal(i,j,k,2)
@@ -1033,7 +1035,7 @@
 
 !--Atlantic salt-content tendency (dtsaltA)
          saltatlantic_new = 0.0
-         do j = 1, imax
+         do j = 1, jmax     ! dmr&clo R9 fix: was 'do j=1,imax' (legacy). Same reasoning as the saltatlantic loop above.
            do i = iszon(j,nbsmax), iezon(j,nbsmax)
              do k = 1, kmax
                saltatlantic_new = saltatlantic_new + aire(i,j)*dz(k)*tms(i,j,k)*scal(i,j,k,2)
