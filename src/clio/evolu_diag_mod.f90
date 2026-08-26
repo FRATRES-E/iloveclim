@@ -18,6 +18,14 @@
 
 #include "choixcomposantes.h"
 
+! dmr&clo --- DEVELOPMENT switch for the self-describing NetCDF "evolu" output (companion module evolu_netcdf_mod).
+!             Kept here at the top of evolu_diag_mod during development, NOT in choixcomposantes.h (its final home is
+!             deferred; this path is not meant to live long in its current form). Set to 1 to also write evolu.nc
+!             alongside the text evolu, for validation. Default 0 = text only, unchanged behaviour.
+#ifndef EVOLU_NETCDF
+#define EVOLU_NETCDF 0
+#endif
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [evolu_diag_mod]
 !
@@ -60,6 +68,9 @@
 
        use global_constants_mod, only: dblp=>dp, ip
        use para_mod,             only: nchsep_p => nchsep
+#if ( EVOLU_NETCDF == 1 )
+       use evolu_netcdf_mod,     only: evolu_nc_init, evolu_nc_write, evolu_nc_close
+#endif
 
        implicit none
 
@@ -645,6 +656,22 @@
            write(mouchard_id,'(4(A,I3,1X,A,I2,A1))') (' no=', n, titvar(n), ktsum(n), ',', n=1, nvinfo)
            write(mouchard_id,*)
          endif
+
+#if ( EVOLU_NETCDF == 1 )
+! dmr&clo --- initialise the self-describing NetCDF companion output. level_depths is indexed by DISPLAY level m
+!             (1=surface), matching the T-o/S-o family convention: level_depths(m) = z((ks2+1)-m). idx is passed as the
+!             name-resolver so evolu_netcdf_mod need not use-associate this module (avoids a circular dependency).
+!             strict_coverage=.false. during development (partial namelist): uncovered diagnostics are skipped + listed.
+         block
+           real(dblp) :: level_depths(ks1:ks2)
+           integer(ip) :: mlev
+           do mlev = 1, ks2-ks1+1
+             level_depths(ks1+mlev-1) = z( (ks2+1) - mlev )
+           enddo
+           call evolu_nc_init('outputdata/ocean/evolu.nc', 'evolu_netcdf.nml', nvinfo, titvar(1:nvinfo),   &
+                              level_depths, ks1, ks2, idx, strict_coverage=.false.)
+         end block
+#endif
 
          return
 !---+----1----+----2----+----3----+----4----+----5----+----6----+----7-|--+----|
@@ -1234,12 +1261,19 @@
 #if ( ISM >= 2 )
          write(testevolu_id,fmtw) (titvar(nv), vinfor(nv), nv=1,nvinfo)
 #endif
+#if ( EVOLU_NETCDF == 1 )
+! dmr&clo --- write the SAME already-averaged vinfor to the NetCDF companion (one time record).
+         call evolu_nc_write(vinfor(1:nvinfo), nvinfo)
+#endif
          if (numit == nferme) then
            write(clio3_out_id,*) ' evolu (in inforun), numit,nferme "', numit, nferme
            write(evolu_id,*)
            close(evolu_id)
 #if ( ISM >= 2 )
            close(testevolu_id)
+#endif
+#if ( EVOLU_NETCDF == 1 )
+           call evolu_nc_close()
 #endif
          endif
 
