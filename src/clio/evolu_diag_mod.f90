@@ -167,14 +167,24 @@
 !             Searches the IMMUTABLE reg_name table (not titvar), so it works at any point in the run regardless of the
 !             legacy post-header rewrite of titvar. Linear search is fine: inforun resolves each name into a local
 !             integer once, outside the timestep loop.
-       integer(ip) function idx(name) result(iv)
+! dmr&clo --- resolve a registered name to its column index. Searches the IMMUTABLE reg_name table (not titvar), so it
+!             works at any point regardless of the legacy post-header rewrite of titvar. Linear search is fine.
+!             found (optional): if PRESENT, an unknown name is reported via found=.false. (iv=0) instead of error-stop --
+!             used by the NetCDF namelist reader to tolerate rows for diagnostics not active in the current config. If
+!             found is ABSENT, an unknown name is a hard-stop (default strict behaviour, e.g. all inforun lookups).
+       integer(ip) function idx(name, found) result(iv)
 
          use newunit_clio_mod, only: clio3_out_id
 
-         character(len=*), intent(in) :: name
+         character(len=*),  intent(in)  :: name
+         logical, optional, intent(out) :: found
          integer(ip) :: k
 
+         if (present(found)) found = .false.
+         iv = 0
+
          if (.not. allocated(reg_name)) then
+           if (present(found)) return       ! tolerant caller: report failure, no stop
            write(clio3_out_id,*) 'STOP evolu_diag: idx() called before informe() registered the columns. name = ', name
            error stop 'evolu_diag: idx before registration'
          endif
@@ -182,10 +192,12 @@
          do k = 1, nv_reg
            if (trim(reg_name(k)) == trim(name)) then
              iv = k
+             if (present(found)) found = .true.
              return
            endif
          enddo
 
+         if (present(found)) return          ! tolerant caller: unknown name -> found=.false., iv=0
          write(clio3_out_id,*) 'STOP evolu_diag: unknown diagnostic name in idx() = ', name
          error stop 'evolu_diag: unknown diagnostic name'
 

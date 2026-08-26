@@ -1,6 +1,14 @@
-# evolu_netcdf.nml  --  metadata table for the NetCDF "evolu" output (STANDARD config)
+# evolu_netcdf.nml  --  EXHAUSTIVE metadata table for the NetCDF "evolu" output
 #
-# FULL SKELETON, 103 diagnostics (61 scalars + 2 level-family templates x 20).
+# Covers ALL diagnostics registered anywhere in evolu_diag_mod, across configurations:
+#   - 103 STANDARD diagnostics (always registered): 61 scalars + 2 level templates x20
+#   - 27 FRAZER_ARCTIC diagnostics (registered only under #if FRAZER_ARCTIC==1)
+# Total: 130 variables.
+#
+# Rows for diagnostics NOT active in the compiled configuration are IGNORED at init
+# (evolu_nc_init resolves names tolerantly via idx(...,found=): an orphan row is
+# skipped with a log line, not an error). So this ONE file serves every config.
+#
 # Format (semicolon-separated; '#' comments; blank lines ignored):
 #   internal_name ; nc_name ; long_name ; standard_name ; units
 #
@@ -104,6 +112,40 @@ ISMM    ; iceshelf_mass               ; ice-shelf / ice-sheet mass              
 IcbN    ; iceberg_flux_north          ; Northern Hemisphere iceberg flux                          ; -                               ; TODO
 IcbS    ; iceberg_flux_south          ; Southern Hemisphere iceberg flux                          ; -                               ; TODO
 
-# --- ocean level families (template: one row -> 20 variables) ----------
+# --- ocean level families (template: one row -> 20 variables each) -----
 T-o%    ; T_ocean_anom_lev%           ; basin-mean ocean temperature anomaly, level %             ; -                               ; degC
 S-o%    ; S_ocean_anom_lev%           ; basin-mean ocean salinity anomaly, level %                ; -                               ; 1e-3
+
+
+# ============================================================================
+# FRAZER_ARCTIC diagnostics (active only under #if FRAZER_ARCTIC==1).
+# Ignored automatically in standard config. Semantics TODO -- to be documented
+# by FRAZER_ARCTIC users. nc_name proposals are placeholders.
+# ============================================================================
+BASS    ; frazer_bass                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BASN    ; frazer_basn                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BSFF    ; frazer_bsff                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BSFP    ; frazer_bsfp                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BSFN    ; frazer_bsfn                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+FSFF    ; frazer_fsff                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+FSFP    ; frazer_fsfp                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+FSFN    ; frazer_fsfn                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BAFF    ; frazer_baff                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BAFP    ; frazer_bafp                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BAFN    ; frazer_bafn                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+ADVE    ; frazer_adve                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+DIFF    ; frazer_diff                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+AOW     ; frazer_aow                  ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+AOE     ; frazer_aoe                  ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+AOFC    ; frazer_aofc                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+CAFF    ; frazer_caff                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+CAFP    ; frazer_cafp                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+CAFN    ; frazer_cafn                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+KSFF    ; frazer_ksff                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+KSFP    ; frazer_ksfp                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+KSFN    ; frazer_ksfn                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+FSIF    ; frazer_fsif                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+KSIF    ; frazer_ksif                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BSIF    ; frazer_bsif                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+CAIF    ; frazer_caif                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO
+BAIF    ; frazer_baif                 ; TODO: FRAZER_ARCTIC diagnostic                            ; -                               ; TODO

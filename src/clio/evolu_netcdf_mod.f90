@@ -84,9 +84,10 @@
          real(dblp),       intent(in) :: level_depths(ks1:ks2)
          logical,          intent(in) :: strict_coverage
          interface
-           integer(ip) function resolve_index(name)
+           integer(ip) function resolve_index(name, found)
              import :: ip
-             character(len=*), intent(in) :: name
+             character(len=*),  intent(in)  :: name
+             logical, optional, intent(out) :: found
            end function
          end interface
          type(nml_row), allocatable :: rows(:), exp_rows(:)
@@ -96,11 +97,17 @@
          integer(ip) :: nrows, i, e, nexp, nout, ridx, iv, nlev
          logical, allocatable :: covered(:)
          character(len=LEN_NAME) :: intname
+         logical :: name_found
 
          nlev = ks2 - ks1 + 1
          call read_namelist(nmlpath, rows, nrows, clio3_out_id)
 
-         allocate(exp_rows(nvinfo + nlev), exp_lev(nvinfo + nlev))
+! dmr&clo --- size the expansion buffer from the NAMELIST content, not from nvinfo. A namelist may legitimately hold
+!             MORE rows than there are active diagnostics (orphan rows for other configs, e.g. FRAZER_ARCTIC, are only
+!             dropped later during resolution). Each row expands to at most nlev variables (a level template), so
+!             nrows*nlev is a safe upper bound. (The previous nvinfo+nlev bound was wrong: it assumed the namelist
+!             never exceeds the registered count, which breaks with an exhaustive/multi-config namelist.)
+         allocate(exp_rows(nrows * nlev), exp_lev(nrows * nlev))
          nexp = 0
          do i = 1, nrows
            call expand_row(rows(i), ks1, ks2, one_exp, nout, one_lev)
@@ -117,7 +124,14 @@
          allocate(ncvars(nexp), covered(nvinfo)) ; covered = .false. ; nvar_nc = 0
          do i = 1, nexp
            intname = exp_rows(i)%internal
-           ridx    = resolve_index(trim(intname))
+           ridx    = resolve_index(trim(intname), found=name_found)
+           if (.not. name_found) then
+! dmr&clo --- orphan namelist row: the name is not a registered diagnostic in THIS configuration (e.g. a FRAZER_ARCTIC
+!             or ISM diagnostic listed in a full namelist but not compiled here). Skip it, don't stop. This lets ONE
+!             exhaustive namelist serve every configuration; rows for inactive diagnostics are simply inert.
+             write(clio3_out_id,*) 'evolu_netcdf: namelist row not active in this config, ignored: ', trim(intname)
+             cycle
+           endif
            if (ridx < 1 .or. ridx > nvinfo) then
              write(clio3_out_id,*) 'STOP evolu_netcdf: resolved index out of range for ', trim(intname)
              error stop 'evolu_netcdf: bad resolved index'
