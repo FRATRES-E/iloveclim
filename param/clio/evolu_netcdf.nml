@@ -1,0 +1,109 @@
+# evolu_netcdf.nml  --  metadata table for the NetCDF "evolu" output (STANDARD config)
+#
+# FULL SKELETON, 103 diagnostics (61 scalars + 2 level-family templates x 20).
+# Format (semicolon-separated; '#' comments; blank lines ignored):
+#   internal_name ; nc_name ; long_name ; standard_name ; units
+#
+# IMPORTANT -- internal_name is the REGISTERED name (reg_name), NOT the truncated
+# display name. E.g. use 'dtsaltA','Mov30A','Fsa30A','Fsd30A' (registered), even
+# though evolu shows 'dtsal','Mov30','Fsa30','Fsd30' (5-char truncation). idx()
+# matches reg_name, so a truncated name here would error-stop.
+#
+# Fields marked 'TODO' need YOUR input (units/long_name/standard_name to confirm).
+# nc_name values are PROPOSALS -- rename freely; they become the public CF interface.
+# standard_name '-' means: no official CF standard name applies (attribute omitted).
+#
+# Level families use the '%' template (NO literal space before '%'): '%' is the I2
+# field for internal (' 1'..'20'), zero-padded I2.2 for nc_name (01..20), plain for
+# long_name. One template row expands to ks2 (=20) variables; depth attached from z.
+#
+# NOTE: this covers the STANDARD configuration only. Diagnostics compiled under
+# FRAZER_ARCTIC / ISM>=2 (BASS,BASN,BSFF,...,ADVE,AOW,... and the ISM extras) are
+# NOT listed here; add them if you enable those configs (and see the note about
+# making evolu_nc_init tolerant to non-registered namelist rows).
+#
+#         internal ; nc_name                      ; long_name                                                  ; standard_name                    ; units
+
+
+# --- counters & global -----------------------------------------------------
+NoIt    ; iteration_number            ; model iteration number                                    ; -                               ; 1
+T yr    ; time_years                  ; model time                                                ; -                               ; yr
+EgAjC   ; conv_adj_energy             ; convective adjustment energy (basin integral)             ; -                               ; TODO
+V_AjC   ; conv_adj_freq_volume        ; convective adjustment frequency, ocean-volume integral    ; -                               ; TODO
+D.Eta   ; ssh_change_rate             ; rate of change of basin-mean sea surface height           ; -                               ; TODO
+M.Eta   ; mean_ssh                    ; basin-mean sea surface height                             ; sea_surface_height_above_geoid  ; m
+
+# --- Sverdrup transports ---------------------------------------------------
+DrHSF   ; transp_drake                ; Sverdrup transport, Drake Passage                         ; -                               ; Sv
+InHSF   ; transp_indonesia            ; Sverdrup transport, Indonesian throughflow                ; -                               ; Sv
+BeHSF   ; transp_bering               ; Sverdrup transport, Bering Strait                         ; -                               ; Sv
+
+# --- strait N/S transports -------------------------------------------------
+DANS    ; transp_denmark_south        ; Denmark Strait transport, southward/negative part         ; -                               ; Sv
+DANN    ; transp_denmark_north        ; Denmark Strait transport, northward/positive part         ; -                               ; Sv
+ISCS    ; transp_icescot_south        ; Iceland-Scotland transport, southward/negative part       ; -                               ; Sv
+ISCN    ; transp_icescot_north        ; Iceland-Scotland transport, northward/positive part       ; -                               ; Sv
+FRAS    ; transp_fram_south           ; Fram Strait transport, southward/negative part            ; -                               ; Sv
+FRAN    ; transp_fram_north           ; Fram Strait transport, northward/positive part            ; -                               ; Sv
+PNWS    ; transp_nwpass_south         ; NW Passage transport, southward/negative part             ; -                               ; Sv
+PNWN    ; transp_nwpass_north         ; NW Passage transport, northward/positive part             ; -                               ; Sv
+
+# --- overturning / THC -----------------------------------------------------
+ADGIN   ; amoc_gin_max                ; Atlantic overturning max, GIN seas (68-75N)               ; -                               ; Sv
+ADPro   ; amoc_atlantic_prod          ; Atlantic overturning max, production (45-75N)             ; -                               ; Sv
+ADOut   ; amoc_nadw_outflow_20s       ; NADW outflow, Atlantic overturning max at 20S             ; -                               ; Sv
+AABpr   ; aabw_prod_60_70s            ; AABW production, overturning min (60-70S)                 ; -                               ; Sv
+AABex   ; aabw_export_30s             ; AABW export, overturning min at 30S                       ; -                               ; Sv
+AABat   ; aabw_inflow_20s             ; AABW inflow, Atlantic overturning min at 20S              ; -                               ; Sv
+
+# --- 30S & boundary fluxes -------------------------------------------------
+Fc30A   ; heat_flux_30s               ; Atlantic heat transport at 30S                            ; -                               ; PW
+Fs30A   ; salt_flux_30s_total         ; Atlantic salt flux at 30S, total                          ; -                               ; TODO
+Fsa30A  ; salt_flux_30s_adv           ; Atlantic salt flux at 30S, advective (see reserve R1)     ; -                               ; TODO
+Fsd30A  ; salt_flux_30s_dif           ; Atlantic salt flux at 30S, diffusive                      ; -                               ; TODO
+FsaNA   ; salt_flux_natl_adv          ; North Atlantic boundary salt flux, advective              ; -                               ; TODO
+FsdNA   ; salt_flux_natl_dif          ; North Atlantic boundary salt flux, diffusive              ; -                               ; TODO
+dtsaltA ; atl_salt_tendency           ; Atlantic salt-content tendency                            ; -                               ; TODO
+Mov30A  ; mov_30s                     ; freshwater transport by overturning at 30S (Mov)          ; -                               ; Sv
+Fsber   ; salt_flux_bering            ; salt flux through Bering Strait (see reserve R2)          ; -                               ; TODO
+
+# --- scalar means & velocities ---------------------------------------------
+T-c     ; T_ocean_mean                ; basin-mean ocean potential temperature                    ; sea_water_potential_temperature ; degC
+T1-o    ; T_ocean_surf                ; ocean potential temperature, surface level                ; sea_water_potential_temperature ; degC
+|T-o|   ; T_ocean_anom_abs            ; absolute basin-mean ocean temperature anomaly             ; -                               ; degC
+S-30    ; S_ocean_mean                ; basin-mean ocean salinity                                 ; sea_water_salinity              ; 1e-3
+S1-o    ; S_ocean_surf                ; ocean salinity, surface level                             ; sea_water_salinity              ; 1e-3
+|S-o|   ; S_ocean_anom_abs            ; absolute basin-mean ocean salinity anomaly                ; -                               ; 1e-3
+|w|     ; w_abs_mean                  ; basin-mean absolute vertical velocity                     ; -                               ; m s-1
+|u|     ; u_abs_mean                  ; basin-mean absolute zonal velocity                        ; -                               ; m s-1
+|v|     ; v_abs_mean                  ; basin-mean absolute meridional velocity                   ; -                               ; m s-1
+K.E     ; kinetic_energy              ; basin-mean kinetic energy                                 ; -                               ; TODO
+
+# --- sea ice ---------------------------------------------------------------
+AIEFN   ; sea_ice_area_north          ; Northern Hemisphere sea-ice area                          ; sea_ice_area                    ; m2
+AIEFS   ; sea_ice_area_south          ; Southern Hemisphere sea-ice area                          ; sea_ice_area                    ; m2
+A15N    ; sea_ice_extent15_north      ; NH sea-ice extent (concentration > 15%)                   ; -                               ; m2
+A15S    ; sea_ice_extent15_south      ; SH sea-ice extent (concentration > 15%)                   ; -                               ; m2
+A85N    ; sea_ice_extent85_north      ; NH sea-ice extent (concentration > 85%)                   ; -                               ; m2
+A85S    ; sea_ice_extent85_south      ; SH sea-ice extent (concentration > 85%)                   ; -                               ; m2
+ALEN    ; sea_ice_lead_north          ; NH lead fraction area                                     ; -                               ; TODO
+ALES    ; sea_ice_lead_south          ; SH lead fraction area                                     ; -                               ; TODO
+VOLN    ; sea_ice_volume_north        ; NH sea-ice volume                                         ; sea_ice_volume                  ; m3
+VOLS    ; sea_ice_volume_south        ; SH sea-ice volume                                         ; sea_ice_volume                  ; m3
+VONN    ; snow_volume_north           ; NH snow-on-ice volume                                     ; -                               ; m3
+VONS    ; snow_volume_south           ; SH snow-on-ice volume                                     ; -                               ; m3
+ECGN    ; sea_ice_drift_speed_north   ; NH RMS sea-ice drift speed (volume-weighted)              ; -                               ; m s-1
+ECGS    ; sea_ice_drift_speed_south   ; SH RMS sea-ice drift speed (volume-weighted)              ; -                               ; m s-1
+
+# --- ice freshwater / expansion / icebergs ---------------------------------
+FRAG    ; ice_fw_flux_fram            ; freshwater flux in sea ice, Fram Strait                   ; -                               ; Sv
+SPNG    ; ice_fw_flux_barents         ; freshwater flux in sea ice, Barents/Kara                  ; -                               ; Sv
+BERG    ; ice_fw_flux_bering          ; freshwater flux in sea ice, Bering Strait                 ; -                               ; Sv
+ThEx    ; thermal_expansion           ; ocean thermal expansion (steric height)                   ; -                               ; TODO
+ISMM    ; iceshelf_mass               ; ice-shelf / ice-sheet mass                                ; -                               ; TODO
+IcbN    ; iceberg_flux_north          ; Northern Hemisphere iceberg flux                          ; -                               ; TODO
+IcbS    ; iceberg_flux_south          ; Southern Hemisphere iceberg flux                          ; -                               ; TODO
+
+# --- ocean level families (template: one row -> 20 variables) ----------
+T-o%    ; T_ocean_anom_lev%           ; basin-mean ocean temperature anomaly, level %             ; -                               ; degC
+S-o%    ; S_ocean_anom_lev%           ; basin-mean ocean salinity anomaly, level %                ; -                               ; 1e-3
