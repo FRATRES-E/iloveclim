@@ -1,0 +1,165 @@
+#!/bin/bash
+
+# ## -------------------------------------------------------------------------------##
+# HEADER        : we first specify what is required to be identified on the cluster
+# CHANGES TO DO :
+#           NAME_OF_THE_JOB             -> name of your job
+#           firstname.name@lsce.ipsl.fr -> your email @lsce
+
+# Specify the job's name (<= 15 letters)
+#PBS -N TEST_JOBBY
+# Specify batch queue
+#PBS -q long
+# Reserve 1 node with 1 core
+#PBS -l nodes=1:ppn=1
+# Request that stdin and stdout are merged in the same output file
+#PBS -j eo
+# Send a mail when the job terminates
+#PBS -m e -M didier.roche@lsce.ipsl.fr
+# Force the shell to be bash
+#PBS -S /bin/bash
+
+# ## -------------------------------------------------------------------------------##
+# EXPERIMENT DEFINITION
+# CHANGES TO DO :
+#           nomexp       -> give a proper name to the experiment, without spaces or special chars
+#           options      -> provide the options needed for your special run
+#                           NOTA: do not provide -l, -t options, they are dealt with independently
+
+nomexp="testJOBBY"
+options="-n 150 -r 150 -k"
+
+# ## -------------------------------------------------------------------------------##
+# MODULES LOAD  : depends on your configuration
+# CHANGES TO DO :
+#           set the env_compiler variable to -> 0 | intel or 1 | gcc
+#           set the git_version variable  to -> 0 | svn   or 1 | git
+
+. $MODULESHOME/init/bash
+module purge
+
+env_compiler=1
+git_version=1
+
+
+# ## ---------------- DO NOT CHANGE ANYTHING BELOW THIS LINE ------------------##
+
+if [[ "${env_compiler}" -eq 1 ]]; then
+    echo "Loading gcc compiler environnement"
+    module load netcdf/4.9.2-gcc14-acc
+    module load gcc/14.2.0-openacc
+elif [[ "${env_compiler}" -eq 0 ]]; then
+    echo "Loading intel compiler environnement"
+    module load netcdf/4
+    module load intel-fcomp/2020
+fi
+
+if [[ "${git_version}" -eq 1 ]]; then
+    run_command="./run-me.sh"
+elif [[ "${env_compiler}" -eq 0 ]]; then
+    run_command="./bin/run-iloveclim"
+fi
+
+# ## -------------------------------------------------------------------------------##
+
+# Let's get started with setting up the paths
+
+origin_path="${PBS_O_WORKDIR}"
+cd ${origin_path}
+
+# Mandatory on the obelix cluster : use of scratch
+export TMPDIR="${WORKDIR}"
+
+# This allows to retreive the machine name with the screen file, useful in case of problems
+uname -a
+
+# Setting reference time for experiment start
+echo "[START] date"
+date
+
+# Launch command for iLOVECLIM. Beware that "-t" is mandatory on obelixes
+${run_command} -l ${nomexp} ${options} -t > ${nomexp}.twt 2>&1 &
+
+# This is where the simulation is actually being run, this is a scratch space
+location_run="${TMPDIR}/${nomexp}_ecbilt_clio"
+
+echo "[UPDT] sleeping 15 minutes to let the model compile & start"
+sleep 15m
+
+echo "[UPDT] creating sync directory"
+mkdir -p ${origin_path}/data/${nomexp}_ecbilt_clio/synced_files
+
+# Get the name of the executable file
+emic_name=$(cat ${location_run}/run/emic_name.info)
+# Get the number of the process to check upon completion
+proc_name=$(echo ${emic_name} | cut -c 1-14) # reduce length of string, due to process limitation
+
+echo "[UPDT] process name: ${proc_name}"
+
+pid=$(pgrep ${proc_name})
+
+echo "[UPDT] Process pid is: ${pid}"
+echo "[UPDT] date"
+date
+
+# ## -------------------------------------------------------------------------------##
+# SECTION TO GET THE FILES SYNCED OVER THE NETWORK DURING THE RUN
+
+filepatt="CLIO3_test0_"
+
+while ps -p ${pid} > /dev/null
+do
+    listfile=$(ls ${location_run}/run/outputdata/ocean/${filepatt}*)
+    usedfile=$(lsof -p ${pid} | grep ${filepatt} | awk '{ print $(NF) }')
+    shortusedf=$(basename ${usedfile})
+    for file in ${listfile}
+    do
+      shortfile=$(basename ${file})
+      if [ "${shortusedf}" != "${shortfile}" ]
+      then
+          echo
+          rsync -avh --remove-source-files ${file} ${origin_path}/data/${nomexp}_ecbilt_clio/synced_files/.
+      else
+          # echo "[SYNCD] Short file name for comp: ${shortfile}"
+          echo -n "."
+      fi
+    done
+    rsync -ah ${location_run}/run/outputdata/globals/* ${origin_path}/data/${nomexp}_ecbilt_clio/synced_files/.
+    rsync -ah ${location_run}/run/outputdata/carbon/C_reservoirs* ${origin_path}/data/${nomexp}_ecbilt_clio/synced_files/.
+
+    # --- Gestion des fichiers CLIO NewGen / E. Clermont ---
+    # Liste triée de tous les fichiers NewGen présents
+    listnewgen=( ${location_run}/run/CLIO3_NewGen*.nc )
+
+    # Si aucun fichier, passer l'itération
+    [ ${#listnewgen[@]} -eq 0 ] && continue
+
+    # Fichier au numéro le plus élevé = celui en cours d'utilisation
+    lastfile="${listnewgen[-1]}"
+    lastnum=$(basename "${lastfile}" | sed 's/CLIO3_NewGen\([0-9][0-9][0-9]\)\.nc/\1/')
+
+    for f in "${listnewgen[@]}"; do
+      shortf=$(basename "${f}")
+
+      # Récupère le numéro du fichier courant
+      num=$(echo "${shortf}" | sed 's/CLIO3_NewGen\([0-9][0-9][0-9]\)\.nc/\1/')
+
+      # Si num < lastnum alors le fichier suivant existe, DONC écriture terminée = on rapatrie
+      if [ "${num}" -lt "${lastnum}" ]; then
+        echo "[NEWGEN SYNC] ${shortf}"
+        rsync -avh --remove-source-files ${f} ${origin_path}/data/${nomexp}_ecbilt_clio/synced_files/.
+      fi
+    done
+
+    sleep 10m
+    echo "[UPDT] SPACE AVAILABLE"
+    df -h ${location_run}/. # Allow to get an idea of how much space there is left
+done
+
+# ## -------------------------------------------------------------------------------##
+
+wait
+date
+echo "[END] Results copied back presumably."
+
+# The End of All Things (op. cit.)
