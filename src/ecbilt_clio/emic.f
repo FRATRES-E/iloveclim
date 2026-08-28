@@ -110,6 +110,9 @@
       use ec_masq_mod, only: ec_masq, load_topo_masq 
 #endif
 #endif
+#if ( ISM >= 2 )
+      use ec_masq_mod, only: ec_masq
+#endif
 #if ( BATHY >= 2 )
       use update_clio_bathy_tools, only: reload_bathy, la_date
 #endif
