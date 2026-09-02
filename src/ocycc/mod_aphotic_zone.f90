@@ -164,6 +164,15 @@
         ODOC_dif=0
         ODOCS_dif=0
         caco3_dif=0
+!dmr --- 13C flux counterparts were omitted from this init block. They are
+!dmr     read unconditionally in the DIC/OC13 update below, but only assigned
+!dmr     inside j>=JPROD+1 (DOC) / bottom-cell (caco3) branches, so for the
+!dmr     shallow cells (j<JPROD+1, e.g. j=1) they were stale/uninitialised ->
+!dmr     "floating invalid" on the 13C terms. Mirror the 12C inits above.
+        OPOC13_dif=0
+        ODOC13_dif=0
+        ODOCS13_dif=0
+        caco3_13=0
 #if ( SILICA == 1 )
         Opal_dif=0
 #endif

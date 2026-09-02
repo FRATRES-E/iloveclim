@@ -410,7 +410,13 @@
         templat = phi(1:nlat) * radian_to_degree
 
         allocate(lat_bounds(nlat+1))
-        lat_bounds(1) = templat(1) - (lat_bounds(3) - lat_bounds(2)) / 2.0d0
+!dmr --- BUG FIX: this line originally read
+!dmr       lat_bounds(1) = templat(1) - (lat_bounds(3) - lat_bounds(2))/2
+!dmr     referencing lat_bounds(2)/(3) which are not filled until the loop
+!dmr     below -> uninitialised read (NaN sentinel 0x7baddadbaddad) -> SIGFPE.
+!dmr     The longitude analogue (lon_bounds(1), above) correctly uses the input
+!dmr     coordinate array templon(2)/(1); mirror that here with templat.
+        lat_bounds(1) = templat(1) - (templat(2) - templat(1)) / 2.0d0
         do i = 2, nlat
           lat_bounds(i) = templat(i-1) - (templat(i-1) - templat(i)) / 2.0d0
         end do

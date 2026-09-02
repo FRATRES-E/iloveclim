@@ -15,10 +15,10 @@
       USE loveclim_transfer_mod, ONLY:
 
       USE marine_bio_mod, ONLY: OPO4, ONO3, ODOC, ODOCS, ODIC, OSI, OO2, OALK,
-     &       OPOC, OC13, OC14
+     &       OPOC, OC13, OC14, ODOC13, ODOCS13
       USE marine_bio_mod, ONLY:OALK_ini, ODOCS_ini, ONO3_ini, OPO4_ini, OSI_ini
       
-      USE mbiota_mod, ONLY: PHYTO_M, ZOO_M
+      USE mbiota_mod, ONLY: PHYTO_M, ZOO_M, PHYTO_M13, ZOO_M13
       USE carbone_co2_mod, ONLY: c14rstd
       USE iso_dioxygen_mod, ONLY: iair
 
@@ -85,6 +85,19 @@
 
       OC13(:,:,:) = OC13_cst_ini*ODIC(:,:,:)
       OC14(:,:,:) = OC14_cst_ini*c14rstd*ODIC(:,:,:)
+
+!dmr --- Fresh start (KLSR==0): the 13C biological and DOC pools were never
+!        initialised here (only OC13/OC14 were), so PHYTO_M13, ZOO_M13,
+!        ODOC13 and ODOCS13 stayed uninitialised and tripped "floating
+!        invalid" in the 13C ocean-carbon sum (eco2_mod sum_ocean/ocean_...).
+!        They ARE set on the restart path (restart_mb), where the two
+!        biological pools are derived as pool12 * OC13/ODIC. Mirror that same
+!        13C/DIC-ratio derivation here for all four pools, so every 13C pool
+!        starts at the same d13C as DIC (ratio = OC13/ODIC = OC13_cst_ini).
+      PHYTO_M13(:,:,:) = PHYTO_M(:,:,:) * OC13(:,:,:) / ODIC(:,:,:)
+      ZOO_M13(:,:,:)   = ZOO_M(:,:,:)   * OC13(:,:,:) / ODIC(:,:,:)
+      ODOC13(:,:,:)    = ODOC(:,:,:)    * OC13(:,:,:) / ODIC(:,:,:)
+      ODOCS13(:,:,:)   = ODOCS(:,:,:)   * OC13(:,:,:) / ODIC(:,:,:)
 
       return
       END SUBROUTINE INIT_MB
