@@ -58,7 +58,7 @@ contains
 
 #if ( ISM == 2 )
 ! dmr FLAG AJOUT GRISLI
-      USE input_flagsGRIS, only: nord_GRIS, sud_GRIS, masqueECB, topoECB
+      USE input_flagsGRIS, only: nord_GRIS, sud_GRIS! , masqueECB, topoECB
       USE output_ECBilt              ! external GRISLI — only: not available
 ! dmr FLAG AJOUT GRISLI
 #endif

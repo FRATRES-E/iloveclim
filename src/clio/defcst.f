@@ -173,6 +173,24 @@
          lok_nsmax = nsmax
       endif
 
+!dmr --- Only the first lok_nsmax tracers are read from run.param (T,S by
+!dmr     default). Every per-tracer array is therefore filled only over
+!dmr     0/1..lok_nsmax; the tail lok_nsmax+1..nsmax stays UNINITIALISED and
+!dmr     later loops that run to nsmax (e.g. redforc: do ns=1,nsmax ...
+!dmr     if(yforc(ns).ne.zero)) would read garbage -> "floating invalid".
+!dmr     Default the tails to zero here so those slots are always defined.
+!dmr     NB: check the declared bounds of each array in reper_mod before
+!dmr         trusting these slice assignments; adjust lower bound if needed.
+      if (lok_nsmax.LT.nsmax) then
+        scal0 (:, lok_nsmax+1:nsmax) = 0.
+        yforc (   lok_nsmax+1:nsmax) = 0.
+        scpme (   lok_nsmax+1:nsmax) = 0.
+        scssv (   lok_nsmax+1:nsmax) = 0.
+        alphgr(   lok_nsmax+1:nsmax) = 0.
+        algrmn(   lok_nsmax+1:nsmax) = 0.
+        txeflx(   lok_nsmax+1:nsmax) = 0.
+      endif
+
 !dmr --- 2025-10-30 modified this so that the standard file is always run.param (2 tracers)
 !dmr     Now reads T,S in that order and that is it
       do n=1,lok_nsmax
@@ -189,8 +207,16 @@
 !- restoring :
       nitrap = 0
       ahrap = 0.
+!dmr --- rapp0(0:lok_nsmax)      : restoring per tracer (only lok_nsmax read from run.param)
+!dmr     rapp0(nsmax+1)/(nsmax+2): wall coefficients (mur N / mur S), NOT tracers.
+!dmr     redforc reads the walls at nsmax+1/nsmax+2, so they must land there --
+!dmr     the two trailing values on the line go to the wall slots explicitly.
+!dmr     (Reading them into lok_nsmax+1/+2 only coincides with nsmax+1/+2 when
+!dmr      lok_nsmax==nsmax, which broke the nsmax>2 configuration.)
+      rapp0(:) = 0.
       read(run_param_id,*)
-      read(run_param_id,*) unstyr, (rapp0(k),k=0,(lok_nsmax+2)), ahrap, nitrap
+      read(run_param_id,*) unstyr, (rapp0(k),k=0,lok_nsmax),
+     &                     rapp0(nsmax+1), rapp0(nsmax+2), ahrap, nitrap
       read(run_param_id,*)
       read(run_param_id,*) (rapp1(k),k=kmax,1,-1)
 !- time steps :

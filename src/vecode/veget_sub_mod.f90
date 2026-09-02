@@ -577,8 +577,15 @@
 
 #if ( CYCC == 2 )
         cell%sg4  = cell%g4share_st - G4D * exp(-1.0_dblp / t2g)
+!dmr --- g4share_st is 0 in this configuration, so this exponential-decay filter
+!dmr     drives sg4 geometrically toward 0 and, after many steps, into the
+!dmr     denormal range (< tiny) -> ifort -fpe0 traps it. Flush the residual to 0.
+        if (abs(cell%sg4) < tiny(cell%sg4)) cell%sg4 = 0.0_dblp
 #endif
         cell%snlt = cell%nlshare_st - nld * exp(-1.0_dblp / t2t)
+!dmr --- same guard: if nlshare_st relaxes to 0 (fully broadleaf), snlt would
+!dmr     underflow the same way. Flush the denormal residual to 0.
+        if (abs(cell%snlt) < tiny(cell%snlt)) cell%snlt = 0.0_dblp
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Carbon pool conservation — correct b3/b4 for fractional area changes
@@ -784,6 +791,9 @@
         if (cell%stR < 0.0_dblp) cell%stR = 0.0_dblp
 
         cell%snltR = cell%nlshare_st - nld * exp(-1.0_dblp / t2t)
+!dmr --- flush denormal residual to 0 (see ccdyn): if nlshare_st relaxes to 0
+!dmr     this filter underflows into the denormal range and -fpe0 would trap.
+        if (abs(cell%snltR) < tiny(cell%snltR)) cell%snltR = 0.0_dblp
 
         ! desert — exponential filter with characteristic time adjustment
         dsd     = cell%desshare_st - dd * exp(-1.0_dblp / t2g) - cell%sdR

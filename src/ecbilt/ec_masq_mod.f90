@@ -42,7 +42,7 @@ contains
     use input_subgrid2L, only: nbpointssg
 #endif
 #if ( ISM >= 2 )
-    use input_flagsgris, only: nord_GRIS, sud_GRIS, masqueECB
+    use input_flagsgris, only: nord_GRIS, sud_GRIS ! , masqueECB
 #endif
 #if ( F_PALAEO == 1 )
     use output_ecbilt,   only: masqueECB, where_update

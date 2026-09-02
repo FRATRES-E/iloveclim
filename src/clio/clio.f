@@ -36,6 +36,8 @@
       use dynami_mod
       use defgrid_mod, only: defgrid
 
+      use evolu_diag_mod, only: informe, inforun
+
 ! --- BdB 05-2019: add first year in clio for writing time in output
       use comemic_mod, only: init_year_clio
 
@@ -344,6 +346,8 @@ c~       dimension irn(imax,8), jrn(jmax,8)
       use ice_mod
       use dynami_mod
       use scale_mod, only: scale
+
+      use evolu_diag_mod, only: inforun
 
       use update_clio_bathy_tools, only: get_clio_masks_fnm, write_clio_masks
 !#if ( BATHY >= 1 )
