@@ -440,6 +440,10 @@
         use landmodel_mod, only: ec_initlbm
         use initial0_mod, only: ec_initecbilt
 
+#if ( CYCC >= 2 )
+        use atmos_composition_mod, only: atmos_carbon_update
+#endif
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...
 !>    @param[in]  day, month
@@ -467,6 +471,18 @@
 #endif
 #if ( CFC == 1 )
        call lire_cfc
+#endif
+
+#if ( CYCC >= 2 )
+!dmr --- Prime the atmospheric carbon composition (PA0_C, c13atm, C14ATM0)
+!dmr     BEFORE ec_initlbm. On a fresh carbon start (new_run_c==1) these are
+!dmr     set inside atmos_carbon_update(), which is otherwise first called only
+!dmr     in the time loop (emic.f). ec_initlbm -> veget -> ccstat_isotope reads
+!dmr     c13atm during initialisation, i.e. before that first loop call, so it
+!dmr     would read an uninitialised c13atm ("floating invalid"). Calling the
+!dmr     update once here closes the ordering gap; it is idempotent (assigns
+!dmr     reference constants) and the later loop call re-affirms the same values.
+       returnValue = atmos_carbon_update()
 #endif
 
        call ec_initlbm

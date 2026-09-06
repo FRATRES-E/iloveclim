@@ -112,7 +112,7 @@
 ! dmr The cluster below hence represents all variables providing a feedback from small to large scale
       real(kind=dblp), dimension(max_nb_points) :: dyrain_grisli, dysnow_grisli, &
                         corain_grisli, cosnow_grisli, thforg2_grisli, &
-                     , vhforg1_grisli, vhforg2_grisli, temp2g_grisli , temp4g_grisli, rmoisg_grisli
+                       vhforg1_grisli, vhforg2_grisli, temp2g_grisli , temp4g_grisli, rmoisg_grisli
 ! dmr Those two below are used only once as a transfer matrix. Not much I can do for them
       real(kind=dblp), dimension(max_nb_points) :: temp2g_grisli_diag, &
                                                    temp4g_grisli_diag

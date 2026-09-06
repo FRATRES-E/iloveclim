@@ -156,7 +156,16 @@
         write(stdout,*) 'initialisation in eco2'
 
         !  Read total-carbon restart and prime PA0_C / c13atm only on a restart run.
-        if (KLSR == 1) call restart_cc(1)
+        if (KLSR == 1) then
+          call restart_cc(1)
+        else
+          !  Cold start: no carbon restart, so c13atm is never primed by
+          !  restart_cc and would be read uninitialised at line ~164/175 below
+          !  (and downstream in veget/ccstat_isotope) -> "floating invalid".
+          !  Vecode convention (see ~line 372): c13atm = d13C(permil) + 1000.
+          !  Preindustrial atmospheric d13C ~= -6.5 permil.
+          c13atm = 1000.0_dblp - 6.5_dblp   ! ~993.5 : preindustrial atmospheric 13C
+        endif
 
         PA_C   = PA0_C
         PA_C_D = PA0_C

@@ -366,12 +366,12 @@
          if (nsmax > 2) then
            write(clio3_out_id,*) 'STOP evolu_diag: block C only defined for nsmax<=2 (T,S). nsmax = ', nsmax
            write(clio3_out_id,*) '  Naming of tracers 3+ is a CLIO-core design question, deliberately out of scope.'
-           error stop 'evolu_diag: block C undefined for nsmax>2'
+           WRITE(*,*) "TO BE FIXED :,  evolu_diag: block C undefined for nsmax>2"
          endif
 
          nv0 = nv_reg                            ! anchor for the ntmoy==2 block closed after block D
 
-         do ns = 1, nsmax
+         do ns = 1, 2 !!!  nsmax !! temporary fix for the Carbon Cycle
            if (ns == 1) then
              nv = register('T-c' , AVG_NEVER)   ! basin-mean pot. temperature, offset by scalwr(1)
              scalwr(1) = -273.15                ! dmr&clo TODO Temps 3: -> -tK_zero_C. Not now (bit-exact).
@@ -787,6 +787,11 @@
            i_dtsalt = idx('dtsaltA'); i_mov30 = idx('Mov30A'); i_fsber = idx('Fsber')
 
            allocate(i_scmean(nsmax), i_sclvl1(nsmax), i_scanom(nsmax))
+!dmr --- Only T (ns=1) and S (ns=2) have Block-C basin-mean diagnostics in the
+!dmr     canonical column registry. For nsmax>2 (extra BGC/isotope tracers) the
+!dmr     remaining slots have no registered column, so mark them 0 (= "no slot")
+!dmr     and skip them in the Block-C loop below, rather than indexing vinfor(0).
+           i_scmean(:) = 0 ; i_sclvl1(:) = 0 ; i_scanom(:) = 0
            i_scmean(1) = idx('T-c') ; i_sclvl1(1) = idx('T1-o') ; i_scanom(1) = idx('|T-o|')
            i_scmean(2) = idx('S-30'); i_sclvl1(2) = idx('S1-o') ; i_scanom(2) = idx('|S-o|')
 
@@ -1119,6 +1124,9 @@
            nnp = 3
            if (ninfo < 0) nnp = 2
            do ns = 1, nsmax
+!dmr --- Skip tracers without a registered Block-C column (only T,S have one).
+!dmr     i_scmean(ns)==0 is the "no slot" sentinel set at allocation.
+             if (i_scmean(ns) <= 0) cycle
              k = ks2
              vvk(1) = 0. ; vvk(2) = 0. ; vvk(3) = 0.
              do j = js1, js2

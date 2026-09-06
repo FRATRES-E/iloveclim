@@ -315,8 +315,8 @@ contains
         enddo
       enddo
       open(newunit=orography_dat_id, &
-       CONVERT='BIG_ENDIAN',file='outputdata/atmos/orography.dat
-              ',form='unformatted', &
+       CONVERT='BIG_ENDIAN',file='outputdata/atmos/orography.dat' &
+              ,form='unformatted', &
               access='direct',recl=Size(outdata)*Kind(outdata(1,1)))
       write(orography_dat_id,REC=1) outdata
       close(orography_dat_id)
@@ -356,7 +356,7 @@ contains
         enddo
       enddo
       open(newunit=landfrac_dat_id, &
-       CONVERT='BIG_ENDIAN',file='outputdata/atmos/landfrac.dat'
+       CONVERT='BIG_ENDIAN',file='outputdata/atmos/landfrac.dat' &
       ,form='unformatted', &
               access='direct',recl=Size(outdata)*Kind(outdata(1,1)))
       write(landfrac_dat_id,REC=1) outdata
@@ -2167,8 +2167,7 @@ contains
 !~      &                       ,efluxn_d(i,j,nn,nb_down))
 !~ #else
                 efluxn_d(i,j,nn,nb_down)=min(abmoisg(i,j,iwater) &
-                        *rowat*rlatvap/dtime
-                            ,efluxn_d(i,j,nn,nb_down))
+                        *rowat*rlatvap/dtime,efluxn_d(i,j,nn,nb_down))
 !~ #endif
 !     evapn(i,j,nld)=efluxn(i,j,nld)/(rowat*rlatvap)
 

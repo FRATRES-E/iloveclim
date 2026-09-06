@@ -257,6 +257,49 @@
           !--- initialise physical parameters ---
           if (kveget /= 0) call initcpar()
 
+!dmr --- Fv (integrated vegetation C flux, a FROG_EXP field now unconditionally
+!dmr     enabled) has the SAME defect: uninitialised grid array, absent from
+!dmr     restart I/O. It is accumulated (Fv=Fv+...) in climpar, so an uninitialised
+!dmr     read gives NaN that persists (NaN+0=NaN even on bare cells). Seed to 0.
+!dmr     (Also add to read_restart/write_restart when persistence is needed.)
+          Fv(:,:) = 0.0_dblp
+#if ( CYCC == 2 )
+!dmr --- sg4 (C4 grass fraction) is NOT present in read_restart/write_restart
+!dmr     and has no declaration default, so on every path (restart or init) the
+!dmr     grid array is read uninitialised into the cell (-> denormal/NaN in
+!dmr     ccdyn's G4D = g4share_st - sg4, tripping -fpe0). Zero it here so it is
+!dmr     always defined; with g4share_st==0 in this config, 0 is also correct.
+!dmr     (sg4 is declared only under CYCC==2 in veget_mod, so this MUST stay
+!dmr     inside the same guard; a two-tracer / CYCC/=2 build has no sg4.)
+!dmr     (For persistence across restarts, sg4 should additionally be added to
+!dmr     read_restart/write_restart alongside snlt.)
+          sg4(:,:) = 0.0_dblp
+!dmr --- bc13/bc14 (aggregate 13C/14C stocks) are recomputed every step from the
+!dmr     b*13/b*14 pools, but their grid arrays are NOT in restart I/O (only the
+!dmr     pools are). On a restart, bc13(i,j) is read uninitialised into the cell
+!dmr     and captured as prev_bc13 (=cell%bc13) at the top of climpar, so
+!dmr     anup13 = bc13 - prev_bc13 faults on the first post-restart step. They are
+!dmr     recomputed before real use, so zeroing here is sufficient and correct.
+          bc13(:,:) = 0.0_dblp
+          bc14(:,:) = 0.0_dblp
+!dmr --- anup13 (annual 13C uptake) has the same restart gap (in cell_from_grid
+!dmr     but not in restart I/O). It is recomputed in climpar before output, so
+!dmr     zero-seed it to avoid an uninitialised read on restart.
+          anup13(:,:) = 0.0_dblp
+#endif
+!dmr --- Systematic sweep: several vegetation grid arrays are populated by
+!dmr     cell_from_grid/cell_to_grid but are absent from read_restart/
+!dmr     write_restart. On a restart they are read uninitialised into the cell.
+!dmr     All of the following are RECOMPUTED each step before real use (none is
+!dmr     an accumulator except Fv, handled above), so zero-seeding is sufficient
+!dmr     and correct. Audit: arrays in cell_from_grid but not in restart I/O =
+!dmr     {Fv, Fv_g, Fv_t, anup13, bc13, bc14, pnpp, r_leaf, sg4, stock}.
+          Fv_t(:,:)   = 0.0_dblp
+          Fv_g(:,:)   = 0.0_dblp
+          pnpp(:,:)   = 0.0_dblp
+          r_leaf(:,:) = 0.0_dblp
+          stock(:,:)  = 0.0_dblp
+
           !--- Section 1: initial vegetation state ---
 
           if (kveget > 0) then
@@ -415,6 +458,18 @@
             where (sdR < 10.0_dblp * tiny(sdR(1,1))) sdR = 0.0_dblp
             where (sgR < 10.0_dblp * tiny(sgR(1,1))) sgR = 0.0_dblp
             where (stR < 10.0_dblp * tiny(stR(1,1))) stR = 0.0_dblp
+!dmr --- snlt/snltR (needleleaf) and sg4 (C4 grass) were added later for the
+!dmr     CYCC==2 isotope machinery but omitted from this underflow guard. Their
+!dmr     relaxation filters decay toward 0, so over long runs they drift into
+!dmr     the denormal range; the value persists in the grid array across steps
+!dmr     and is read back into the cell, tripping -fpe0. Flush them like the rest.
+!dmr     NB: snlt/snltR are unconditional, but sg4 is declared only under
+!dmr     CYCC==2 in veget_mod, so its guard must sit inside the same #if.
+            where (snlt  < 10.0_dblp * tiny(snlt(1,1)))  snlt  = 0.0_dblp
+            where (snltR < 10.0_dblp * tiny(snltR(1,1))) snltR = 0.0_dblp
+#if ( CYCC == 2 )
+            where (sg4   < 10.0_dblp * tiny(sg4(1,1)))   sg4   = 0.0_dblp
+#endif
 
             ! initialise bmoism
             bmoism(:,:) = 0.15_dblp

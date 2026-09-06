@@ -115,6 +115,25 @@
        real(dblp)  :: usden
 
 !==============================================================================
+!-- 4.0 : Initialisation des tableaux de sortie
+!         Les boucles ci-dessous ne remplissent pas certains plans de bord
+!         (p.ex. j=1 pour wght/akappa/alambd). Ces elements ne sont jamais
+!         utilises par la dynamique, mais un sum() global (ou toute lecture
+!         du tableau entier) lirait de la memoire non initialisee -> piege
+!         "floating invalid" sous ifort avec -fpe0. On les met donc a 0.
+!==============================================================================
+       wght   = 0.0_dblp
+       akappa = 0.0_dblp
+       alambd = 0.0_dblp
+       bkappa = 0.0_dblp
+       dxs1   = 0.0_dblp
+       dxs2   = 0.0_dblp
+       dxc1   = 0.0_dblp
+       dxc2   = 0.0_dblp
+       area   = 0.0_dblp
+       zfn    = 0.0_dblp
+
+!==============================================================================
 !-- 4.1 : Poids d'interpolation bilineaire wght aux coins des mailles
 !         wght(i,j,n,m) : poids pour interpoler du coin SW a partir des 4 pts S voisins
 !         pondere par les aires relatives des sous-mailles
@@ -382,6 +401,16 @@
 !   Convention : zbath/dzbath sont numerotes du fond (k=1=ks1) vers la surface
 !   (k=kmax=ks2), mais z,zw,dz sont stockes fond=1, surface=kmax.
 !==============================================================================
+!-- Init : unszw(k) n'est pas defini si zw(k)==0, et dzw/unsdzw ne couvrent
+!   que ks1+1:ks2 -> les bornes (ks1, kmax+1) resteraient non initialisees.
+       z      = 0.0_dblp
+       zw     = 0.0_dblp
+       dz     = 0.0_dblp
+       dzw    = 0.0_dblp
+       unsdz  = 0.0_dblp
+       unsdzw = 0.0_dblp
+       unszw  = 0.0_dblp
+
        zw(ks2+1) = 0.0   ! interface superieure de la couche de surface = 0 m
        do k=ks2,ks1,-1
          z(k)     = -zbath(ks1+ks2-k)   ! profondeur du centre du niveau k (m, <0)
@@ -523,6 +552,19 @@
 
 !-- Variables locales
        integer(ip) :: i, j, k, n, km, kkm, km3, kkm3, km1, nn0vit, ii
+
+!==============================================================================
+!-- 6.0 : Initialisation des tableaux de sortie
+!         Les profondeurs ne sont remplies que sur les points actifs
+!         (km>0) et sur les bandes js1:js2 ; les points terre et les
+!         rangees hors domaine restent non definis. Une lecture globale
+!         (sum, sortie disque) declencherait le piege "floating invalid".
+!==============================================================================
+       hs    = 0.0_dblp
+       hu    = 0.0_dblp
+       hux   = 0.0_dblp
+       huy   = 0.0_dblp
+       unshu = 0.0_dblp
 
 !==============================================================================
 !-- 6.1 : Points scalaires (centre de maille) -- masque tms
@@ -728,6 +770,11 @@
 
 !-- Variables locales
        integer(ip) :: i, j
+
+!-- Init : hux/huy ne sont remplis que sur j=1:jmax-1, i=1:imax-1 ->
+!   la rangee j=jmax et la colonne i=imax resteraient non initialisees.
+       hux = 0.0_dblp
+       huy = 0.0_dblp
 
 !==============================================================================
 !-- 6.7 : Bornes isf1/isf2 et iuf1/iuf2
@@ -1065,6 +1112,20 @@
        real(dblp), parameter :: zrr(5) = (/0.58d0,0.62d0,0.67d0,0.77d0,0.78d0/)
        real(dblp), parameter :: zd1(5) = (/0.35d0,0.60d0,1.00d0,1.50d0,1.40d0/)
        real(dblp), parameter :: zd2(5) = (/23.0d0,20.0d0,17.0d0,14.0d0,7.90d0/)
+
+!==============================================================================
+!-- 9.0 : Initialisation des tableaux de sortie
+!         Certaines boucles ne couvrent pas tout le tableau :
+!           dfhu/dfhv -> j=jmax non rempli ; tauc -> hors (js1:js2,is1:is2)
+!           et non rempli si nflag==3 ; reslum -> niveaux k=0 et k=kmax+1 non
+!           remplis. Une lecture globale (sum, ecriture disque) toucherait de
+!           la memoire non initialisee -> piege "floating invalid" sous ifort.
+!==============================================================================
+       zindfa = 0.0_dblp
+       dfhu   = 0.0_dblp
+       dfhv   = 0.0_dblp
+       tauc   = 0.0_dblp
+       reslum = 0.0_dblp
 
 !==============================================================================
 !-- 9.1 : Masque de surface pour la glace et coefficients de diffusion horizontale

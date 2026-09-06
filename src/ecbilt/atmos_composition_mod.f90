@@ -151,6 +151,9 @@
 #if ( CYCC >= 2 )
         use C_res_mod,   only: c13atm
         use carbone_co2_mod, only: C14ATM0, c14rstd, new_run_c, PA0_C
+#if ( KC14 == 1 )
+        use carbone_co2_mod, only: C14ATM
+#endif
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -190,6 +193,14 @@
          c13atm = 1000.-6.5
 ! Init of 14C (VM version) in case of a new run
          C14ATM0 = PA0_C * c14rstd
+#if ( KC14 == 1 )
+!dmr --- Seed the prognostic C14ATM on a fresh start. Only C14ATM0 (the
+!dmr     reference) was set here; the working value C14ATM was left for the
+!dmr     time-loop closure (eco2: C14ATM = c14rstd*PA_C). But out_cycc reads
+!dmr     C14ATM during eco2_init, before that closure -> "floating invalid".
+!dmr     At fresh start PA_C == PA0_C, so this equals C14ATM0.
+         C14ATM = PA0_C * c14rstd
+#endif
 #if ( O2ATM == 1 )
          PA0_O = PO2ref
 #endif

@@ -356,6 +356,13 @@
         total_alk=0
         total_nit=0
         total_d13=0
+!dmr --- total_tpp/total_caco3 are accumulated further below (line ~502) but
+!dmr     were only reset at the BOTTOM of this block (after use) and have no
+!dmr     declaration default, so on the first year-end (KENDY==1) they were
+!dmr     read uninitialised -> "floating invalid". Reset them here, with the
+!dmr     rest of the total_* accumulators, before any accumulation.
+        total_tpp=0
+        total_caco3=0
 
        do n=1,NOC_CBR
         do i=1,LT
@@ -436,6 +443,14 @@
 ! ....
 !dmr --- si deuxieme annee du siecle ... !!!
         if(NYR-(NYR/100)*100.eq.2) then
+
+!dmr --- tot_err/tot_err2 are LOCAL (non-saved) vars, so they cannot actually
+!dmr     accumulate across calls; the "tot_err = tot_err - ..." form read
+!dmr     uninitialised stack memory (NaN sentinel) on first entry to this
+!dmr     second-year block -> SIGFPE. Initialise to 0 so the intended
+!dmr     per-call correction (tot_err = -temp_difa) is what is computed.
+          tot_err  = 0.0_dblp
+          tot_err2 = 0.0_dblp
 
         print*,'total_alk, OALK_ini', total_alk/1000, OALK_ini
 
@@ -545,6 +560,8 @@
         pel_sum=0
         caco3_sum=0
 
+!dmr --- (now redundant: total_tpp/total_caco3 are reset at the top of the
+!dmr     KENDY block; kept here harmlessly for symmetry with the *_sum resets.)
         total_tpp = 0.0
 !        FORALL (n=1:NOC_CBR, i=1:LT, j=1:JT)
 !           TPP_ma(i,j,n)=0.0
