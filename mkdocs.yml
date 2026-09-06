@@ -1,0 +1,148 @@
+# ============================================================
+#  iLOVECLIM documentation — MkDocs configuration
+#  Lives at the repo root (next to the docs/ folder).
+#  Build locally:   mkdocs serve
+#  Build to site/:  mkdocs build
+# ============================================================
+
+# ---- Site identity -----------------------------------------
+site_name: iLOVECLIM Documentation
+site_description: >-
+  User and developer documentation for the iLOVECLIM Earth System
+  Model of Intermediate Complexity.
+site_url: https://docs.iloveclim.eu/          # the custom subdomain
+site_author: iLOVECLIM consortium
+
+# ---- Where the source repo is (adds an "edit this page" pencil) ----
+repo_name: FRATRES-E/iloveclim
+repo_url: https://github.com/FRATRES-E/iloveclim
+edit_uri: edit/main/docs/                      # PR-friendly edit links
+
+# A tidy 404 and correct links on Pages
+use_directory_urls: true
+
+# ---- Theme -------------------------------------------------
+theme:
+  name: material
+  language: en
+  palette:
+    # Light / dark toggle
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant      # SPA-like fast page loads
+    - navigation.tracking     # URL updates as you scroll
+    - navigation.tabs         # top-level sections become top tabs
+    - navigation.sections     # group headings in the sidebar
+    - navigation.top          # back-to-top button
+    - navigation.footer       # prev/next links at page bottom
+    - search.suggest
+    - search.highlight
+    - content.code.copy       # copy button on code blocks
+    - content.action.edit     # the edit pencil
+    - toc.follow
+
+# ---- Plugins -----------------------------------------------
+plugins:
+  - search
+  # 'mike' is added later, once you want per-version docs (v1.1, v1.2 ...)
+  # - mike
+
+# ---- Markdown extensions (nice-to-haves for scientific docs) ----
+markdown_extensions:
+  - admonition                # note/warning/tip callout boxes
+  - pymdownx.details          # collapsible admonitions
+  - pymdownx.superfences      # fenced code, nested blocks, diagrams
+  - pymdownx.highlight:       # syntax highlighting (Fortran, bash, python)
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets         # include external files into a page
+  - pymdownx.tabbed:          # tabbed content (e.g. per-machine instructions)
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true         # clickable ¶ anchors on headings
+  # LaTeX maths, for the scientific documentation pages:
+  - pymdownx.arithmatex:
+      generic: true
+
+# MathJax hookup for arithmatex (equations)
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+# ---- Navigation tree ---------------------------------------
+#  This is the file you'll edit most. Each entry maps a title
+#  to a Markdown file under docs/. Reorder freely.
+nav:
+  - Home: index.md
+
+  - Getting started:
+      - getting-started/index.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Getting the code: getting-started/obtaining-the-code.md
+      - First compilation: getting-started/first-compilation.md
+      - Your first run: getting-started/first-run.md
+      - HPC machines:
+          - getting-started/machines/index.md
+          # one page per cluster — these date fast, kept together:
+          # - IRENE (TGCC): getting-started/machines/irene.md
+          # - Jean-Zay (IDRIS): getting-started/machines/jean-zay.md
+
+  - User guide:
+      - user-guide/index.md
+      - Configuring experiments: user-guide/configuring-experiments.md
+      - Input & boundary data: user-guide/input-data.md
+      - Output & post-processing: user-guide/output.md
+      - Restarts & spin-up: user-guide/restarts-spinup.md
+      - Coupling options: user-guide/coupling.md
+
+  - Scientific documentation:
+      - science/index.md
+      - Atmosphere (ECBilt): science/atmosphere-ecbilt.md
+      - Ocean & sea ice (CLIO): science/ocean-clio.md
+      - Vegetation (VECODE): science/vegetation-vecode.md
+      - Ice sheets (GRISLI): science/ice-sheets-grisli.md
+      - Carbon cycle: science/carbon-cycle.md
+      - Known limitations: science/limitations.md
+
+  - Developer guide:
+      - developer-guide/index.md
+      - Code architecture: developer-guide/architecture.md
+      - Coding conventions: developer-guide/conventions.md
+      - Git workflow: developer-guide/git-workflow.md
+      - Adding a component: developer-guide/adding-a-component.md
+      - Testing & CI: developer-guide/testing.md
+
+  - Reference:
+      - reference/index.md
+      - FAQ & troubleshooting: reference/faq.md
+      - Glossary: reference/glossary.md
+      - How to edit these docs: reference/editing-docs.md
+      - Publications: reference/publications.md
+
+# ---- Footer / social ---------------------------------------
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/FRATRES-E/iloveclim
+    - icon: fontawesome/solid/globe
+      link: https://iloveclim.eu
+  generator: false            # hide "Made with Material for MkDocs"
+
+copyright: >-
+  Copyright &copy; iLOVECLIM consortium —
+  <a href="https://iloveclim.eu">iloveclim.eu</a>
