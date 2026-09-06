@@ -17,7 +17,7 @@ Intermediate Complexity.
 
 ## About the model
 
-*One paragraph describing iLOVECLIM, its components, and its typical use.*
+The iLOVECLIM model is a coupled Earth System Model (ESM) developed to simulate and study the interactions between the atmosphere, ocean, sea ice, land surface, and biogeochemical cycles. It is designed to provide a comprehensive representation of the Earth's climate system, enabling researchers to explore past, present, and future climate scenarios. iLOVECLIM is particularly useful for long-term climate evolution, something that is often necessary for paleoclimate studies, but also to run large ensemble of scenarios to assess the impact of natural and anthropogenic processes on the evolution of the global climate.
 
 ## How to cite
 
