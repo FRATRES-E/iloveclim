@@ -1,0 +1,27 @@
+# =============================================================================
+# Descripteur de composante : VECODE (modèle de végétation)
+# =============================================================================
+# Composante de base du cœur couplé iLOVECLIM. Cas le plus simple : des sources
+# (glob) et deux fichiers de paramètres. Aucun hook, aucune donnée volumineuse,
+# aucun lien ni substitution. Sert de patron minimal pour une composante de base.
+# =============================================================================
+
+[vecode]
+description  = "VECODE dynamic vegetation model"
+activated_by = "VEGET"          # variable de composante (VEGET=vecode)
+
+# Pas de run_dirs propres : les .param vont directement dans run_dir.
+# (run_dir lui-même est créé par setup_directory.)
+
+# Sources : copie permissive par glob (déjà en place depuis l'étape 2).
+# Sources : le répertoire seul => toutes les sources Fortran usuelles.
+# (La liste d'extensions vit dans le moteur, plus de duplication ici.)
+sources = ["src/vecode"]
+
+# --- Fichiers de paramètres (données strictes vers run_dir) -------------------
+# Migrés de simples 'cp' (laxistes) vers données strictes : un .param requis
+# manquant arrête désormais le run, cohérent avec le reste des composantes.
+[[vecode.data]]
+from  = "${emic_dir}/defs/vecode"
+to    = ""                       # "" = run_dir directement
+files = ["veget.par", "outp_veget.param"]
