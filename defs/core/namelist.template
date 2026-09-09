@@ -1,0 +1,10 @@
+$tstepctl
+nyears   = @NUM_YEARS@
+irunlabel= @START_YEAR@
+iatm     = 6
+ilan     = 1
+iice     = 2
+iobtrop  = 1
+iobclin  = 1
+nwrskip  = @NSKIP@
+$end

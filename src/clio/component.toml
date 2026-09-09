@@ -1,0 +1,64 @@
+# =============================================================================
+# Descripteur de composante : CLIO (modèle océan / glace de mer)
+# =============================================================================
+# Composante de base d'iLOVECLIM (océan). Contrairement à GRISLI, CLIO est
+# presque toujours active. Son cas particulier : le nombre de traceurs océan
+# (nsmax) est calculé par para0_mod.f90 selon choixcomposantes.h, et détermine
+# quelle version de netcdfout.param doit être posée. Cette dérivation est
+# déléguée au hook clio_tracers (voir [clio.restart]-like -> [clio.tracers]),
+# qui LIT para0_mod.f90 (source de vérité) au lieu de dupliquer sa logique.
+# =============================================================================
+
+[clio]
+description  = "CLIO ocean / sea-ice model"
+activated_by = "OCEAN"          # variable de composante (OCEAN=clio)
+# Pas de 'requires' : CLIO est une composante de base, pas une greffe.
+
+# Répertoires créés par setup_directory ; redéclarés ici pour l'autonomie du
+# descripteur (idempotent : mkdir -p ne nuit pas s'ils existent déjà).
+run_dirs = [
+  "inputdata/clio",
+]
+
+# Sources : copie permissive par glob (déjà en place depuis l'étape 2).
+# Sources : le répertoire seul => toutes les sources Fortran usuelles.
+sources = ["src/clio"]
+
+# --- Données strictes : DOIVENT exister, sinon arrêt du run -------------------
+[[clio.data]]
+from  = "${emic_dir}/inputs/clio"
+to    = "inputdata/clio"
+files = [
+  "masks", "mozaic.w", "grids", "areas", "bath.om", "typeaux.dat",
+  "tsobs.om",
+  "pres.int.dat", "pres.int.d.dat",
+  "prcp.int.dat", "prcp.int.d.dat",
+  "cldsa.int.dat", "cldsa.int.d.dat",
+  "ten5.int.dat", "ten5.int.d.dat",
+  "vvent.int.dat", "vvent.int.d.dat",
+  "temp.int.dat", "temp.int.d.dat",
+  "humid.int.dat", "humid.int.d.dat",
+  "runo.int.dat", "runo.int.d.dat",
+  "ust.int.dat", "ust.int.d.dat",
+  "thermo.param", "dynami.param",
+  "cpointj.dat", "jmaxl.dat",
+  "albedo.dat",
+]
+
+# --- Fichiers de paramètres (copie directe vers run_dir) ----------------------
+# NB : netcdfout.param n'est PAS ici — il est posé par le hook clio_tracers,
+# qui choisit la version -scal<nsmax> correspondant au nombre de traceurs.
+# run.param est candidat à suppression (sous-chantier séparé) ; conservé pour
+# l'instant afin de rester à l'équivalence stricte avec l'ancien comportement.
+[[clio.data]]
+from  = "${emic_dir}/param/clio"
+to    = ""                       # "" = run_dir directement
+files = ["run.param", "output.param"]
+
+# --- Hook traceurs : dérive nsmax et pose netcdfout.param-scal<nsmax> ---------
+# Remplace le système de sentinelles .activated et les copies netcdfout.param
+# dispersées dans les modules (OCYCC, isoocn, ooiso...).
+# Applique localement la priorité -F pour para0_mod.f90 et choixcomposantes.h.
+[clio.tracers]
+hook   = "clio_tracers"
+target = ""                      # "" = netcdfout.param déposé dans run_dir

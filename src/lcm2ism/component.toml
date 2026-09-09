@@ -1,0 +1,82 @@
+# =============================================================================
+# Descripteur de composante : GRISLI (modèle de calotte, couplage ISM via lcm2ism)
+# =============================================================================
+# Ce fichier voyage avec le code de la composante (src/grisli/).
+# Il est lu UNIQUEMENT à l'installation par le générateur (gen_cache.sh, via yq)
+# et compilé en un cache shell. Le runtime ne lit jamais ce TOML.
+#
+# Convention de résolution des variables :
+#   ${libgrisli}, ${emic_dir} ... -> placeholders résolus au build si connus,
+#                                    sinon PRÉSERVÉS littéralement pour le runtime.
+#   ${run_label}, ${run_dir} ...   -> variables runtime, toujours préservées.
+# Le générateur ne développe rien lui-même : il recopie les valeurs telles quelles
+# entre guillemets simples-neutres. C'est le runtime qui développe, au source du cache.
+# =============================================================================
+
+[grisli]
+description  = "GRISLI ice-sheet model (ISM coupling via lcm2ism)"
+activated_by = "ISM"            # flag de choixcomposantes.h ; valeurs 2 ou 3
+requires     = ["CLIO"]         # implication validée par le portique : GRISLI => CLIO
+
+# Répertoires à créer (relatifs à run_dir). Créés avant toute copie.
+run_dirs = [
+  "inputdata/grisli",
+  "inputdata/lcm2ism",
+  "inputdata/grisli/INPUT",
+]
+
+# Sources compilées : copie permissive par motifs (glob), un glob vide n'est pas
+# une erreur. Chemins relatifs à emic_dir.
+sources = [
+  "src/lcm2ism/*.f90",
+  "src/lcm2ism/*.f",
+]
+
+# --- Données strictes : DOIVENT exister, sinon arrêt du run --------------------
+[[grisli.data]]
+from  = "${libgrisli}/INPUT/HEMIN40"
+files = ["lat.dat", "lon.dat"]
+to    = "inputdata/lcm2ism"
+
+[[grisli.data]]
+from  = "${libgrisli}/SOURCES/Fichiers-parametres"
+files = ["LISTE-VAR-HZ.dat", "TEMPS-HZ.dat", "TEMPS-CPTR-NC.dat",
+         "LISTE-VAR-NETCDF.dat", "TEMPS-NETCDF.dat", "netcdf_type.dat"]
+to    = "inputdata/grisli"
+
+[[grisli.data]]
+from  = "${libgrisli}/SOURCES/Netcdf-routines"
+files = ["Description_Variables.dat"]
+to    = "inputdata/grisli"
+
+# Le fichier de paramètres, copié puis patché (voir subst + restart)
+[[grisli.data]]
+from  = "${libgrisli}/SOURCES/Fichiers-parametres"
+files = ["hemin40_param_list.dat"]
+to    = "inputdata/grisli"
+
+# --- Liens symboliques --------------------------------------------------------
+[[grisli.links]]
+from    = "${libgrisli}/INPUT"
+targets = ["HEMIN40", "Forcage", "kelvin.res"]
+into    = "inputdata/grisli/INPUT"
+
+# --- Substitution simple (templating, aucune condition) -----------------------
+[[grisli.subst]]
+file    = "inputdata/grisli/hemin40_param_list.dat"
+pattern = "THEBEAUTIFULRUNNAME"
+value   = "${run_label:0:8}"
+
+# --- Étape restart : logique conditionnelle déléguée à un hook -----------------
+# Le descripteur DÉCLARE qu'il existe une étape restart et la nomme ; la logique
+# (choix .nc / .cptr / rien) vit dans src/grisli/hooks.sh, fonction grisli_restart.
+[grisli.restart]
+hook   = "grisli_restart"
+target = "inputdata/grisli/hemin40_param_list.dat"
+
+# --- Injection dans la compilation (préoccupation build, pas setup) ------------
+[grisli.build]
+make_macros_append = [
+  "INCLUDES += ${INCGRISLI}",
+  "LIBS += ${LIBGRISLI}",
+]

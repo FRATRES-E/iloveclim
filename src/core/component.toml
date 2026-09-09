@@ -1,0 +1,80 @@
+# =============================================================================
+# Descripteur de composante : CORE (socle commun du couplage)
+# =============================================================================
+# CORE n'est pas EcBILT. C'est le SOCLE COMMUN : sources partagées, coupleur,
+# bibliothèques de base, configuration de compilation. Toujours présent
+# (inconditionnel), c'est la fondation sur laquelle les autres composantes se
+# posent. EcBILT (l'atmosphère) est une composante distincte.
+#
+# NOTE historique : les sources communes vivent aujourd'hui dans
+# ${EMIC}=ecbilt_clio (src/ecbilt_clio), nom hérité de l'époque où le modèle
+# était pensé pour ce seul couplage. Le descripteur pointe ces chemins via
+# ${EMIC} ; le jour où ce répertoire est renommé (travail en cours sur devel),
+# seuls les chemins ci-dessous changeront, pas le nom logique 'core'.
+#
+# CE FICHIER EST LA TRANCHE 1 (déclaratif pur). À venir :
+#   - champ build_files (Makefile & options, avec renommage)
+#   - hook core_namelist (namelist généré dynamiquement)
+#   - hook core_openmp   (patch FFLAGS conditionnel)
+# =============================================================================
+
+[core]
+description  = "Common core: shared sources, coupler, base libraries"
+# Pas de activated_by : CORE est inconditionnel (toujours présent).
+
+# Sources communes : raccourci répertoire => toutes les sources Fortran usuelles.
+# ${EMIC} préservé (développé au runtime) pour robustesse au renommage futur.
+sources = [
+  "src/${EMIC}",
+  "src/base_libs",
+  "src/base_libs/ASA_183",
+  "defs/${EMIC}/global_flags",
+  "src/io_nc",
+]
+
+# --- Données strictes -------------------------------------------------------
+[[core.data]]
+from  = "${emic_dir}/inputs/${EMIC}"
+to    = "inputdata"
+files = ["ocbas.dat", "fractoc.dat", "labas.dat", "darea.dat"]
+
+# emic.param vers run_dir
+[[core.data]]
+from  = "${emic_dir}/param/${EMIC}"
+to    = ""                       # "" = run_dir directement
+files = ["emic.param"]
+
+# --- Fichiers de build (copie avec renommage, vers comp_dir, strict) ----------
+# src = chemin BRUT relatif à emic_dir (pas de préfixe src/ ; viennent de defs/
+# et i-operator/config/). dst = relatif à comp_dir (racine de compilation).
+# -F ne peut pas les surcharger (il écrit dans compil/sources/, pas compil/).
+[[core.build_files]]
+src = "defs/${EMIC}/Makefile.2025.07.22"
+dst = "Makefile"
+
+[[core.build_files]]
+src = "i-operator/config/makedepf08.awk"
+dst = "makedepf08.awk"
+
+[[core.build_files]]
+src = "i-operator/config/make.macros.installing"
+dst = "make.macros"
+
+[[core.build_files]]
+src = "i-operator/config/${compiler_name}${compiler_version}.options"
+dst = "${compiler_name}.options"
+
+# --- Fichiers auxiliaires embarqués dans le cache (pour les hooks) -------------
+# src = chemin relatif à emic_dir ; dst = nom logique (préfixé par la composante
+# dans le cache -> core.namelist.template). Le hook core_namelist le lit là.
+# Chemin littéral defs/core/ (nom de composante), pas defs/${EMIC}/ : on sort du
+# nom historique ecbilt_clio, et le chemin ne dépend plus d'aucune variable.
+[[core.aux_files]]
+src = "defs/core/namelist.template"
+dst = "namelist.template"
+
+# --- Hook : génération du namelist principal depuis namelist.template ----------
+# Substitue num_years, start_year, NSKIP dans le template externe (contenu stable).
+[core.namelist]
+hook   = "core_namelist"
+target = ""                      # "" = run_dir/namelist
