@@ -8,6 +8,9 @@ Additionally, the input/output of the model relies on the netCDF format ; a work
 
 Optionaly, some aspects of iLOVECLIM can be run un parallel using [OpenMP](https://www.openmp.org) ; this is not a requirement but should be considered to speedup the computations (especially in experiments where you have a lot of oceanic tracers). 
 
+!!! tip "HPC machines"
+    Before doing the LIPaS installation steps, you want to check out the machine-specific pages to see if your computer is supported by default. The latter being the case, that will speedup your installation process tremendously.
+
 ## LIPaS Package installation manager
 
 First, simply retrieve the LIPaS installer:
