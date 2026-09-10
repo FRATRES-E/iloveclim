@@ -1,0 +1,37 @@
+# =============================================================================
+# Descripteur de composante : LBM (Land Bucket Model — surfaces continentales)
+# =============================================================================
+# Composante de base du cœur couplé. Purement déclarative, la plus simple :
+# sources, une donnée, un namelist (copie simple). Aucun hook.
+#
+# NOTE nommage : le code interne utilise déjà 'lbm' (LAND=lbm, src/lbm, inputs/lbm).
+# Seule survivance historique 'land' : le namelist de destination était
+# 'namelistland'. Homogénéisé en 'namelistlbm'.
+# /!\ DÉPENDANCE FORTRAN : le code LBM doit lire 'namelistlbm' (pas 'namelistland').
+#     À valider/adapter côté Fortran ; sinon rebasculer ce descripteur sur
+#     'namelistland' (un seul nom à changer).
+#
+# Le namelist source a été renommé en 'namelistlbm' (ex-'default-namelist'),
+# ce qui évite tout renommage à la copie -> simple champ data. La surcharge
+# work_dir de copy_namelist était morte (bug 'defs/' historique), non reproduite.
+# =============================================================================
+
+[lbm]
+description  = "LBM — Land Bucket Model (continental surfaces)"
+activated_by = "LAND"           # variable de composante (LAND=lbm)
+
+# Sources : raccourci répertoire => toutes les sources Fortran usuelles.
+sources = ["src/lbm"]
+
+# --- Données strictes -------------------------------------------------------
+# Sous-chemin albedos/ localise la SOURCE ; copie à plat dans inputdata/.
+[[lbm.data]]
+from  = "${emic_dir}/inputs/lbm"
+to    = "inputdata"
+files = ["albedos/albsnow.dat"]
+
+# namelist : copie simple (source renommée namelistlbm, plus de renommage).
+[[lbm.data]]
+from  = "${emic_dir}/defs/lbm"
+to    = ""                       # "" = run_dir directement
+files = ["namelistlbm"]

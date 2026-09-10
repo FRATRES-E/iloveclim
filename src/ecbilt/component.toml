@@ -1,0 +1,43 @@
+# =============================================================================
+# Descripteur de composante : ECBILT (modèle d'atmosphère)
+# =============================================================================
+# Composante de base du cœur couplé : l'atmosphère. Distincte de CORE (le socle
+# commun) : EcBILT n'apporte QUE l'atmosphère. Purement déclarative — sources,
+# données, namelist (copie simple), outp_atmos.param. Aucun hook.
+#
+# NOTE : le namelist source a été renommé 'namelistecbilt' (ex-'default-namelist'),
+# ce qui évite tout renommage à la copie -> simple champ data. La substitution des
+# clés de sensibilité (sens_vers / apply_param.sh) reste une passe transverse du
+# flux principal, appliquée APRÈS les composantes sur namelistecbilt et run.param.
+# =============================================================================
+
+[ecbilt]
+description  = "ECBilt atmosphere model"
+activated_by = "ATMOS"          # variable de composante (ATMOS=ecbilt)
+
+# Sources : raccourci répertoire => toutes les sources Fortran usuelles.
+sources = ["src/ecbilt"]
+
+# --- Données strictes -------------------------------------------------------
+# Les sous-chemins (swrpar/..., artiforc/...) localisent la SOURCE ; la copie
+# est à plat dans inputdata/ (comportement identique à copy_files historique).
+[[ecbilt.data]]
+from  = "${emic_dir}/inputs/ecbilt"
+to    = "inputdata"
+files = [
+  "swrpar/swrref.dat", "lwrpar/lwrref.dat",
+  "swrpar/swrcoef.dat", "lwrpar/lwrcoef.dat",
+  "coef.dat",
+  "berg.dat", "berg.nc",
+  "icemask.dat", "icemask.nc",
+  "gauss.asc",
+  "artiforc/win.dat", "artiforc/sum.dat",
+  "clt_MODIS_000001-000012_ac-T21.nc",
+]
+
+# namelist (source renommée namelistecbilt, plus de renommage) + outp_atmos.param
+# vers run_dir. Copie simple.
+[[ecbilt.data]]
+from  = "${emic_dir}/defs/ecbilt"
+to    = ""                       # "" = run_dir directement
+files = ["namelistecbilt", "outp_atmos.param"]

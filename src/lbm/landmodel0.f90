@@ -101,7 +101,7 @@
       open(newunit=alb_dat_id,file='inputdata/alb.dat')
       open(newunit=forfr_dat_id,file='inputdata/forfr.dat')
 
-      open(newunit=namelistland_id,file='namelistland',status='old',form='formatted')
+      open(newunit=namelistland_id,file='namelistlbm',status='old',form='formatted')
 
 
 ! *** land fraction
