@@ -1,0 +1,21 @@
+# =============================================================================
+# Descripteur de composante : ICEBERGS (modèle d'icebergs)
+# =============================================================================
+# Composante optionnelle. Simple : sources (glob) + une donnée.
+# Sa migration en composante rend son répertoire src/icebergs globé, ce qui rend
+# REDONDANTES les copies de sources icebergs que faisaient (via l'ancien chemin
+# cassé icebergs/sources/) les modules calvflux, calvfwf et runoffgris.
+# =============================================================================
+
+[icebergs]
+description  = "Icebergs model"
+activated_by = "ICEBERG"        # flag de choixcomposantes.h
+
+# Sources : raccourci répertoire => toutes les sources Fortran usuelles de src/icebergs.
+sources = ["src/icebergs"]
+
+# --- Données strictes -------------------------------------------------------
+[[icebergs.data]]
+from  = "${emic_dir}/inputs/icebergs"
+to    = "inputdata"
+files = ["positb.init"]
