@@ -57,7 +57,7 @@
       integer(ip) :: newunit_id, wisocpl_restart_id, error_id, ocbasin_id, ocheattr_id, sum_dat_id, win_dat_id, berg_dat_id    &
                    , coef_dat_id, lwrref_dat_id, lwrcoef_dat_id, swrref_dat_id, swrcoef_dat_id, GHG_dat_id, TSI_RM_dat_id      &
                    ,VOLC_dat_id, SUL_dat_id, OZONE_dat_id, scenario2Xco2_dat_id, info_id, mbcs2_cor_id, book_id, ipcc_id       &
-                   , runoff_id, namelistecbilt_id, gauss_asc_id, parameterschk_id, carbon_emission_dat_id
+                   , runoff_id, namelistecbilt_id, gauss_asc_id, parameterschk_id, carbon_emission_dat_id, c14_id
 
 !~       common /ilabel/  irunlabelf
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

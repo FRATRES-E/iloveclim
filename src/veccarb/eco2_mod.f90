@@ -117,13 +117,16 @@
       subroutine eco2_init(fracgr, darea)
 
         use comatm,          only: nlat, nlon
-        use carbone_co2_mod, only: PA0_C, PA_C, PA_C_D, C14ATM, new_run_c
+        use carbone_co2_mod, only: PA0_C, PA_C, PA_C_D, C14ATM, new_run_c,&
+                                   PA_C_prev
         use C_res_mod,       only: c13atm, ca13_at_ini, ca13_la_ini,     &
                                    ca13_oc_ini, ca13_oc_rest, ca13_la_rest, &
                                    ca_la_ini, ca_la_rest, ca_oc_ini,      &
                                    ca_oc_rest, ca_oc_vol, dc13at_ini,     &
                                    coc_odoc, coc_odocs, coc_odoc13,       &
                                    coc_odocs13, emis_cum, emis_c13_cum,   &
+                                   cav_la_prev, cav_la, cav_oc,           &
+                                   cav_oc_diff_cum, cav_la_diff_cum,      &
                                    emis_perm_cum, emis_perm_c13_cum
 #if ( KC14 == 1 )
         use C_res_mod,       only: ca14_oc_ini, ca14_la_ini,             &
@@ -145,10 +148,16 @@
         use newunit_mod,     only: permafrost_emission_dat_id
 #endif
 
+#if ( KC14P == 1 )
+      use newunit_mod, only: c14_id
+      use carbone_co2, only: NC14max, TPSC14, PC14M, NC14
+#endif
+
         real(dblp), dimension(nlat,nlon), intent(in) :: fracgr
         real(dblp), dimension(nlat),      intent(in) :: darea
 
-#if ( CEMIS == 1 || PERM_SCEN == 1 )
+
+#if ( CEMIS == 1 || PERM_SCEN == 1 || KC14P == 1 )
         integer(ip) :: ii, yy
 #endif
 
@@ -169,6 +178,7 @@
 
         PA_C   = PA0_C
         PA_C_D = PA0_C
+        PA_C_prev=PA_C
         write(stdout,*) 'atmosphere PA_C, c13atm, c14atm'
         write(stdout,*) PA_C, c13atm, c13atm - 1000.0_dblp, C14ATM
 
@@ -207,6 +217,21 @@
         end do
         close(permafrost_emission_dat_id)
 #endif
+#if ( KC14P == 1 )
+!read input file for C14 production
+      open(newunit=c14_id,
+     >    file='inputdata/prod_C14.dat',STATUS='unknown')
+      PRINT*,'lecture de prod_C14.dat NC14max = ',NC14max
+      DO ii=1,NC14max
+        READ(c14_id,*) TPSC14(ii),PC14M(ii)
+      !PRINT*, ii, TPSC14(ii), PC14M(ii)
+      END DO
+      print*, 'PC14ATM ', PC14M
+      NC14 = ii-1
+cvm      PRINT*,'fichier be10.dat lu, NC14=',NC14
+      close (c14_id)
+#endif
+
 
         !  Initial ocean carbon (OCYCC sum, or a fixed default).
         call sum_ocean_carbon(ca_oc_ini, ca13_oc_ini                     &
@@ -221,9 +246,9 @@
         !  Diagnostic ratio only (never reused); guard against an empty reservoir so a
         !  zero pre-restart sum cannot raise SIGFPE under -ffpe-trap.
         if (ca_oc_ini /= 0.0_dblp) then
-          write(stdout,*) 'd13C ocean '            , ca13_oc_ini / ca_oc_ini
+          write(stdout,*) 'd13C ocean '        , ca13_oc_ini / ca_oc_ini
         else
-          write(stdout,*) 'd13C ocean '            , ' n/a (ca_oc_ini == 0)'
+          write(stdout,*) 'd13C ocean '        , ' n/a (ca_oc_ini == 0)'
         end if
 
         !  Restart overwrites the computed ocean totals when present.
@@ -254,9 +279,9 @@
         !  Diagnostic ratio only (immediately overwritten by the restart below); guard
         !  against ca_la_ini == 0 (e.g. veget pools not yet filled) to avoid SIGFPE.
         if (ca_la_ini /= 0.0_dblp) then
-          write(stdout,*) 'dC13 vegetation '          , ca13_la_ini / ca_la_ini
+          write(stdout,*) 'dC13 vegetation '   , ca13_la_ini / ca_la_ini
         else
-          write(stdout,*) 'dC13 vegetation '          , ' n/a (ca_la_ini == 0)'
+          write(stdout,*) 'dC13 vegetation '   , ' n/a (ca_la_ini == 0)'
         end if
 
         !  Restart overwrites the computed land totals when present.
@@ -272,6 +297,10 @@
           cav_la_b    = cav_la_b_rest
 #endif
         end if
+
+       cav_la=ca_la_ini
+       cav_oc=ca_oc_ini
+
 
         call out_cycc(-1, fracgr, darea)
 
@@ -304,13 +333,16 @@
       subroutine eco2_step(fracgr, darea)
 
         use comatm,          only: nlat, nlon
-        use carbone_co2_mod, only: PA0_C, PA_C, PA_C_D, C14ATM, C14DEC, c14rstd
+        use carbone_co2_mod, only: PA0_C, PA_C, PA_C_D, PA_C_prev,       &
+                                   C14ATM, C14DEC, c14rstd
         use C_res_mod,       only: c13atm, ca13_at_ini, ca13_oc_ini,     &
                                    ca13_la_ini, ca_oc_ini, ca_la_ini,    &
                                    cav_oc, cav_oc2, cav_oc13, cav_la,     &
                                    cav_la13, cav_oc_p, cav_la_p,          &
                                    emis_cum, emis_c13_cum,               &
-                                   emis_perm_cum, emis_perm_c13_cum
+                                   emis_perm_cum, emis_perm_c13_cum,     &
+                                   ca_diff, cav_la_prev,                 &
+                                   cav_oc_diff_cum, cav_la_diff_cum
 #if ( KC14 == 1 )
         use C_res_mod,       only: cav_oc14, cav_la14, cav_oc14_b,        &
                                    cav_oc_b, cav_la14_b, cav_la_b,        &
@@ -323,9 +355,7 @@
 #if ( PERM_SCEN == 1 )
         use carbone_co2_mod, only: cemis_perm
 #endif
-#if ( OCYCC == 1 )
         use marine_bio_mod,  only: ODIC_diff
-#endif
 #if ( CORAL == 1 )
         use coral_mod,       only: C_car_a
         use mbiota_mod,      only: SCANU
@@ -342,19 +372,24 @@
         real(dblp) :: ca_car_a
 #endif
 
+       real(dblp) :: cemis_temp = 0.0
+       real(dblp) :: cemis_perm_temp = 0.0
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Re-sum the ocean carbon reservoirs (OCYCC).  cav_oc2 mirrors cav_oc but adds the
 !  diffusive DIC correction ODIC_diff.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
+        cav_la_prev = cav_la
+        PA_C_prev = PA_C
         cav_oc   = 0.0_dblp
         cav_oc2  = 0.0_dblp
         cav_oc13 = 0.0_dblp
+        ca_diff = 0.0
 #if ( KC14 == 1 )
         cav_oc14 = 0.0_dblp
 #endif
 
-        call sum_ocean_carbon_step(cav_oc, cav_oc2, cav_oc13             &
+        call sum_ocean_carbon_step(cav_oc, cav_oc2, cav_oc13, ca_diff    &
 #if ( KC14 == 1 )
                                    , cav_oc14                            &
 #endif
@@ -381,17 +416,29 @@
         !  Vecode uses c13atm = d13C + 1000, hence the offset below.
         cav_la13 = cav_la13 - 1000.0_dblp * cav_la
 
+        cemis_temp=0.0
 #if ( CEMIS == 1 )
-        if (KENDY == 1) then
+        if (KENDY == 1) then !emissions at last day of year
+           !cemis in MtCO2
+           !emis_cum=emis_cum + cemis(NYR)*1e-3 / 3.67
+           !cemis in GtC
           emis_cum = emis_cum + cemis(NYR)   ! cemis in GtC
+          emis_c13_cum=emis_c13_cum + cemis(NYR)*(-25.)
+          cemis_temp=cemis(NYR)
           if (emis_cum /= 0.0_dblp)                                      &
             write(stdout,*) 'cemis,emis_cum', NYR, cemis(NYR), emis_cum
         end if
 #endif
+
+         cemis_perm_temp=0.0
 #if ( PERM_SCEN == 1 )
-        if (KENDY == 1) then
+        if (KENDY == 1) then !emissions at last day of year
+           !cemis in MtCO2
+           !emis_cum=emis_perm_cum + cemis_perm(NYR)*1e-3 / 3.67
+           !cemis in GtC
           emis_perm_cum     = emis_perm_cum     + cemis_perm(NYR)
           emis_perm_c13_cum = emis_perm_c13_cum + cemis_perm(NYR) * (-25.0_dblp)
+           cemis_perm_temp=cemis_perm(NYR)
           if (emis_perm_cum /= 0.0_dblp)                                 &
             write(stdout,*) 'cemis_perm,emis_perm_cum', NYR,             &
                             cemis_perm(NYR), emis_perm_cum
@@ -405,24 +452,56 @@
 #if ( CORAL == 0 )
         PA_C = PA0_C - (cav_oc - ca_oc_ini + cav_la - ca_la_ini          &
                         - emis_cum - emis_perm_cum) * ca_beta
+!nb alternative way of calculating CO2 with fluxes
+!        WRITE(*,*), 'stocks carbon in eco2, PA_C', PA_C
+!        WRITE(*,*), 'cav_oc ', cav_oc, 'cav_la', cav_la
+
+       PA_C_D=PA_C_prev-(ca_diff+cav_la-cav_la_prev                      &
+!              -emis_cum-emis_perm_cum)*ca_beta
+              -cemis_temp-cemis_perm_temp)*ca_beta
+       !write(*,*) 'PA_C_D ', PA_C_prev, ca_diff, cav_la, cav_la_prev
+
+
+!nb test PA_C fixe
+!        PA_C=284 !ppm
+
+
 #elif ( CORAL > 0 )
         !  With corals, remove the CO2 drawn down by carbonate weathering.
         !  ca_car_a units: Pmol day^-1 * 1e6 * 12 g/mol = 1e15 g/day = Pg/day.
         ca_car_a = C_car_a * SCANU * 1.0e6_dblp * 12.0_dblp
         PA_C = PA0_C - (cav_oc - ca_oc_ini + cav_la - ca_la_ini          &
                         - emis_cum - emis_perm_cum + ca_car_a) * ca_beta
+
+!nb alternative way of calculating CO2 with fluxes
+!        WRITE(*,*), 'stocks carbon in eco2, PA_C', PA_C
+!        WRITE(*,*), 'cav_oc ', cav_oc, 'cav_la', cav_la
+
+       PA_C_D=PA_C_prev-(ca_diff+cav_la-cav_la_prev                      &
+!              -emis_cum-emis_perm_cum+ca_car_a)*ca_beta
+              -cemis_temp-cemis_perm_temp+ca_car_a)*ca_beta
+
+!nb test PA_C fixe
+!        PA_C=284 !ppm
+        !write(*,*), 'ca_car_a et PA_C', ca_car_a, PA_C
+
 #endif
+
+!nb alternative way of calculating CO2 with fluxes
+!       WRITE(*,*), ' PA_C, PA_C_D, ca_diff', PA_C, PA_C_D, ca_diff,
+!     & cav_la-cav_la_prev
+
+       PA_C=PA_C_D
+       !PA_C=284 !ppm test fixe
+
+       cav_oc_diff_cum=cav_oc_diff_cum+ca_diff
+       cav_la_diff_cum=cav_la_diff_cum+cav_la-cav_la_prev
+       ODIC_diff = 0.0
+
 
 #if ( INTERACT_CYCC == 2 )
         !  Carbon-cycle CO2 forced to equal the radiative-code CO2 (read from GHG.dat).
         PA_C = get_PGA_CO2()
-#endif
-
-        PA_C_D = PA0_C - (cav_oc2 - ca_oc_ini + cav_la - ca_la_ini       &
-                          - emis_cum - emis_perm_cum) * ca_beta
-
-#if ( OCYCC == 1 )
-        ODIC_diff = 0.0_dblp
 #endif
 
         !  Atmospheric 13C, closed from the same budget.
@@ -471,6 +550,12 @@
           write(stdout,*) 'FC14LA = ', FC14LA
           write(stdout,*) ' /*/*/*/ '
 #endif
+
+        !write(*,*) 'cav_oc_diff_cum= ', cav_oc_diff_cum
+        !write(*,*) 'cav_la_diff_cum= ', cav_la_diff_cum
+        cav_oc_diff_cum=0.0
+        cav_la_diff_cum=0.0
+
         end if
 
         !  Year-to-year reservoir deltas (diagnostic).
@@ -653,19 +738,19 @@
 !>              diffusive DIC correction ODIC_diff.  No-op when OCYCC==0.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      subroutine sum_ocean_carbon_step(c_oc, c_oc2, c13_oc              &
+      subroutine sum_ocean_carbon_step(c_oc, c_oc2, c13_oc, ca_diff     &
 #if ( KC14 == 1 )
                                        , c14_oc                         &
 #endif
                                        )
 
-        real(dblp), intent(inout) :: c_oc, c_oc2, c13_oc
+        real(dblp), intent(inout) :: c_oc, c_oc2, c13_oc, ca_diff
 #if ( KC14 == 1 )
         real(dblp), intent(inout) :: c14_oc
 #endif
 
 #if ( OCYCC == 1 )
-        call ocean_carbon_reduction_step(c_oc, c_oc2, c13_oc            &
+        call ocean_carbon_reduction_step(c_oc, c_oc2, c13_oc, ca_diff   &
 #if ( KC14 == 1 )
                                          , c14_oc                       &
 #endif
@@ -690,10 +775,9 @@
 
         use declars_mod,           only: LT, JT, NOC_CBR
         use loveclim_transfer_mod, only: dvol, mgt
-        use mbiota_mod,            only: scale_m, zoo_m, phyto_m,        &
-                                         PHYTO_M13, ZOO_M13
+        use mbiota_mod,            only: scale_m, zoo_m, phyto_m
         use marine_bio_mod,        only: odic, oc13, odoc, odocs,        &
-                                         odoc13, odocs13, opoc
+                                         odoc13, odocs13, opoc, odic_diff
 #if ( KC14 == 1 )
         use marine_bio_mod,        only: oc14
 #endif
@@ -715,10 +799,12 @@
                      + ODIC(i,j,n)*1.0e6_dblp)                           &
                      * DVOL(i,j,n) * 12.0_dblp * SCALE_M * 1.028_dblp
 
-                c13_oc = c13_oc + (PHYTO_M13(i,j,n) + ZOO_M13(i,j,n)     &
+                c13_oc = c13_oc + ((PHYTO_M(i,j,n) + ZOO_M(i,j,n)         &
+                       + OPOC(i,j,n))*OC13(i,j,n)/ODIC(i,j,n)            &
                        + ODOC13(i,j,n) + ODOCS13(i,j,n)                  &
                        + OC13(i,j,n)*1.0e6_dblp)                         &
                        * DVOL(i,j,n) * 12.0_dblp * SCALE_M * 1.028_dblp
+
 #if ( KC14 == 1 )
                 c14_oc = c14_oc + OC14(i,j,n)*1.0e6_dblp                 &
                        * DVOL(i,j,n) * 14.0_dblp * SCALE_M * 1.028_dblp  ! TgC14
@@ -740,7 +826,7 @@
 !>     @brief  Per-step ocean reduction; cav_oc2 adds the diffusive DIC correction.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      subroutine ocean_carbon_reduction_step(c_oc, c_oc2, c13_oc        &
+      subroutine ocean_carbon_reduction_step(c_oc, c_oc2, c13_oc, ca_diff&
 #if ( KC14 == 1 )
                                              , c14_oc                   &
 #endif
@@ -748,15 +834,14 @@
 
         use declars_mod,           only: LT, JT, NOC_CBR
         use loveclim_transfer_mod, only: dvol, mgt
-        use mbiota_mod,            only: scale_m, zoo_m, phyto_m,        &
-                                         PHYTO_M13, ZOO_M13
+        use mbiota_mod,            only: scale_m, zoo_m, phyto_m
         use marine_bio_mod,        only: odic, oc13, odoc, odocs,        &
                                          odoc13, odocs13, opoc, odic_diff
 #if ( KC14 == 1 )
         use marine_bio_mod,        only: oc14
 #endif
 
-        real(dblp), intent(inout) :: c_oc, c_oc2, c13_oc
+        real(dblp), intent(inout) :: c_oc, c_oc2, c13_oc, ca_diff
 #if ( KC14 == 1 )
         real(dblp), intent(inout) :: c14_oc
 #endif
@@ -777,7 +862,11 @@
                       + (ODIC(i,j,n) + ODIC_diff(i,j,n))*1.0e6_dblp)     &
                       * DVOL(i,j,n) * 12.0_dblp * SCALE_M * 1.028_dblp
 
-                c13_oc = c13_oc + (PHYTO_M13(i,j,n) + ZOO_M13(i,j,n)     &
+                ca_diff = ca_diff + ODIC_diff(i,j,n) * 1.e6 * DVOL(i,j,n)&
+                      * 12.0_dblp *SCALE_M*1.028
+
+                c13_oc = c13_oc + ((PHYTO_M(i,j,n) + ZOO_M(i,j,n)        &
+                       + OPOC(i,j,n))*OC13(i,J,n)/ODIC(i,J,n)            &
                        + ODOC13(i,j,n) + ODOCS13(i,j,n)                  &
                        + OC13(i,j,n)*1.0e6_dblp)                         &
                        * DVOL(i,j,n) * 12.0_dblp * SCALE_M * 1.028_dblp

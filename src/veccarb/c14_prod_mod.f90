@@ -76,8 +76,9 @@
         use carbone_co2_mod, only: PRODC14, MPRODC14, LIMC14MASSE,       &
                                    N14LIM, C14DEC
 #if ( KC14P == 1 )
-        use carbone_co2_mod, only: NC14max, PC14M, KTIME, n, NC14, NYR,  &
+        use carbone_co2_mod, only: NC14max, PC14M, KTIME, n, NC14,       &
                                    NYR0, NYR01, NYRSR, PC14VAR, TPSC14
+       use mod_sync_time, only: NYR
 #endif
 
 #if ( KC14P == 1 )
@@ -85,37 +86,44 @@
 #endif
 
 #if ( KC14P == 1 )
-        !  prod_C14.dat: PC14M normalised so preindustrial production = 1;
-        !  TPSC14 in years, negative for BP (e.g. 21 ka BP -> -21000).
-        open(newunit=bel10dat_id, file='inputdata/prod_C14.dat', status='unknown')
-        write(stdout,*) 'reading prod_C14.dat, NC14max = ', NC14max
-        do n = 1, NC14max
-          read(bel10dat_id,*) TPSC14(n), PC14M(n)
-          write(stdout,*) n, TPSC14(n), PC14M(n)
-        end do
-        NC14 = n - 1
-        close(bel10dat_id)
+!nb below tbd moved to eco2.f in init
+!        !  prod_C14.dat: PC14M normalised so preindustrial production = 1;
+!        !  TPSC14 in years, negative for BP (e.g. 21 ka BP -> -21000).
+!        open(newunit=bel10dat_id, file='inputdata/prod_C14.dat', status='unknown')
+!        write(stdout,*) 'reading prod_C14.dat, NC14max = ', NC14max
+!        do n = 1, NC14max
+!          read(bel10dat_id,*) TPSC14(n), PC14M(n)
+!          write(stdout,*) n, TPSC14(n), PC14M(n)
+!        end do
+!        NC14 = n - 1
+!        close(bel10dat_id)
+!nb end of tbd
 
-        !  Resolve current calendar year (real time vs fixed).
-        if (KTIME == 1) then
-          NYR0 = NYRSR + NYR
-        else
-          NYR0 = NYRSR
-        end if
-        NYR01 = -NYR0
+!nb to be modified, currently KTIME and NYRSR always 0
+!        !  Resolve current calendar year (real time vs fixed).
+!        if (KTIME == 1) then
+!          NYR0 = NYRSR + NYR
+!        else
+!          NYR0 = NYRSR
+!        end if
+!        NYR01 = -NYR0
+!
+!        !  Linear interpolation of the read production series.
+!        if (NYR0 <= TPSC14(1)) then
+!          PC14VAR = PC14M(1)
+!        else if (NYR0 >= TPSC14(NC14)) then
+!          PC14VAR = PC14M(NC14)
+!        else
+!          do n = 1, NC14 - 1
+!            if ((NYR0 >= TPSC14(n)) .and. (NYR0 < TPSC14(n+1)))          &
+!              PC14VAR = PC14M(n) + (PC14M(n+1) - PC14M(n))               &
+!                      * (NYR0 - TPSC14(n)) / (TPSC14(n+1) - TPSC14(n))
+!          end do
+!        end if
 
-        !  Linear interpolation of the read production series.
-        if (NYR0 <= TPSC14(1)) then
-          PC14VAR = PC14M(1)
-        else if (NYR0 >= TPSC14(NC14)) then
-          PC14VAR = PC14M(NC14)
-        else
-          do n = 1, NC14 - 1
-            if ((NYR0 >= TPSC14(n)) .and. (NYR0 < TPSC14(n+1)))          &
-              PC14VAR = PC14M(n) + (PC14M(n+1) - PC14M(n))               &
-                      * (NYR0 - TPSC14(n)) / (TPSC14(n+1) - TPSC14(n))
-          end do
-        end if
+
+        PC14VAR=PC14M(NYR)
+        write(*,*) 'Year, PC14M ', NYR, PC14M(NYR)
 
         PRODC14 = 2.625e-12_dblp * 40918.0_dblp / 48296.75_dblp * PC14VAR
 

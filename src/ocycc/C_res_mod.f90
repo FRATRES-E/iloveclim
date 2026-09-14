@@ -80,6 +80,10 @@
         real(dblp) :: ca_oc_rest, ca_la_rest
         real(dblp) :: alk_oc_rest
         real(dblp) :: cav_oc = 0.0_dblp, cav_la = 0.0_dblp, cav_oc2
+        real(dblp) :: ca_diff = 0.0_dblp
+        real(dblp) :: cav_la_prev = 0.0_dblp
+        real(dblp) :: cav_oc_diff_cum = 0.0_dblp
+        real(dblp) :: cav_la_diff_cum = 0.0_dblp
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  13C reservoirs and atmospheric 13C

@@ -250,7 +250,8 @@ c slow DOC
                                     ! and only all those below that one
                                     ! are set to zero (i.e., flux(i,j+2:JX,n) = 0)
 #else
-                jrain = j+1         ! If no sediment module is coupled
+!ori                jrain = j+1         ! If no sediment module is coupled
+                jrain = j+2         ! If no sediment module is coupled
                                     ! to OCYCC, the OrgC flux leaving the
                                     ! bottom cell and all those below are
                                     ! set to zero (i.e., flux(i,j+1:JX,n) = 0)
@@ -486,7 +487,7 @@ c slow DOC
 
       do j = JPROD+2, JX
 
-        prom = (ZX(j)-zp_xp)/3000.d0
+        prom = (ZX(j)-zp_xp)/3500.d0 !3000.d0
         SUE_MCA(J) = dexp(-prom)
 
       enddo
@@ -520,7 +521,7 @@ c slow DOC
 !   sufficiently fast to the seafloor that they escape
 !   dissolution in the water column
 
-      b_sh_fr = 0.2
+      b_sh_fr = 0.5 !0.2
 !      b_sh_fr = 0.0 ! test
 
 #if ( ARAG == 1 )

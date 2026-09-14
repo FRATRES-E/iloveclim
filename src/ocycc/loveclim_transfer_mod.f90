@@ -27,7 +27,7 @@
 
       implicit none
 
-      INTEGER, PARAMETER         :: KLSR = 0
+      INTEGER, PARAMETER         :: KLSR = 1
 
       REAL(KIND=dblp),  dimension(JX)    :: ZX
       REAL(KIND=dblp),  dimension(JX)    :: mid_level

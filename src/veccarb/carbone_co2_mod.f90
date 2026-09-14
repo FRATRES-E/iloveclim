@@ -69,7 +69,7 @@
         !  Fresh-start switch for the carbon reservoirs:
         !    1 = no carbon restart available, initialise pools from equilibrium
         !    0 = isotope / reservoir restart present, read from rest_cc.dat
-        integer(ip), parameter :: new_run_c = 1
+        integer(ip), parameter :: new_run_c = 0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Atmospheric carbon — total CO2 reservoir
@@ -78,7 +78,7 @@
 !    PA_C_D : diagnostic atmospheric carbon (alt. ocean term)     [GtC]
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        real(dblp) :: PA_C, PA0_C, PA_C_D
+        real(dblp) :: PA_C, PA0_C, PA_C_D, PA_C_prev
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Atmospheric carbon-14
@@ -111,7 +111,6 @@
         integer(ip) :: KTIME       ! 1 = real time, else fixed
         integer(ip) :: n           ! loop / record index
         integer(ip) :: NC14        ! number of records actually read
-        integer(ip) :: NYR         ! current model year
         integer(ip) :: NYR0        ! resolved calendar year
         integer(ip) :: NYR01       ! -NYR0
         integer(ip) :: NYRSR       ! start-of-run reference year
