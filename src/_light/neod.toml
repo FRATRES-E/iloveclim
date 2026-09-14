@@ -1,0 +1,37 @@
+# Composante data-only : neod (Neodyme dans l'océan, sous-composante de OCYCC)
+# Aucune source propre (code dans src/ocycc, à migrer avec ocycc/le chantier carbone).
+# N'apporte que ses données d'entrée, toutes dans inputdata/neodymium/.
+#
+# NOTE arbo (corrections côté données/Fortran, hors descripteur) :
+#   - les inputs neod ont été déplacés de inputs/ocycc/neodymium/ vers
+#     inputs/neodymium/ (neod est une sous-composante à part entière) ;
+#   - le fichier ex-path (Part_conc_NEMO_onCLIO.nc) rejoint inputs/neodymium/
+#     et le Fortran (neodymium_mod.f90, filin7) le lit désormais dans
+#     inputdata/neodymium/ -> plus de dépendance à PaTh.
+#
+# Les deux variantes de filin6 (regridded / margemasked) sont TOUTES DEUX
+# requises : le code choisit à l'exécution selon flag_sediment_eNd (variable
+# Fortran runtime, non dérivable au setup). On met les deux à disposition,
+# le Fortran pioche. Strict : les deux doivent exister.
+[neod]
+description = "Neodymium in ocean (OCYCC sub-component)"
+requires    = ["CLIO"]   # TODO: raffiner en ["OCYCC"] quand OCYCC sera migré
+                         #       (neod est sous-composante d'OCYCC, qui requiert CLIO)
+
+# Répertoire de destination des données neodymium.
+run_dirs = ["inputdata/neodymium"]
+
+[[neod.data]]
+from  = "${emic_dir}/inputs/neodymium"
+to    = "inputdata/neodymium"
+files = [
+  "eNd_dust_map_regridded_on_CLIO_remapnn.nc",
+  "LMDZ_dustdep_1960-2021_regridded_on_CLIO_remapnn.nc",
+  "River_eNd_regridded_on_CLIO_remapnn.nc",
+  "River_Nd_ppt_regridded_on_CLIO_remapnn.nc",
+  "globalSedimentEpsilon_regridded_on_CLIO_remapnn.nc",
+  "globalSedimentEpsilon_margemasked.nc",
+  "marge_clio.nc",
+  "marge_clio_Nd_epsNd.nc",
+  "Part_conc_NEMO_onCLIO.nc",
+]

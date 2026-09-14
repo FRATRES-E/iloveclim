@@ -1,0 +1,35 @@
+# Composante : subgrid (downscaling sous-maille)
+# Sources propres (downscaling, dgc-waffle fusionné dedans) + fichiers précis
+# empruntés à lcm2ism (subgrid peut tourner sans grisli, donc on les copie ;
+# redondance bénigne si grisli actif, cp -f écrase).
+[subgrid]
+description = "Sub-grid downscaling"
+
+sources = [
+  "src/downscaling",                          # glob (inclut dgc-waffle fusionné)
+  "src/downscaling/NR_Fortran/moment_NR.f",   # fichier précis (sous-répertoire)
+  "src/lcm2ism/readGrilleGRISLI.f90",         # fichier précis (garde, sans grisli)
+  "src/lcm2ism/nbPointISM_Ecb.f90",           # fichier précis
+]
+
+# coord-T21.dat : donnée empruntée à ecbilt, vers inputdata/ (racine)
+[[subgrid.data]]
+from  = "${emic_dir}/inputs/ecbilt"
+to    = "inputdata"
+files = ["coord-T21.dat"]
+
+# Données downscaling vers inputdata/downscaling/
+# TODO : compléter la liste réelle de inputs/downscaling/ (data strict, nommé).
+[[subgrid.data]]
+from  = "${emic_dir}/inputs/downscaling"
+to    = "inputdata/downscaling"
+files = [
+  "area-nord-40km.dat",
+  "bias-nord-40km.dat",
+  "coord-nord-40km.dat",
+  "H-nord-40km.dat",
+  "S-nord-40km.dat",
+]
+
+# Répertoire de destination des données downscaling.
+run_dirs = ["inputdata/downscaling"]

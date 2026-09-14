@@ -1,0 +1,6 @@
+# Composante data-only : D17iso (d17O de O2)
+# Aucune source ni donnée : crée seulement son répertoire de sortie.
+[D17iso]
+description = "d17O of O2 (output dir only)"
+
+run_dirs = ["outputdata/D17O"]

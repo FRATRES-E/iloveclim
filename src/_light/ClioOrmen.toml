@@ -1,0 +1,11 @@
+# Composante data-only : ClioOrmen (forçage eau douce zones Ormen)
+# Pas de sources propres (son code est dans src/clio, globé par CLIO).
+# N'apporte que des données d'entrée océan.
+[ClioOrmen]
+description = "Ormen zones freshwater forcing (CLIO)"
+requires    = ["CLIO"]
+
+[[ClioOrmen.data]]
+from  = "${emic_dir}/inputs/clio"
+to    = "inputdata/clio"
+files = ["fwf_input.dat", "zonesOrmenfwf-data.dat"]

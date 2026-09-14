@@ -1,0 +1,6 @@
+# Composante : veccarb (végétation/carbone VECODE)
+# Sources propres dans src/veccarb. Aucune donnée.
+[veccarb]
+description = "VECODE carbon vegetation"
+
+sources = ["src/veccarb"]

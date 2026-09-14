@@ -1,0 +1,6 @@
+# Composante data-only : oxyiso (d18O de O2 atmosphérique)
+# Aucune source ni donnée : crée seulement son répertoire de sortie.
+[oxyiso]
+description = "d18O of atmospheric O2 (output dir only)"
+
+run_dirs = ["outputdata/d18Oatm"]

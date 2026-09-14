@@ -1,0 +1,10 @@
+# Composante data-only : geothermal (flux géothermique au plancher océanique)
+# Aucune source propre. N'apporte que la carte de flux géothermique.
+[geothermal]
+description = "Geothermal heat flux at ocean floor (CLIO)"
+requires    = ["CLIO"]
+
+[[geothermal.data]]
+from  = "${emic_dir}/inputs/clio"
+to    = "inputdata/clio"
+files = ["geothermal_heating.nc"]

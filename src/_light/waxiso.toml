@@ -1,0 +1,6 @@
+# Composante data-only : waxiso (dDwax, isotopes des cires)
+# Aucune source ni donnée : crée seulement son répertoire de sortie.
+[waxiso]
+description = "dDwax isotopes (output dir only)"
+
+run_dirs = ["outputdata/dDwax"]

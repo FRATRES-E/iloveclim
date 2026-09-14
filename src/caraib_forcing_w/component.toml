@@ -1,0 +1,8 @@
+# Composante : caraib_forcing_w (écriture des fichiers de forçage CARAIB offline)
+# Un seul fichier source précis depuis src_cpl/caraib (couplage).
+# Déclaré comme fichier précis (pas un glob) pour ne pas embarquer d'autres
+# fichiers éventuels de src_cpl/caraib.
+[caraib_forcing_w]
+description = "CARAIB offline forcing writer"
+
+sources = ["src_cpl/caraib/ec_co2ca.f90"]

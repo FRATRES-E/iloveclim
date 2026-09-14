@@ -1,0 +1,10 @@
+# Composante data-only : brines (rejets de sel de la glace de mer)
+# Code dans src/clio (globé par CLIO). N'apporte que frac.nc.
+[brines]
+description = "Brine rejection (CLIO)"
+requires    = ["CLIO"]
+
+[[brines.data]]
+from  = "${emic_dir}/inputs/clio"
+to    = "inputdata/clio"
+files = ["frac.nc"]
