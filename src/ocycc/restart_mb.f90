@@ -55,7 +55,7 @@
 
                      FODOCS, FOC13, FODOC13, FODOCS13 
 
-       USE mbiota_mod, ONLY: PHYTO_M, ZOO_M, PHYTO_M13, ZOO_M13
+       USE mbiota_mod, ONLY: PHYTO_M, ZOO_M
 
 !cnb       USE veget_iso, ONLY: C13ATM
 
@@ -272,9 +272,6 @@
                      
         CLOSE(UNIT=fich_num)
 
-!nb later : add in restart
-      PHYTO_M13(:,:,:)=PHYTO_M(:,:,:)*OC13(:,:,:)/ODIC(:,:,:)
-      ZOO_M13(:,:,:)=ZOO_M(:,:,:)*OC13(:,:,:)/ODIC(:,:,:)
 
 !nb for OOISO restart
 !      !write(*,*) 'in restart_mb', OO2(:,:,:,1)

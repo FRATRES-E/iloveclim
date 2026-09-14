@@ -40,11 +40,14 @@ REAL(kind=dblp) :: n0_m, PI_m, PAR_m, lef_m ,pmin_m, dp_m, er_doc, a_m, b_m, c_m
 REAL(kind=dblp), dimension(LT,JT,NOC_CBR) :: PHYTO_M, ZOO_M
 REAL(kind=dblp), dimension(LT,JT,NOC_CBR) :: PHYTO_M13, ZOO_M13
 
+#if ( OOISO == 1 )
 REAL(kind=dblp), dimension(LT,JT,NOC_CBR,NISOO2) :: prod_O2, resp_O2
+#endif
 
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: TPP_m = 0.0_dblp, TPP_D13C = 0.0_dblp, caco3_d13C = 0.0_dblp
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: caco3_m = 0.0_dblp
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: caco3_m_b_sh = 0.0_dblp
+REAL(kind=dblp), dimension(LT,NOC_CBR) :: caco3_d13C_m_b_sh = 0.0_dblp
 #if ( SILICA == 1)
 REAL(kind=dblp), dimension(LT,NOC_CBR) :: Opal_m = 0.0_dblp
 REAL(kind=dblp) :: RRSIP=0.0_dblp
@@ -148,8 +151,14 @@ REAL(kind=dblp) :: summary_flux_O2S_calc, summary_flux_O2S_orgm, summary_flux_S2
 !tbd                 , riverine_input_alk = 0.1202D+2                     &               ! in Tmols.yr-1
 !tbd                 , riverine_input_PO4 = 0.597674 !????
 
-REAL(kind=dblp) :: riverine_dic_input_tot         &
-                 , riverine_alk_input_tot         &
+!REAL(kind=dblp) :: riverine_dic_input_tot = 2.414851446719447E-002        &               
+!                 , riverine_alk_input_tot = 1.333673205428838E-002        &               
+!                 , riverine_o2_input_tot = -21133.2464948507              &
+!                 , riverine_NO3_input_tot = 2487.21569688542              &
+!                 , riverine_PO4_input_tot = 155.450981055339
+
+REAL(kind=dblp) :: riverine_dic_input_tot         &               
+                 , riverine_alk_input_tot         &               
                  , riverine_o2_input_tot          &
                  , riverine_NO3_input_tot         &
                  , riverine_PO4_input_tot
@@ -279,7 +288,8 @@ contains
 
 ! temporary var
     REAL(kind=dblp) :: PHYTO_dif, ZOO_dif, TPP_dif, ODOC_dif, ODOCS_dif, &
-                       ODOC13_dif, ODOCS13_dif, calred, caco3_dif, vdic_POC, vdic_DOC
+                       ODOC13_dif, ODOCS13_dif, calred, caco3_dif, vdic_POC, vdic_DOC, &
+                       caco3_difb_sh, caco3_difnob_sh
 #if ( ARAG == 1 )
 !    REAL(kind=dblp) :: caco3_m_ar
       REAL(kind=dblp) :: caco3_dif_ar
@@ -410,6 +420,18 @@ contains
                                     ! [???] Was 0.1 instead of 1.0 in 2004
                                     !       --> WHY 1 now?
 
+!iron fertilisation
+!nb test utilisation de tous les phosphates entre 30 et 50 degres sud
+!nb dans l atlantic et l indien et le Pacifique
+!        if ((im.ge.10).and.(im.le.17)) then !im=10-> 50S, im=17-> 30S
+!         !if (nm.ge.90) then ! Atlantic sector
+!         if ((nm.le.30).or.(nm.ge.90)) then ! Atlantic and Indian ocean
+!          !phyto_prod(im,j,nm)=max(0.0,OPO4(im,j,nm))*Oeta(j,5)
+!          phyto_prod(im,j,nm)=avanut*OetaC_DOMoxid_1D(j) ! Oeta(j,5) is now OetaC_DOMoxid_1D(j)
+!         endif
+!        endif
+
+
 !REFACTORING: hardcoded not obvious absolute constant
 !             --> parametrize, or use fractio of something
         if (phyto_prod(im,j,nm) > 1._dblp) phyto_prod(im,j,nm) = 1._dblp
@@ -488,9 +510,6 @@ contains
           PHYTO_M(im,j,nm) = pmin_m
         endif
 
-                                    ! [???] We assume C-13 equilibration
-        PHYTO_M13(im,j,nm) = PHYTO_M(im,j,nm) * oc13bio
-
 
         ! ==== N-P-*Z*-D: LIFE AND DEATH OF ZOOPLANKTON ====
 
@@ -563,11 +582,6 @@ contains
           ZOO_dif = zmin_m - ZOO_M(im,j,nm)
           ZOO_M(im,j,nm) = zmin_m
         endif
-
-                                    ! [???] We assume C-13 equilibration
-                                    !       between seawter and Phyto- plus
-                                    !       Zooplankton. Justification?
-        ZOO_M13(im,j,nm) = ZOO_M(im,j,nm) * oc13bio
 
 
                                     ! TPP = Total Particle Production in this layer.
@@ -747,8 +761,15 @@ contains
 !nb        caco3_m = -RR * calred * TPP_dif
 !nb        caco3_d13C(im, nm) = caco3_d13C(im, nm) - caco3_m * deltaC13 * DVOL(im,J,nm)*SCALE_B
 !dmr --- formation suivant le Rain Ratio "RR"
-         caco3_dif=-RR*calred*TPP_dif/(1-sigma_m)
-         caco3_d13C(im,nm)=caco3_d13C(im,nm)-caco3_dif*(OC13(im,J,nm)/ODIC(im,J,nm))*(DVOL(im,J,nm)*SCALE_B)
+!         caco3_dif=-RR*calred*TPP_dif/(1-sigma_m)
+!         caco3_d13C(im,nm)=caco3_d13C(im,nm)-caco3_dif*(OC13(im,J,nm)/ODIC(im,J,nm))*(DVOL(im,J,nm)*SCALE_B)
+
+         caco3_difnob_sh=-RR*calred*TPP_dif*(1-b_sh_fr)/(1-sigma_m)
+         caco3_difb_sh  =-RR*calred*TPP_dif*(b_sh_fr)/(1-sigma_m)
+         caco3_d13C(im,nm)=caco3_d13C(im,nm)-caco3_difnob_sh*(OC13(im,J,nm)/ODIC(im,J,nm))*(DVOL(im,J,nm)*SCALE_B)
+         caco3_d13C_m_b_sh(im,nm)=caco3_d13C_m_b_sh(im,nm)-caco3_difb_sh*(OC13(im,J,nm)/ODIC(im,J,nm))*(DVOL(im,J,nm)*SCALE_B)
+
+         caco3_dif = caco3_difnob_sh + caco3_difb_sh
 
                                     ! [???] Not sure the following is correct
 #if ( ARAG == 1 )

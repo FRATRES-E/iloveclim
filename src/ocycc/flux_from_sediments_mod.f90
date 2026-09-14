@@ -151,7 +151,7 @@
       USE mbiota_mod, ONLY: riverine_dic13_input_tot
 #endif
 #ifdef WITH_C14
-      USE mbiota_mod, ONLY: rriverine_dic14_input_tot
+      USE mbiota_mod, ONLY: riverine_dic14_input_tot
 #endif
 
 
@@ -252,9 +252,67 @@
 
 ! Dealing with the riverine influxes at the surface
 
-!#if ( sediment_loopback == 1 )
-!      riverine_dic_input_tot = 0.0
-!#endif
+#if ( sediment_loopback == 1 )
+!if we use the loopback : fluxes are computed from what goes into sediments
+      riverine_dic_input_tot = 0.0
+      riverine_alk_input_tot = 0.0
+      riverine_O2_input_tot = 0.0
+      riverine_NO3_input_tot = 0.0
+      riverine_PO4_input_tot = 0.0
+#ifdef WITH_C13
+      riverine_dic13_input_tot = 0.0
+#endif
+#ifdef WITH_C14
+      riverine_dic14_input_tot = 0.0
+#endif
+
+      DO i = 1, LT
+        DO n = 1, NOC_CBR
+
+          IF (MGT(i,1,n) == 1) THEN
+
+            area = sqro2(i,n)
+
+            ! klb: index of the injection layer for loopback fluxes,
+            ! safe-guarded to lie within the water column.
+            ! Please select by uncommenting.
+
+            klb = 1  ! Topmost layer (first below surface)
+            !klb = MIN(2, INT(kfs_fond(i,n))) ! Second layer below surface
+            !klb = MAX(INT(kfs_fond(i,n))-1, 1) ! Second layer above the seafloor
+            !klb = MAX(INT(kfs_fond(i,n)), 1) ! Bottom layer (first above sea-floor sediment)
+            DMASS = DVOL(i, klb, n) * rho_sw
+
+            riverine_dic_input=(orgm_dic_loopback(i,n) + calc_loopback(i,n))*area!/DMASS
+            riverine_dic_input_tot=riverine_dic_input_tot+riverine_dic_input
+
+            riverine_alk_input=(orgm_alk_loopback(i,n) + calc_loopback(i,n)*2.0D+00)*area!/DMASS
+            riverine_alk_input_tot=riverine_alk_input_tot+riverine_alk_input
+
+            riverine_O2_input=orgm_oxyg_loopback(i,n)*area!/DMASS*1.0d+06
+            riverine_O2_input_tot=riverine_O2_input_tot+riverine_O2_input
+
+            riverine_NO3_input=orgm_no3_loopback(i,n)*area!/DMASS*1.0d+06
+            riverine_NO3_input_tot=riverine_NO3_input_tot+riverine_NO3_input
+
+            riverine_PO4_input=orgm_po4_loopback(i,n)*area!/DMASS*1.0d+06
+            riverine_PO4_input_tot=riverine_PO4_input_tot+riverine_PO4_input
+#ifdef WITH_C13
+            riverine_dic13_input=(orgm_dic13_loopback(i,n) + calc13_loopback(i,n))*area!/DMASS
+            riverine_dic13_input_tot=riverine_dic13_input_tot+riverine_dic13_input
+#endif
+#ifdef WITH_C14
+            riverine_dic14_input=(orgm_dic14_loopback(i,n) + calc14_loopback(i,n))*area!/DMASS
+            riverine_dic14_input_tot=riverine_dic14_input_tot+riverine_dic14_input
+#endif
+
+          END IF
+
+        END DO
+      END DO
+#endif
+
+!--
 
       DO i = 1, LT
         DO n = 1, NOC_CBR
@@ -287,37 +345,39 @@
 
             DMASS = DVOL(i, klb, n) * rho_sw
 
-!if we use the loopback : fluxes are computed from what goes into sediments
-#if ( sediment_loopback == 1 )
-            riverine_dic_input=(orgm_dic_loopback(i,n) + calc_loopback(i,n))*area/DMASS
-            !riverine_dic_input_tot=riverine_dic_input_tot+riverine_dic_input
-            riverine_alk_input=(orgm_alk_loopback(i,n) + calc_loopback(i,n)*2.0D+00)*area/DMASS
-            riverine_O2_input=orgm_oxyg_loopback(i,n)*area/DMASS*1.0d+06
-            riverine_NO3_input=orgm_no3_loopback(i,n)*area/DMASS*1.0d+06
-            riverine_PO4_input=orgm_po4_loopback(i,n)*area/DMASS*1.0d+06
-#ifdef WITH_C13
-            riverine_dic13_input=(orgm_dic13_loopback(i,n) + calc13_loopback(i,n))*area/DMASS
-#endif
-#ifdef WITH_C14
-            riverine_dic14_input=(orgm_dic14_loopback(i,n) + calc14_loopback(i,n))*area/DMASS
-#endif
+!nb part below to be removed
+!!if we use the loopback : fluxes are computed from what goes into sediments
+!#if ( sediment_loopback == 1 )
+!            riverine_dic_input=(orgm_dic_loopback(i,n) + calc_loopback(i,n))*area/DMASS
+!            !riverine_dic_input_tot=riverine_dic_input_tot+riverine_dic_input
+!            riverine_alk_input=(orgm_alk_loopback(i,n) + calc_loopback(i,n)*2.0D+00)*area/DMASS
+!            riverine_O2_input=orgm_oxyg_loopback(i,n)*area/DMASS*1.0d+06
+!            riverine_NO3_input=orgm_no3_loopback(i,n)*area/DMASS*1.0d+06
+!            riverine_PO4_input=orgm_po4_loopback(i,n)*area/DMASS*1.0d+06
+!#ifdef WITH_C13
+!            riverine_dic13_input=(orgm_dic13_loopback(i,n) + calc13_loopback(i,n))*area/DMASS
+!#endif
+!#ifdef WITH_C14
+!            riverine_dic14_input=(orgm_dic14_loopback(i,n) + calc14_loopback(i,n))*area/DMASS
+!#endif
+!nb end part to be removed
 
 !else the fluxes from rivers are fixed, with uniform repartition
-#else
+!#else
             !riverine_dic_input_total total
-            riverine_dic_input=riverine_dic_input_tot*area/total_area
-            riverine_alk_input=riverine_alk_input_tot*area/total_area
-            riverine_O2_input=riverine_O2_input_tot*area/total_area
-            riverine_NO3_input=riverine_NO3_input_tot*area/total_area
-            riverine_PO4_input=riverine_PO4_input_tot*area/total_area
+            riverine_dic_input=riverine_dic_input_tot*area/total_area/DMASS
+            riverine_alk_input=riverine_alk_input_tot*area/total_area/DMASS
+            riverine_O2_input=riverine_O2_input_tot*area/total_area/DMASS*1.0d+06
+            riverine_NO3_input=riverine_NO3_input_tot*area/total_area/DMASS*1.0d+06
+            riverine_PO4_input=riverine_PO4_input_tot*area/total_area/DMASS*1.0d+06
 #ifdef WITH_C13
-            riverine_dic13_input=riverine_dic13_input_tot*area/total_area
+            riverine_dic13_input=riverine_dic13_input_tot*area/total_area/DMASS
 #endif
 #ifdef WITH_C14
-            riverine_dic14_input=riverine_dic14_input_tot*area/total_area
+            riverine_dic14_input=riverine_dic14_input_tot*area/total_area/DMASS
 #endif
 
-#endif
+!#endif
 
 !tbd            !ODIC(i, klb, n) = ODIC(i, klb, n) &
 !tbd            !  + (orgm_dic_loopback(i,n) + calc_loopback(i,n))*area/DMASS * dt_sedweaflx
@@ -404,7 +464,7 @@
       USE mbiota_mod, ONLY: riverine_dic13_input_tot
 #endif
 #ifdef WITH_C14
-      USE mbiota_mod, ONLY: rriverine_dic14_input_tot
+      USE mbiota_mod, ONLY: riverine_dic14_input_tot
 #endif
 
       USE loveclim_transfer_mod, ONLY: DVOL, MGT, SQRO2
@@ -464,7 +524,8 @@
 
 !       Determination de la taille de l'ecriture
 !       ----------------------------------------
-       nrecl = 8*SIZE(ODOCS_sed2oc)+10*SIZE(orgm_dic_loopback)
+       nrecl = 8*SIZE(ODOCS_sed2oc)+10*SIZE(orgm_dic_loopback)         &
+               +7
        nrecl = nrecl * KIND(ODOCS_sed2oc)
 
 !      write restart
@@ -481,7 +542,14 @@
                             orgm_oxyg_loopback,                        &
                             calc_loopback,                             &
                             orgm_dic13_loopback, calc13_loopback,      &
-                            orgm_dic14_loopback, calc14_loopback
+                            orgm_dic14_loopback, calc14_loopback,      &
+                            riverine_dic_input_tot,                    &
+                            riverine_alk_input_tot,                    &
+                            riverine_O2_input_tot,                     &
+                            riverine_NO3_input_tot,                    &
+                            riverine_PO4_input_tot,                    &
+                            riverine_dic13_input_tot,                  &
+                            riverine_dic14_input_tot
 
         CLOSE(UNIT=fich_num)
 
@@ -494,7 +562,9 @@
 
 !       Determination de la taille de l'ecriture
 !       ----------------------------------------
-       nrecl = 8*SIZE(ODOCS_sed2oc)+10*SIZE(orgm_dic_loopback)
+       !nrecl = 8*SIZE(ODOCS_sed2oc)+10*SIZE(orgm_dic_loopback)         
+       nrecl = 8*SIZE(ODOCS_sed2oc)+10*SIZE(orgm_dic_loopback)         &
+               +7
        nrecl = nrecl * KIND(ODOCS_sed2oc)
 
 !     read restart
@@ -514,15 +584,24 @@
                             orgm_oxyg_loopback,                        &
                             calc_loopback,                             &
                             orgm_dic13_loopback, calc13_loopback,      &
-                            orgm_dic14_loopback, calc14_loopback
+                            orgm_dic14_loopback, calc14_loopback,      &
+                            riverine_dic_input_tot,                    &
+                            riverine_alk_input_tot,                    &
+                            riverine_O2_input_tot,                     &
+                            riverine_NO3_input_tot,                    &
+                            riverine_PO4_input_tot,                    &
+                            riverine_dic13_input_tot,                  &
+                            riverine_dic14_input_tot
+
                      
         CLOSE(UNIT=fich_num)
 
       !check this is the same as in flux_from_sediments
       klb = 1  ! Topmost layer (first below surface)
 
-      !computes total fluxes from rivers
-      !---------------------------------
+#if ( sediment_loopback == 1 )
+      !re computes total fluxes from rivers if needed
+      !----------------------------------------------
       !write(*,*) 'restart before riverine_dic_input_tot', riverine_dic_input_tot
       riverine_dic_input_tot = 0.0
       riverine_alk_input_tot = 0.0
@@ -542,27 +621,27 @@
           IF (MGT(i,1,n) == 1) THEN
             area = sqro2(i,n)
             DMASS = DVOL(i, klb, n) * rho_sw
-            riverine_dic_input=(orgm_dic_loopback(i,n) + calc_loopback(i,n))*area/DMASS
+            riverine_dic_input=(orgm_dic_loopback(i,n) + calc_loopback(i,n))*area!/DMASS
             riverine_dic_input_tot=riverine_dic_input_tot+riverine_dic_input
 
-            riverine_alk_input=(orgm_alk_loopback(i,n) + calc_loopback(i,n)*2.0D+00)*area/DMASS
+            riverine_alk_input=(orgm_alk_loopback(i,n) + calc_loopback(i,n)*2.0D+00)*area!/DMASS
             riverine_alk_input_tot=riverine_alk_input_tot+riverine_alk_input
 
-            riverine_O2_input=orgm_oxyg_loopback(i,n)*area/DMASS*1.0d+06
+            riverine_O2_input=orgm_oxyg_loopback(i,n)*area!/DMASS*1.0d+06
             riverine_O2_input_tot=riverine_O2_input_tot+riverine_O2_input
 
-            riverine_NO3_input=orgm_no3_loopback(i,n)*area/DMASS*1.0d+06
+            riverine_NO3_input=orgm_no3_loopback(i,n)*area!/DMASS*1.0d+06
             riverine_NO3_input_tot=riverine_NO3_input_tot+riverine_NO3_input
 
-            riverine_PO4_input=orgm_po4_loopback(i,n)*area/DMASS*1.0d+06
+            riverine_PO4_input=orgm_po4_loopback(i,n)*area!/DMASS*1.0d+06
             riverine_PO4_input_tot=riverine_PO4_input_tot+riverine_PO4_input
 
 #ifdef WITH_C13
-            riverine_dic13_input=(orgm_dic13_loopback(i,n) + calc13_loopback(i,n))*area/DMASS
+            riverine_dic13_input=(orgm_dic13_loopback(i,n) + calc13_loopback(i,n))*area!/DMASS
             riverine_dic13_input_tot=riverine_dic13_input_tot+riverine_dic13_input
 #endif
 #ifdef WITH_C14
-            riverine_dic14_input=(orgm_dic14_loopback(i,n) + calc14_loopback(i,n))*area/DMASS
+            riverine_dic14_input=(orgm_dic14_loopback(i,n) + calc14_loopback(i,n))*area!/DMASS
             riverine_dic14_input_tot=riverine_dic14_input_tot+riverine_dic14_input
 #endif
 
@@ -570,7 +649,8 @@
          ENDDO
       ENDDO
 
-     !write(*,*) 'restart after riverine_dic_input_tot', riverine_dic_input_tot
+#endif
+     write(*,*) 'restart after riverine_dic_input_tot', riverine_dic_input_tot
      !write(*,*) 'riverine_alk_input_tot', riverine_alk_input_tot
      !write(*,*) 'riverine_O2_input_tot', riverine_O2_input_tot
      !write(*,*) 'riverine_NO3_input_tot', riverine_NO3_input_tot

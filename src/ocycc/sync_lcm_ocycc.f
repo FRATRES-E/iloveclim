@@ -56,7 +56,7 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
 #endif
 
 #if ( OCYCC == 1 )
-       USE mbiota_mod, only: TPP_ma, caco3_ma
+      use mbiota_mod, only: TPP_ma,TPPC13_ma, caco3_ma
 #endif
 
 #if ( CORAL == 1 )
@@ -228,6 +228,8 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
 #if ( MEDUSA == 0 )
         caco3_ma(:,:,:) = 0.0d0
         TPP_ma(:,:,:) = 0.0d0
+!dmr&nb --- [MEDUSAISO] Tentative code for iso to sediments        
+        TPPC13_ma(:,:,:) = 0.0d0
 #endif
 
        else ! OCYCC -> LCM
@@ -295,6 +297,8 @@ c~        USE mbiota_mod, ONLY: TPP_mas, caco3_mas
 #if ( OCYCC == 1 )
 !         if (k.lt.14) then
          fPOC_flx_clio(n+1,i,k) = TPP_ma(i,(kmax+1-k),n) 
+!dmr&nb --- [MEDUSAISO] Tentative code for iso to sediments        
+!           Could want a transfer of TPPC13_ma to CLIO for output if needed         
          fCAL_flx_clio(n+1,i,k) = caco3_ma(i,(kmax+1-k),n)
 !         endif
 #endif

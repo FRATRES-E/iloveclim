@@ -49,7 +49,11 @@ REAL :: FDIC !vm  FDIC = flux carbon ocn->atm
 REAL :: FOAC14 !vm  FOAC14 = flux C14 ocn->atm
 #endif
 REAL, dimension(LT,NOC_CBR) :: FOPO4, FONO3, FOSI, FOALK, FODIC, FODOC
+#if ( OOISO == 0 ) 
+REAL, dimension(LT,NOC_CBR) :: FOO2
+#else
 REAL, dimension(LT,NOC_CBR, NISOO2) :: FOO2
+#endif
 REAL, dimension(LT,NOC_CBR) :: FOC13, FOCO2, FOC14, FODOCS, FODOC13 
 REAL, dimension(LT,NOC_CBR) :: FODOCS13, oxCO2 = 0.0d0, oxpCO2
 REAL, dimension(LT,NOC_CBR) :: osCO2, oxHCO3, oxCO3

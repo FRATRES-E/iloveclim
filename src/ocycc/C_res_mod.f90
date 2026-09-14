@@ -131,6 +131,7 @@
         real(dblp) :: cav_oc14_rest, cav_la14_rest
         real(dblp) :: cav_la14_b_rest, cav_oc14_b_rest
         real(dblp) :: cav_oc_b_rest, cav_la_b_rest
+        real(dblp) :: ca14_oc_rest, ca14_la_rest
 
         !  Air-sea / air-land carbon fluxes (12C and 14C)
         real(dblp) :: FC12OA, FC12LA, FC14OA, FC14LA

@@ -67,6 +67,7 @@ c     =================
 #if ( CORAL == 1 )
 ! Corals
       call ini_coral
+      !call ini_carbonate
 #endif
 
       if(KLSR.eq.0) then
@@ -76,7 +77,13 @@ c     =================
         FONO3(:,:) = 0.0
         FOSI(:,:)  = 0.0
 
-        FOO2(:,:,:)= 0.0
+#if ( OOISO == 0 )
+              FOO2(i,n)  = 0.0
+#else
+              do km=1,NISOO2
+                FOO2(i,n,km)  = 0.0
+              enddo
+#endif
 
         FOALK(:,:) = 0.0
         FODIC(:,:) = 0.0
@@ -210,19 +217,25 @@ c  ---   Initial alkalinity from restart file
      >  DVOL(i,J,n)*1000
 
 !nb vtmp separated into POC and DOC
-         vtmp_POC=(PHYTO_M(i,J,n)+ZOO_M(i,J,n))*DVOL(i,J,n)!/OVOL
+         vtmp_POC=(PHYTO_M(i,J,n)+ZOO_M(i,J,n))*DVOL(i,J,n)/OVOL
 
-         vtmp_DOC=(ODOC(i,J,n)+ODOCS(i,J,n))*DVOL(i,J,n)!/OVOL
+         vtmp_DOC=(ODOC(i,J,n)+ODOCS(i,J,n))*DVOL(i,J,n)/OVOL
+
+
+!!        tot_phos=tot_phos+vtmp/Oeta(j,4)+OPO4(i,J,n)*
+!        tot_phos=tot_phos+vtmp/OetaC_POMoxid(i,J,n)+OPO4(i,J,n)*
+!c     >  DVOL(i,J,n)*fhypt(j)/OVOL
+!     >  DVOL(i,J,n)*fhypt(j)
 
 !nb try to separate POC and DOC
         tot_phos=tot_phos+vtmp_POC/OetaC_POMoxid(i,j,n)
      >  +vtmp_DOC/OetaC_DOMoxid_1D(j)+OPO4(i,J,n)*
-     >  DVOL(i,J,n)!/OVOL
+     >  DVOL(i,J,n)/OVOL
 
 !nb try to separate POC and DOC
         tot_nit=tot_nit+vtmp_POC/OetaC_POMoxid(i,j,n)*
      >  OetaN_POMoxid(i,j,n)+vtmp_DOC/OetaC_DOMoxid_1D(j)*
-     >  OetaN_DOMoxid_1D(j)+ONO3(i,J,n)*DVOL(i,J,n)!/OVOL
+     >  OetaN_DOMoxid_1D(j)+ONO3(i,J,n)*DVOL(i,J,n)/OVOL
 
 
           endif

@@ -354,11 +354,6 @@ c slow DOC
         OrgCFlxAttRatio = OrgCFlxAtt_1D(j)/OrgCFlxAtt_1D(j+1)
 !        write(*,*) 'initmbiopar, OrgCFlxAttRatio ', OrgCFlxAttRatio
 
-!nb&gm [NOTA] Refactored POMrain ...
-
-        OetaC_POMrain_1D(j+1) =
-     &     1D0 / (OrgCFlxAttRatio / OetaC_POMrain_1D(j)
-     &             - (OrgCFlxAttRatio-1D0) / OetaC_POMoxid_1D(j))
 
 !        OetaC_POMrain_1D(j+1) = 1D0 / 
 !     &    (OrgCFlxAttRatio / OetaC_POMrain_1D(j) -

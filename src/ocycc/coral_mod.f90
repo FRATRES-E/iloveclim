@@ -28,7 +28,7 @@
       REAL :: mass_carb_new
       REAL :: net_carb
       !REAL :: mass_carb
-      REAL d_sl
+      REAL diff_sea_level
 
 ! local variables
       INTEGER, PARAMETER :: kmax_hypso = 300 !128
@@ -38,6 +38,7 @@
 !      REAL P_carb_an
 !      dimension P_carb_an(LT, JT, NOC_CBR)
       REAL, dimension(LT, JT, NOC_CBR) :: P_carb_an
+      REAL, dimension(LT, JT, NOC_CBR) :: P_carb_an_prev
       !REAL mass_carb_old
       INTEGER compteur              !day of year (1 to 360)
 
@@ -78,8 +79,8 @@
 
       INTEGER i_sl
       REAL dum
-      INTEGER, PARAMETER :: t_sl=15
-      REAL, dimension(t_sl) :: sea_level
+      INTEGER, PARAMETER :: nb_sea_level=651 !451
+      REAL, dimension(nb_sea_level) :: sea_level
 
       !REAL, dimension(JT) :: level_inf
       !REAL, dimension(JT) ::  level_sup
@@ -168,6 +169,8 @@
       REAL, dimension (LT, kmax_hypso, NOC_CBR) :: t0_diss_all
       REAL, dimension (LT, kmax_hypso, NOC_CBR) :: prod_before_all
 
+!      REAL :: modif_tot, modif_tot_prev
+
       contains
 
 ! functions and subroutines
@@ -189,7 +192,9 @@
        omega_arag, depth, kd, topof, i_pp, k1p, k2p, kbp, csatp, co2_pp &
        , hco3_pp, co3_pp, temp_coral_CO2, coral_13CO2, modif, p_bar,    &
        CO3sat_ar, sCO2, xpCO2, xCO2, xHCO3, xCO3                        &
-       ,temp_too_low 
+       ,temp_too_low
+
+       real(kind=dblp) :: net_carb_lev ! carbonate production at level (contains all sublevels) 
 
        integer(kind=ip):: js
 
@@ -232,6 +237,7 @@
           kd_490(i,n)=0.1
       endif
 
+      net_carb_lev=0.0 ! init to 0 for this level
 
       !loop on subgrid depth
       !write(*,*) ' '
@@ -242,14 +248,23 @@
         !depth=mid_level(j+1) !-20 !zw is negative from 0 to -5500
 
         !all depth in negative except ZX hence the (-1)*ZX
-!        write(*,*) 'test depth ', level_bounds_hypso(js),
-!     >             (-1)*ZX(j), (-1)*ZX(j+1)
-        if ((level_bounds_hypso(js+1).le.(-1)*ZX(j)) .and.              &
-           (level_bounds_hypso(js+1).gt.(-1)*ZX(j+1))) then
-!        write(*,*) 'test depth ', level_bounds_hypso(js+1),
-!     >             (-1)*ZX(j), (-1)*ZX(j+1)
-          depth=level_hypso(js)
-         ! write(*,*) 'depth', depth ! depth is negative
+        ! At LGM -120 below sea level
+        diff_sea_level=0 !-120
+        !diff_sea_level=-120 ! at LGM
+        !diff_sea_level=sea_level(NYR)
+        !write(*,*) 'test depth ', level_bounds_hypso(js),               &
+        !          (-1)*ZX(j), (-1)*ZX(j+1), (-1)*ZX(j)+diff_sea_level
+        !ori if ((level_bounds_hypso(js+1).le.(-1)*ZX(j)) .and.              &
+        !ori    (level_bounds_hypso(js+1).gt.(-1)*ZX(j+1))) then
+        if ((level_bounds_hypso(js+1).le.                               &
+             ((-1)*ZX(j)+diff_sea_level)) .and.                         &
+           (level_bounds_hypso(js+1).gt.                                &
+             ((-1)*ZX(j+1)+diff_sea_level))) then
+          !write(*,*) 'test depth ', level_bounds_hypso(js+1),           &
+          !        (-1)*ZX(j)+diff_sea_level,                            &
+          !        (-1)*ZX(j)+diff_sea_level
+          depth=level_hypso(js)-diff_sea_level
+          !write(*,*) 'depth ', level_hypso(js), depth ! depth is negative
 
          !area: surface of continental bottom in the grid cell in m2
          !area_coral=SQRO2(i,n)
@@ -348,13 +363,14 @@
       call corals(area_coral,temp,sal,phos,light_surf,omega_arag,depth, &
          kd,topof,tau_bleach(i,j,n),timebleach(i,j,n),temp_too_low,     &
          coral_mass_subgrid(i,js,n), t0_diss_all(i,js,n),               &
-         prod_before_all(i,js,n))
+         prod_before_all(i,js,n), P_carb_an(i,j,n), P_carb_an_prev(i,j,n))
 
       !output of corals is net_carb in Pmol/day
       !if (net_carb.ne.0) then
       !   write(*,*) 'net_carb mbiota ', i,j,n, net_carb
       !endif
       coral_prod(i,j,n)=coral_prod(i,j,n)+net_carb !annual net production in Pmol/year
+      net_carb_lev=net_carb_lev+net_carb
       !g_prod(i,j,n)=g_prod(i,j,n)+mass_carb_new !mass_carb_new
       !equivalent de prom
 !      if (coral_prod(i,j,n).ne.0) then
@@ -430,10 +446,10 @@
                                     ! SCANU = 10^-6
       !note TDAY=86400s et TSTOC=86400s -> TDAY/TSTOC=1
       !temp_coral_CO2 = g_prod(i,j,n)
-      temp_coral_CO2 = net_carb !in Pmol/day
+      temp_coral_CO2 = net_carb_lev !in Pmol/day
 
      ! SCALE_M=1e-18 to convert from 1e3 mumol/m3 to GtC
-     ! SCANU =1e-6 to convert from mumpl/kg to mol/kg
+     ! SCANU =1e-6 to convert from mumol/kg to mol/kg
 
      ! OALK in (eq/kg)
          modif=temp_coral_CO2*1./SCALE_M*SCANU/DVOL(i,j,n)/(TDAY/TSTOC)
@@ -454,6 +470,8 @@
 
           coral_13CO2    = coral_CO2*1.5
 
+!          modif_tot=modif_tot+temp_coral_CO2 !Pmol/day
+
 
 ! dissolution of weathered bicarbonate in the surface water
 ! nb for now: homogenous value everywhere at ocean surface
@@ -462,13 +480,20 @@
 
       if (j.eq.1) then !at the surface
 
+!lb test          OALK(i,j,n) = OALK(i,j,n) + A_riv*SQRO2(i,n)/surface_ocean    &
+!nb tbd            /SCALE_M*SCANU/DVOL(i,j,n)/(TYER/TSTOC)
+!lb test            /SCALE_M*SCANU/DVOL(i,j,n)/(TDAY/TSTOC)
+
+
+!          A_riv=2*modif_tot_prev
           OALK(i,j,n) = OALK(i,j,n) + A_riv*SQRO2(i,n)/surface_ocean    &
-            /SCALE_M*SCANU/DVOL(i,j,n)/(TYER/TSTOC)
+            /SCALE_M*SCANU/DVOL(i,j,n)/(TDAY/TSTOC) !! TDAY a la place de TYER
 
 !     >      weathering_oalk*SQRO2(i,n)/surface_ocean
 
           ODIC(i,j,n) = ODIC(i,j,n) + C_riv*SQRO2(i,n)/surface_ocean    &
-            /SCALE_M*SCANU/DVOL(i,j,n)/(TYER/TSTOC)
+!nb tbd            /SCALE_M*SCANU/DVOL(i,j,n)/(TYER/TSTOC)
+            /SCALE_M*SCANU/DVOL(i,j,n)/(TDAY/TSTOC)
 
 !     >      weathering_odic*SQRO2(i,n)/surface_ocean
 !          OC13(i,j,n) = OC13(i,j,n) + weathering_oc13(i,n)/1000.
@@ -487,9 +512,10 @@
       use ncio,      only: nc_read
       use loveclim_transfer_mod, ONLY: joursemaine
       use loveclim_transfer_mod, only: TM
+      use newunit_mod, only: sea_level_dat_id
 
 ! local
-      integer :: n
+      integer :: n, ii, yy
 
 !constantes
       tau=4000 !in years
@@ -506,14 +532,16 @@
 !      C_sed=7.5*1e-3/(TYER/TDAY) ! C_sed=G_coral a l equilibre
       !C_riv= carbon from carbonate dissolution brought by rivers to the
       !ocean all in HCO3- form
-      C_riv=3.9*1e-5  !2*C_sed !Pmol/day
+!      C_riv=3.9*1e-5/2.  !2*C_sed !Pmol/day
+      !C_riv=2.20315E-005 !Pmol/day ! from PI simulation with flux rivers=flux corals
+      C_riv=2.10345E-005 !Pmol/day ! from PI simulation with Cflux rivers=flux corals
       ! C_sil_a= 0 ! consommation CO2 par alteration silicates
       ! C_vol+C_hyd =0 ! Carbon from volcanism and hydrothermals going
       ! to atmsophere
       ! C_car_a= consommation of CO2 by carbonate alteration
-      C_car_a=C_riv /2. 
+      C_car_a=C_riv ! /2. 
       !Alkalinity
-      A_riv=C_riv
+      A_riv=C_riv*2
       !for bleaching
       !bleaching effect, time scales (yrs)
       tau_bleach_moderat =  5. !20. 
@@ -525,7 +553,7 @@
 
 
       !constante for dissolution
-      lambda_diss=1/10.
+      lambda_diss=1/10. ! Half life of 10 years
 
 ! initialisation
       total_area_coral_an=0
@@ -552,6 +580,8 @@
       !dissolution
       t0_diss_all(:,:,:)=0.0
       prod_before_all(:,:,:)=0.0
+      P_carb_an(:,:,:)=0
+      P_carb_an_prev(:,:,:)=1.0
 
 ! for bleaching
 !      if (KLSR.eq.0) then ! only if fresh start, otherwise read in restart
@@ -573,6 +603,9 @@
 
 ! limite temperature low
       temp_too_low_all(:,:)=0
+
+!      modif_tot=0.0
+!      modif_tot_prev=0.0
 
 
 ! Read files
@@ -692,8 +725,19 @@
        enddo
       enddo
 
+!Read sea level from file
+        open(sea_level_dat_id,file='inputdata/sea_level.dat',           &
+             status='unknown')
+         do ii=1,nb_sea_level
+           read(sea_level_dat_id,*) yy, sea_level(ii)
+           print *, 'test sea level ', ii,yy, sea_level(ii)
+         enddo
+        close(sea_level_dat_id)
+
+
+
 ! call restart in read mode
-!      call restart_coral(1) 
+      call restart_coral(1) 
  
 
       end subroutine ini_coral
@@ -704,7 +748,7 @@
 ! coral production
       subroutine corals(area,temp,sal,phos,light_surf,omega_arag,depth, &
             kd,topof,tau_bleach_l, timebleach_l, temp_too_low, mass_carb&
-            , t0_diss, prod_before)
+            , t0_diss, prod_before, P_carb_an, P_carb_an_prev)
 
 !input output
 
@@ -717,7 +761,7 @@
       REAL omega_arag !arag_sat
       REAL depth
       REAL mass_carb !, mass_carb_new
-      !REAL d_sl
+      !REAL diff_sea_level
       REAL kd
       REAL topof
       REAL phos
@@ -757,6 +801,9 @@
       REAL RAD_m
       REAL temp_factor
 
+      REAL P_carb_an
+      REAL P_carb_an_prev
+
 
 ! maximum vertical accumulation rate for corals in m/yr -> per day for us (-> /360) -> m/day
 !      gmax_coral=1.04/360 !mm/day
@@ -790,7 +837,7 @@
 !maximum phosphate value for coral growth
       pmax=0.2 !micromol/L
 !cc sea level (m)
-!cc      isea_lev=250
+!cc      sea_lev=250
 !c supersaturation parameter
       arag_k=2.86
 
@@ -923,15 +970,26 @@
 
 !      D_carb=0.0 !test
 
+!HERE THIS ONE
 !nb    dissolution of all existing coral if no production
-!       if (P_carb .eq. 0) then
-!         D_carb=mass_carb/(caco3_molar_mass*1.0e15)
-!       else
-!         D_carb=0.0
-!       endif
+!bioerosion: with limitation at 5 kg/m2/an -> 5 * 1e3*1e-15 /(MCaCO3)*surface/365 [kg/m2/an] / [1e3 g/mol]*m2 / [jour/an] -> in Pmol CaCO3/jour
+       !if (P_carb .eq. 0) then ! P_carb instantanne
+       if (P_carb_an_prev .eq. 0) then !P_carb annuel last year
+         !D_carb=mass_carb/(caco3_molar_mass*1.0e15)
+          D_carb=min(mass_carb/(caco3_molar_mass*1.0e15),                &
+                   5.*1e3 *1e-15/caco3_molar_mass*area/365.)
+         !if (mass_carb/(caco3_molar_mass*1.0e15) .ne. 0) then
+         !write(*,*) 'D_carb', mass_carb/(caco3_molar_mass*1.0e15),      &!         !           5.*1e3*1e-15 /caco3_molar_mass*area/365.
+         !           5.*1e3*1e-15 /caco3_molar_mass*area/365.
+         !endif
+       else
+         D_carb=0.0
+       endif
+
 
 !nb    dissolution of half of all existing coral in 10 years if no production
-!       if (P_carb .eq. 0) then ! si pas de production
+!!       if (P_carb .eq. 0) then ! si pas de production
+!       if (P_carb_an_prev .eq. 0) then ! si pas de production annee avant
 !         if (prod_before .eq. 1) then ! si production avant
 !            prod_before=0 ! plus de production
 !            t0_diss=NYR-1 ! init time constante
@@ -947,7 +1005,7 @@
 !       D_carb=mass_carb/(caco3_molar_mass*1.0e15)
 
 ! For now no dissolution
-      D_carb=0.0
+!      D_carb=0.0
 
 
 ! Net production in Pmol/day
@@ -968,6 +1026,8 @@
 !          print*, 'light factor: ', tanh(Iz/Ik)
 !          print*, 'omega arag factor: ', (omega_arag-1.)/arag_k
 !      endif
+
+      P_carb_an=P_carb_an+P_carb
 
       end subroutine corals
 !----------------------------------------------------------------------
@@ -1406,6 +1466,9 @@
       subroutine restart_coral(choix)
 
       !use loveclim_transfer_mod, only: TM, KMON, SQRO2
+      use marine_bio_mod, only: JPROD
+      use loveclim_transfer_mod, only: ZX
+      use declars_mod, only: LT, NOC_CBR
 
        INTEGER :: choix
 
@@ -1414,6 +1477,7 @@
        CHARACTER*24, PARAMETER ::                                       &
                          fich_res_name_old="startdata/rest_coral.dat"
        LOGICAL :: existe
+       INTEGER :: n,i,j,js
 
 ! Find free number
        fich_num=298
@@ -1460,9 +1524,31 @@
         CLOSE(UNIT=fich_num)
 
        !test
-       write(*,*) 'coral_mass_subgrid', coral_mass_subgrid(:,:,:)
+       !write(*,*) 'coral_mass_subgrid', coral_mass_subgrid(:,:,:)
+       !Add mass of CaCO3 to mimic accumlation during Holocene, for
+       !simultions starting in 1850 and going in the future with
+       !dissolution/bioerosion
        coral_mass_subgrid(:,:,:)=coral_mass_subgrid(:,:,:)*10000
-       write(*,*) 'coral_mass_subgrid', coral_mass_subgrid(:,:,:)
+       !write(*,*) 'coral_mass_subgrid', coral_mass_subgrid(:,:,:)
+
+      total_mass_coral_an=0
+
+      do n=1,NOC_CBR
+       do i=1,LT
+        do j=1,JPROD
+         do js=1,kmax_hypso
+          if ((level_bounds_hypso(js+1).le.(-1)*ZX(j)) .and.            &
+           (level_bounds_hypso(js+1).gt.(-1)*ZX(j+1))) then
+           coral_cum_mass(i,j,n)=coral_cum_mass(i,j,n)                  &
+              +coral_mass_subgrid(i,js,n)
+           total_mass_coral_an=total_mass_coral_an                      &
+              +coral_mass_subgrid(i,js,n)*1e-15 !mass_carb en g *1e-15 g->Pg
+          endif
+         enddo
+        enddo
+       enddo
+      enddo
+
 
        ENDIF
 

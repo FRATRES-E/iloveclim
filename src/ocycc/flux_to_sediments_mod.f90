@@ -191,18 +191,18 @@
 
 #ifdef WITH_C13
             oc13_mave(i,j,n)     =     oc13_mave(i,j,n) +     oc13_ma(i,j,n)
-            TPPC13_mave(i,j,n)   =   TPPC13_mave(i,j,n) +   TPPC13_ma(i,j,n) !this variable may exist already
-            caco3C13_mave(i,j,n) = caco3C13_mave(i,j,n) + caco3C13_ma(i,j,n) !with different name
+!            TPPC13_mave(i,j,n)   =   TPPC13_mave(i,j,n) +   TPPC13_ma(i,j,n) !this variable may exist already
+!            caco3C13_mave(i,j,n) = caco3C13_mave(i,j,n) + caco3C13_ma(i,j,n) !with different name
 #endif
 
 #ifdef WITH_C14
             oc14_mave(i,j,n)     =     oc14_mave(i,j,n) +     oc14_ma(i,j,n)
-            TPPC14_mave(i,j,n)   =   TPPC14_mave(i,j,n) +   TPPC14_ma(i,j,n) !this variable may exist already
-            caco3C14_mave(i,j,n) = caco3C14_mave(i,j,n) + caco3C14_ma(i,j,n) !with different name
+!            TPPC14_mave(i,j,n)   =   TPPC14_mave(i,j,n) +   TPPC14_ma(i,j,n) !this variable may exist already
+!            caco3C14_mave(i,j,n) = caco3C14_mave(i,j,n) + caco3C14_ma(i,j,n) !with different name
 #endif
 
 #ifdef WITH_O18
-            caco3O18_mave(i,j,n) = caco3O18_mave(i,j,n) + caco3O18_ma(i,j,n) !this variable does not yet exist
+!            caco3O18_mave(i,j,n) = caco3O18_mave(i,j,n) + caco3O18_ma(i,j,n) !this variable does not yet exist
 #endif
 
           ENDDO
@@ -224,7 +224,11 @@
             clay_mave(:,:,:) =   clay_ma(:,:,:)
             TPP_mave(:,:,:)  =   TPP_ma(:,:,:)   ! SUM(TPP,t=1,nb_timestep) -> [TPP_ma]
             caco3_mave(:,:,:)=   caco3_ma(:,:,:) ! this saves the value every timestep days
-        
+#ifdef WITH_C13            
+!dmr&nb --- [MEDUSAISO] Tentative code for iso to sediments                    
+            TPPC13_mave(:,:,:)  =   TPPC13_ma(:,:,:)
+            caco3C13_mave(:,:,:)=   caco3C13_ma(:,:,:)
+#endif
         
         
 ! --- dmr                   [TODO] check thoroughly the accumulation of fluxes below for values ...
@@ -239,20 +243,21 @@
               oalk_mave(i,j,n)     =     oalk_mave(i,j,n)/timestep
               ooxy_mave(i,j,n)     =     ooxy_mave(i,j,n)/timestep
 
+!dmr&nb --- [TOREMOVE] A priori following three lines do not do anything
               clay_mave(i,j,n)     =     clay_mave(i,j,n) 
               TPP_mave(i,j,n)      =      TPP_mave(i,j,n) ! [TPP_MAVE]   -> Tmols.m-2.timestep-1
               caco3_mave(i,j,n)    =    caco3_mave(i,j,n) ! [CACO3_MAVE] -> Tmols.m-2.timestep-1
 
 #ifdef WITH_C13
               oc13_mave(i,j,n)     =     oc13_mave(i,j,n)/timestep
-              TPPC13_mave(i,j,n)   =   TPPC13_mave(i,j,n)/timestep
-              caco3C13_mave(i,j,n) = caco3C13_mave(i,j,n)/timestep
+!              TPPC13_mave(i,j,n)   =   TPPC13_mave(i,j,n)/timestep
+!              caco3C13_mave(i,j,n) = caco3C13_mave(i,j,n)/timestep
 #endif
 
 #ifdef WITH_C14
               oc14_mave(i,j,n)     =     oc14_mave(i,j,n)/timestep
-              TPPC14_mave(i,j,n)   =   TPPC14_mave(i,j,n)/timestep
-              caco3C14_mave(i,j,n) = caco3C14_mave(i,j,n)/timestep
+!              TPPC14_mave(i,j,n)   =   TPPC14_mave(i,j,n)/timestep
+!              caco3C14_mave(i,j,n) = caco3C14_mave(i,j,n)/timestep
 #endif
 
 #ifdef WITH_O18
@@ -318,7 +323,7 @@
 
 #ifdef WITH_C13
               TPPC13_mafond(i,n)   =   TPPC13_mave(i,INT(kfs_fond(i,n)),n)
-              caco3C13_mafond(i,n) = caco3C13_mave(i,kfs_fond(i,n),n)
+!              caco3C13_mafond(i,n) = caco3C13_mave(i,kfs_fond(i,n),n)
 #else
               TPPC13_mafond(i,n)   =  0.0D+00
               caco3C13_mafond(i,n) =  0.0D+00
@@ -533,11 +538,20 @@
          opo4_mafond(i,n) = 0.0D0
 
 
-         TPP_mafond(i,n)   = 0.0D0
-         caco3_mafond(i,n) = 0.0D0
-         caco3_mabot(i,n) = 0.0d0
-
-
+         TPP_mafond(i,n)      = 0.0D0
+         caco3_mafond(i,n)    = 0.0D0
+         caco3_mabot(i,n)     = 0.0d0
+#ifdef WITH_C13
+         TPPC13_mafond(i,n)   = 0.0D0
+         caco3C13_mafond(i,n) = 0.0D0
+#endif         
+#ifdef WITH_C14         
+         TPPC14_mafond(i,n)   = 0.0D0
+         caco3C14_mafond(i,n) = 0.0D0
+#endif         
+#ifdef WITH_O18         
+         caco3O18_mafond(i,n) = 0.0D0
+#endif
        END FORALL
 
        RETURN

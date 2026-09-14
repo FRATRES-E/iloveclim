@@ -541,7 +541,7 @@
       !     zln_kw_p0  : ln(K_w) at p_bar = 0
       !     zln_kw_pp  : pressure correction for p_bar /= 0
 
-      REAL(KIND=wp) :: zrt, zt_degc, zdvi, zdki
+      REAL(KIND=wp) :: zrt, zt_degc, zdvi, zdki, zds, zsqrts
       REAL(KIND=wp) :: zln_kw_p0, zln_kw_pp
 
 
@@ -773,7 +773,7 @@
       !     zln_khf_pp     : pressure correction for k_HF = 1/\beta_HF at p_bar /= 0
 
 
-      REAL(KIND=wp) :: zrt, zt_degc, zdvi, zdki
+      REAL(KIND=wp) :: zrt, zt_degc, zdvi, zdki, zds, zsqrts
       REAL(KIND=wp) :: zionst, zcvt_to_kgsw
       REAL(KIND=wp) :: zln_bhf_p0, zln_khf_pp
 

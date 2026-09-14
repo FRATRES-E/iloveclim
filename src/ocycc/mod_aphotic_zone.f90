@@ -42,7 +42,7 @@
                            , d0_m, kd_m, SCALE_B, SCALE_M, fPOC_top, fPOC_1000, fPOC_bot, fCAL_top,&
                              fCAL_2000, fCAL_bot, b_sh_fr &
                            , caco3_mabot, O2min1, O2min2,OrgCFlxAttFactor, caco3_m, caco3_m_b_sh,  &
-                           reminO2
+                           reminO2, TPPC13_ma, caco3_d13C_m_b_sh
 
 #if ( SILICA == 1 )
        use mbiota_mod, ONLY: Opal_m, SUE_SI
@@ -136,7 +136,7 @@
       REAL(kind=dblp) :: ON2O_dif
 #endif
 
-      REAL(kind=dblp) :: caco3_13, TPP_compute, caco3_compute ! calred unused a priori
+      REAL(kind=dblp) :: caco3_13, TPP_compute, caco3_compute, TPP_compute13, caco3C13_compute ! calred unused a priori
 #if ( ARAG == 1 )
       REAL(kind=dblp) :: caco3_13_ar, caco3_compute_ar
 #endif
@@ -193,7 +193,10 @@
 
         TPP_compute = OrgCFlxAttFactor(i, j+1, n)*TPP_m(i,n)                      ! [FIXEDINPUT] : OrgCFlxAttFactor
         TPP_ma(j) = TPP_ma(j) + TPP_compute/SQRO2(i,n)                            ! [INOUTPUT]   : tpp_ma(i,j,n)
-                                                                                  ! [FIXEDINPUT] : SQRO2(i,n)
+
+!dmr&nb --- [MEDUSAISO] Tentative code for iso to sediments                                                                                  ! [FIXEDINPUT] : SQRO2(i,n)
+        TPP_compute13 = OrgCFlxAttFactor(i, j+1, n)*TPP_D13C(i,n)
+        TPPC13_ma(i,j,n) = TPPC13_ma(i,j,n) + TPP_compute13/SQRO2(i,n)
 
 !RFC: The following looks like a diagnostic. Correct? Comment would be helpful.
         if (j.eq.(JPROD+1)) then
@@ -202,7 +205,10 @@
           fPOC_1000 = fPOC_1000 + TPP_compute/2.
 !nb test        elseif (oc_bottom_cell(j)) then
         elseif (oc_bottom_cell(j).and.(j.gt.13)) then   ! j=13 limite de 1000m
+         if ( (i.le.47) .and. (i.ge.7) ) then ! between 60S and 60 N
+!          write(*,*) 'i in mahot', i
           fPOC_bot  = fPOC_bot + TPP_compute  ! here fPOC is in Tmols
+         endif
         endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -317,13 +323,13 @@
                    + caco3_m_b_sh(i,n))     &!nb test
                    /(DVOL_col(j)*SCALE_B) ! [FIXEDINPUT] : SUE_MCA
 
-           caco3_13=SUE_MCA(j)*caco3_d13C(i,n)/(DVOL_col(j)*SCALE_B)
+           caco3_13=(SUE_MCA(j)*caco3_d13C(i,n) + caco3_d13C_m_b_sh(i,n)) / (DVOL_col(j)*SCALE_B)
            caco3_d13C(i,n)=0
 
 #if ( ARAG == 1 )
-           caco3_dif_ar=SUE_MAR(j)*caco3_m_ar/(DVOL_col(j)*SCALE_B) ! [FIXEDINPUT] : SUE_MCA
-           caco3_13_ar=SUE_MAR(j)*caco3_d13C_ar/(DVOL_col(j)*SCALE_B)
-           caco3_d13C_ar=0
+           caco3_dif_ar=SUE_MAR(j)*caco3_m_ar(i,n)/(DVOL_col(j)*SCALE_B) ! [FIXEDINPUT] : SUE_MCA
+           caco3_13_ar=SUE_MAR(j)*caco3_d13C_ar(i,n)/(DVOL_col(j)*SCALE_B)
+           caco3_d13C_ar(i,n)=0
 #endif
 
 #if ( SILICA == 1 )
@@ -337,8 +343,8 @@
             caco3_13=(SUE_MCA(J)-SUE_MCA(J+1))*caco3_d13C(i,n)/(DVOL_col(j)*SCALE_B)
 
 #if ( ARAG == 1 )
-            caco3_m_ar=(SUE_MAR(J)-SUE_MCA(J+1))*caco3_m_ar/(DVOL_col(j)*SCALE_B)
-            caco3_13_ar=(SUE_MAR(J)-SUE_MAR(J+1))*caco3_d13C_ar/(DVOL_col(j)*SCALE_B)
+            caco3_dif_ar=(SUE_MAR(J)-SUE_MCA(J+1))*caco3_m_ar(i,n)/(DVOL_col(j)*SCALE_B)
+            caco3_13_ar=(SUE_MAR(J)-SUE_MAR(J+1))*caco3_d13C_ar(i,n)/(DVOL_col(j)*SCALE_B)
 
 #endif
 
@@ -369,6 +375,8 @@
 #if ( ARAG == 1 )
 !nb remove        caco3_compute_ar = RR_ar*calred*SUE_MAR(j+1)*TPP_m(i,n)/(1-sigma_m)
         caco3_compute_ar = SUE_MAR(j+1)*caco3_m_ar(i,n)
+!dmr&nb --- [MEDUSAISO] Tentative code for iso to sediments
+        caco3C13_compute = SUE_MCA(j+1)*caco3_d13C(i,n)
 #endif
 
 #if ( SILICA == 1 )
@@ -378,22 +386,24 @@
         if ( oc_bottom_cell(j) ) then ! Need to add the big_shell_fraction that is sedimented directly
 !nb remove          caco3_compute = caco3_compute + b_sh_fr*RR*calred*TPP_m/(1-sigma_m)
           caco3_compute = caco3_compute + caco3_m_b_sh(i,n)
+!dmr&nb --- [MEDUSAISO] Tentative code for iso to sediments
+        caco3C13_compute = caco3C13_compute + caco3_d13C_m_b_sh(i,n)
         endif
 #if ( ARAG == 0 )
         caco3_ma(j) = caco3_ma(j) + caco3_compute/SQRO2(i,n)                 ! [INOUTPUT]   : caco3_ma(j)
 #else
-!a voir : une variable caco3_ma_ar?
         caco3_ma(j) = caco3_ma(j) + (caco3_compute+caco3_compute_ar)/SQRO2(i,n)                 ! [INOUTPUT]   : caco3_ma(j)
 #endif
                                                                                  ! [FIXEDINPUT] : SQRO2(i,n)
 
+!fCAL for ouptputs only
         if (j.eq.(JPROD+1)) then
-          fCAL_top = fCAL_top + caco3_compute
+          fCAL_top = fCAL_top + caco3_compute+caco3_m_b_sh(i,n)
         elseif ((j.eq.16).or.(j.eq.15)) then                   ! index 6 on CLIO is 1700 m, index 5 is 2300 meters, so I take the mean of the two (on Carbon => 21-5 = 16 and 21-6 = 15)
-          fCAL_2000 = fCAL_2000 + caco3_compute/2.
+          fCAL_2000 = fCAL_2000 + caco3_compute/2.+caco3_m_b_sh(i,n)
 !nb        elseif (oc_bottom_cell(i,j,n)) then
-        elseif (oc_bottom_cell(j).and.(j.gt.13)) then
-          fCAL_bot  = fCAL_bot + caco3_compute  ! here fCAL is in Tmols
+        elseif (oc_bottom_cell(j).and.(j.gt.13)) then       !j=15 limite 2000 m
+          fCAL_bot  = fCAL_bot + caco3_compute  ! here fCAL is in Tmols, caco3_m_b_sh(i,n) already accounted for
           caco3_mabot(i,n) = caco3_mabot(i,n) + caco3_compute/SQRO2(i,n) ! in Tmols.m-2.day-1
         endif
 
@@ -439,6 +449,7 @@
            TPP_m(i,n)=0
            TPP_D13C(i,n)=0
            caco3_d13C(i,n)=0 !nb sediments
+           caco3_d13C_m_b_sh(i,n) = 0
 #if (ARAG == 1 )
            caco3_d13C_ar(i,n)=0 !nb sediments
 #endif

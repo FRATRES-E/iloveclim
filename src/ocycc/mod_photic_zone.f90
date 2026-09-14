@@ -93,7 +93,8 @@
      >              DHW_nb, DHW_out, window_MMM,
      >              temp_too_low_all, calc_temp_variability,
      >              k_mbiota_rand, calc_nino3, indice_hs, nb_hs,
-     >              coral_mass_out, coral_cum_mass
+     >              coral_mass_out, coral_cum_mass, P_carb_an,
+     >              P_carb_an_prev 
        use omega_mod, only : calc_omega_ar
 #endif
 
@@ -599,14 +600,15 @@
 
       temp_too_low_all(:,:)=0.0
 
-#if ( 1 )
-!nb To fix input from rivers
-      !C_riv= 2* C_sed
-!      C_riv = 2* total_prod_coral_an/(TYER/TDAY) ! in Pmol/day
-      A_riv = C_riv
-      write(*,*) 'weathering computed as output: ', C_riv, total_prod_coral_an
-      C_car_a=C_riv/2.
-#endif
+!#if ( 1 )
+!!nb To fix input from rivers
+!      !C_riv= 2* C_sed
+!      C_riv = total_prod_coral_an/(TYER/TDAY) ! in Pmol/day
+!      A_riv = 2* C_riv
+!      write(*,*) 'weathering computed as output: ', 
+!     >            C_riv, total_prod_coral_an
+!      C_car_a=C_riv
+!#endif
 
 ! write annual global mean in file coral_output.txt
       CALL out_coral_global
@@ -615,7 +617,7 @@
 ! and save 3d output
       total_area_coral_an=0.0
       total_prod_coral_an=0.0
-      total_mass_coral_an=0.0
+      !total_mass_coral_an=0.0
       coral_CO2=0
       coral_area_out(:,:,:)=coral_area(:,:,:)
       coral_prod_out(:,:,:)=coral_prod(:,:,:)
@@ -636,6 +638,8 @@
       coral_area(:,:,:)=0.0
       coral_prod(:,:,:)=0.0
       DHW_nb(:,:,:)=0.0
+      P_carb_an_prev(:,:,:)=P_carb_an(:,:,:)
+      P_carb_an(:,:,:)=0.0
 #endif
         endif ! de KENDY == 1
 
