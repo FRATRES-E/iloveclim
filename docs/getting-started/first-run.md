@@ -14,7 +14,7 @@ To test first if things are allright, the simplest possible use is:
 ```bash
 ./run-me.sh
 ```
-This will perform a standard run, with standard options as is set in the source code by default; it will do a coupled run with atmosphere--ocean--vegetation activated (land-surface is implicitly also there) at Pre-Industrial conditions for a length of one year, starting from a previous equilibrium. This is the standard run that should always work, if not you should shout it out loud to the iLOVECLIM mailing list! (see page [**Troubleshooting**](user-guide/troubleshooting.md)). 
+This will perform a standard run, with standard options as is set in the source code by default; it will do a coupled run with atmosphere--ocean--vegetation activated (land-surface is implicitly also there) at Pre-Industrial conditions for a length of one year, starting from a previous equilibrium. This is the standard run that should always work, if not you should shout it out loud to the iLOVECLIM mailing list! (see page **Troubleshooting**). 
 
 ### Analyzing the options
 If you are curious about what the script did for you in the background (as you should :smile:) you can run the following to list the options:
