@@ -79,6 +79,9 @@ markdown_extensions:
   # LaTeX maths, for the scientific documentation pages:
   - pymdownx.arithmatex:
       generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 # MathJax hookup for arithmatex (equations)
 extra_javascript:
@@ -94,6 +97,7 @@ nav:
       - getting-started/index.md
       - Prerequisites: getting-started/prerequisites.md
       - Getting the code: getting-started/obtaining-the-code.md
+      - Compile \& install: getting-started/installation-example.md
       - Your first run: getting-started/first-run.md
       - Base update: getting-started/basic-update.md
       - HPC machines:
