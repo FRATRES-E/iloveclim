@@ -94,8 +94,8 @@ nav:
       - getting-started/index.md
       - Prerequisites: getting-started/prerequisites.md
       - Getting the code: getting-started/obtaining-the-code.md
-      - First compilation: getting-started/first-compilation.md
       - Your first run: getting-started/first-run.md
+      - Base update: getting-started/basic-update.md
       - HPC machines:
           - getting-started/machines/index.md
           # one page per cluster — these date fast, kept together:
