@@ -860,7 +860,6 @@ c~ #endif
         sumohsn=sumohsn
         sumohss=sumohss
         iobclint=0
-        if (iclimflux.eq.1) call ec_climflux(ist,jst)
       endif
 
       if (iobtropt.eq.nbtrops) then
@@ -1115,80 +1114,6 @@ c~ #endif
       return
       end
 
-
-!23456789012345678901234567890123456789012345678901234567890123456789012
-      SUBROUTINE ec_climflux(ist,jst)
-!-----------------------------------------------------------------------
-! *** this routine calculates climatogical SST's and heatfluxes
-! *** from year 1 onwards and outputs these to a file
-!-----------------------------------------------------------------------
-
-
-      USE comatm
-      use comphys
-      use comemic_mod, only: iday, imonth, iobclin, iyear, nyears, undef,fracto
-      use comcoup_mod
-      use comsurf_mod
-
-      implicit none
-
-
-      integer i,j,k,l,index,istep,ist,jst
-
-      real*4 hulph(nlat,nlon),hulpt(nlat,nlon)
-      real*8 hefxcl(nlat,nlon,360),tmixcl(nlat,nlon,360),ryear,riatm
-      real*8 hefx(nlat,nlon),hefxo(nlat,nlon)
-
-      common /mixlayer/ hefxcl,tmixcl,hefx,hefxo
-
-
-      if ( ist.eq.iobclin) then
-        do k=1,360
-          do j=1,nlon
-            do i=1,nlat
-              hefxcl(i,j,k)=0d0
-              tmixcl(i,j,k)=0d0
-            enddo
-          enddo
-        enddo
-      endif
-
-      index=(imonth-1)*30+iday
-
-      do i=1,nlat
-        do j=1,nlon
-          hefxcl(i,j,index)=hefxcl(i,j,index)+sumohfx(i,j)+sumoswr(i,j)
-          tmixcl(i,j,index)=tmixcl(i,j,index)+tsurfn(i,j,noc)
-        enddo
-      enddo
-
-      if (index.eq.360.and.iyear.eq.nyears) then
-        ryear=1/real(nyears)
-        do k=1,360
-          do i=1,nlat
-            do j=1,nlon
-              if (fracto(i,j).gt.epss) then
-                hefxcl(i,j,k)=hefxcl(i,j,k)*ryear
-                tmixcl(i,j,k)=tmixcl(i,j,k)*ryear
-              else
-                hefxcl(i,j,k)=undef
-                tmixcl(i,j,k)=undef
-              endif
-            enddo
-          enddo
-        enddo
-        index=0
-        do k=1,360/iobclin
-          do l=1,iobclin
-            index=index+1
-            write(51) ((real(hefxcl(i,j,index)),j=1,nlon),i=1,nlat)
-            write(52) ((real(tmixcl(i,j,index)),j=1,nlon),i=1,nlat)
-          enddo
-        enddo
-      endif
-
-      return
-      end
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_wrendcoup

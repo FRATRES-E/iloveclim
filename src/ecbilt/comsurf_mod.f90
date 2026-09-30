@@ -53,7 +53,6 @@
 ! *** Contents: Common declarations for surface dependent variables
 
       integer(kind=ip), parameter :: noc = 1 ,nse = 2, nld = 3,ntyps=3
-      integer(kind=ip) :: iclimflux
 
       real(kind=dblp), dimension(nlat,nlon)       ::  tsurf
       real(kind=dblp), dimension(nlat,nlon,ntyps) ::  tsurfn

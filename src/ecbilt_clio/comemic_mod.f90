@@ -74,7 +74,7 @@
              ,nbclins,nbtrops,end_year,end_day
 
 
-      integer                            :: ntstep,nstpyear,isatfor,ntotday
+      integer                            :: ntstep,nstpyear,ntotday
       integer                            :: iseason
       integer, target                    :: imonth,iday
       integer, target                    :: nocstpyear

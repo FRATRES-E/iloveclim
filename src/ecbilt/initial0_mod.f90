@@ -391,10 +391,9 @@ contains
                          relhmax, solarc, solarm, tdifq, umoisr, uv10m, &
                          uv10rfx, uv10rws, uv10rwv, &
                          corAN, corPN, corAC, corID, corAS, corPS, corAA
-      use comemic_mod, only: irunlabel, isatfor
+      use comemic_mod, only: irunlabel
       use comrunlabel_mod, only: irunlabelf
-      use comsurf_mod, only: albocef, emisn, iclimflux, nld, noc, nse
-      use comatfor, only: nafyear, nbsatfor
+      use comsurf_mod, only: albocef, emisn, nld, noc, nse
 
 
       use newunit_mod, only: namelistecbilt_id, parameterschk_id
@@ -419,7 +418,6 @@ contains
                           eccf,oblf,omwebf,AMPANIR2,HPROFAN2, &
                           irunlabeloffset,iscenyear, cdrag, evfac, &
                           mag_alpha
-      NAMELIST /satfor/   isatfor,nbsatfor,nafyear,iclimflux
       NAMELIST /fluxpar/ cdrag,cwdrag,dragan,dragla,uv10rfx,uv10m, &
                          uv10rws,ndayws, uv10rwv
       ! dmr @-@ iceb0 : uv10rwv added conditionally in original
@@ -505,14 +503,6 @@ contains
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 ! tcont parameter:                                                     C
 ! solarc:     solar constant.                                          C
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-! satfor parameter:                                                    C
-! isatfor:    if (1) saves nafyear of atmospheric data to disk to be   C
-!             used to drive the ocean in uncoupled mode                C
-! nbsatfor:   first year in the integrations to start saving nafyears  C
-!             of data                                                  C
-! nafyear:    number of years of data to save                          C
-! iclimflux:  if (1) daily climatological sst and heatflux are output  C
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       iadyn    = 1
@@ -630,11 +620,6 @@ contains
       mag_alpha = 1.0
       evfac=1.0_dblp
 
-      isatfor = 0
-      nbsatfor= 0
-      nafyear = 0
-      iclimflux = 0
-
 
       read(namelistecbilt_id, NML = runatctl)
       read(namelistecbilt_id, NML = dispar)
@@ -643,7 +628,6 @@ contains
       read(namelistecbilt_id, NML = cloudpar)
       read(namelistecbilt_id, NML = forpar)
       read(namelistecbilt_id, NML = radpar)
-      read(namelistecbilt_id, NML = satfor)
       read(namelistecbilt_id, NML = fluxpar)
       read(namelistecbilt_id, NML = fluxcorw)
 
@@ -731,11 +715,6 @@ contains
       write(parameterschk_id, 900) 'iscensul =', iscensul
       write(parameterschk_id, 900) 'issulstrt=', issulstrt
       write(parameterschk_id, 910) 'bup      =', bup
-
-      write(parameterschk_id, 900) 'isatfor  =', isatfor
-      write(parameterschk_id, 900) 'nbsatfor =', nbsatfor
-      write(parameterschk_id, 900) 'nafyear  =', nafyear
-      write(parameterschk_id, 900) 'iclimflux=', iclimflux
 
       call flush(parameterschk_id)
       emisn(noc)=emisoc

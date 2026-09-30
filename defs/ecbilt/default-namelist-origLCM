@@ -90,12 +90,6 @@
 
  $end
   
- $satfor
- isatfor   = 0
- nbsatfor  = 191
- nafyear   = 10
- iclimflux = 0
- $end
  
  $fluxpar
  cdrag  = 1.4e-03
