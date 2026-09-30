@@ -75,8 +75,6 @@
       use to_and_from_clio, only: get_indexes_C, get_lonlat_C
 !dmr --- Added the testing of to_from_CLIO
 
-      USE OCEAN2COUPL_COM, only: initseaalb
-
 !! END_OF_USE_SECTION
 
 
@@ -155,7 +153,6 @@ c~       dimension irn(imax,8), jrn(jmax,8)
 !dmr
 #endif
       call redforc(nn99)
-      call initseaalb
 !--Zonaly uniform, time dependant forcing :
       ktvar = abs(kforc) / 100
 
