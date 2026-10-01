@@ -193,7 +193,7 @@
 #endif
 
       USE COUPL2OCEAN_COM, only: ec_co2oc
-      USE OCEAN2COUPL_COM, only: ec_oc2co
+      use ocean_coupling_mod, only: ocean_bc_update, ocean_is_replay
 
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
@@ -560,8 +560,8 @@ cnb try to call first to have the date t update bathy
          call progress(progname,i-1,ntotday-1)
 #endif
 
-!     mab: oceanic data to coupler
-        call ec_oc2co(i)
+!     mab: oceanic data to coupler (or replayed ocean state, see ocean_coupling_mod)
+        call ocean_bc_update(i)
 
 !*** PERTURBATION OF THE ATMOSPHERE VIA tsurfn
 #if ( PERTATMOS == 1 )
@@ -631,6 +631,7 @@ c~ #endif
 #if ( OCYCC == 1 )
                result_function_call = ocycc_step(iday,imonth)              ! step in ocycc daily: get the bio and non-bio!
 #endif
+              if (.not. ocean_is_replay()) then                            ! replay: ocean prescribed, CLIO not stepped
                call ec_co2oc(i)                                            ! transmit fields coupler to ocean
 
 c~ [UNUSED] // code from LLN's iLOVECLIM 1.3 ... maintain ?
@@ -643,6 +644,7 @@ c~             !this is just to write the scal file
 c~ #endif
 
                call clio(i,irunlabel+iyear,ntotday)                        ! integrate ocean-seaice for a daily step (physics)
+              endif ! not replay
 
 !#if ( OCYCC == 1 )
 !               call sync_lcm_ocycc(1)                                      ! synchronisation des champs lcm (CLIO) -> OCYCC
@@ -966,10 +968,12 @@ c~ #endif /* LONG_SED_RUN*/
 !vm#endif
 
 #if ( CLIO_OUT_NEWGEN == 1 )
+      if (.not. ocean_is_replay()) then
        call daily_io_nc()
        if (mod(i,360*nbyearsinfile).eq.0) then
           CALL grid_io_reinit(i/(360*nbyearsinfile))
        endif
+      endif
 #endif
 
 

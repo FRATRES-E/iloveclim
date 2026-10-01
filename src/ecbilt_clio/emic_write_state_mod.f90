@@ -110,6 +110,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 #endif
 
       use newunit_mod, only: newunit_id, wisocpl_restart_id
+      use ocean_coupling_mod, only: ocean_is_replay
       use landmodel_mod, only: ec_wrendland
       use ecbilt0_mod, only: ec_wrenddyn, ec_wrendphy
 
@@ -396,6 +397,9 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 ! dmr  Write section: CLIO OCEAN MODEL
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+!dmr --- replay mode: CLIO is not stepped, no CLIO restart to save (see ocean_coupling_mod)
+            if (.not. ocean_is_replay()) then
+
 !dmr physical ocean variables: just need to move a file ...
 
             file_move='res'//chf//'.om'
@@ -542,6 +546,8 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 #endif /* on IFORT_USAGE */
 
 #endif /* on ISOOCN */
+
+            endif ! not replay
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Write section: VECODE VEGETATION MODEL

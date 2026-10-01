@@ -36,7 +36,7 @@
 !  Nothing in this module depends on CLIO.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       USE global_constants_mod, ONLY: dblp=>dp, ip
+       USE global_constants_mod, ONLY: dblp=>dp, ip, str_len
        USE comatm,               ONLY: nlat, nlon
 
        IMPLICIT NONE
@@ -44,12 +44,13 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   History
 ! dmr           0.1.0: split from OCEAN2COUPL_COM (ec_oc2co apply part, detseaalb, initseaalb, oc2at, ec_shine)
+! dmr           0.2.0: record / replay of ocn_bc through io_nc (ocean_bc_write, ocean_bc_read)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      CHARACTER(LEN=5), PARAMETER :: version_mod ="0.1.0"
+      CHARACTER(LEN=5), PARAMETER :: version_mod ="0.2.0"
 
       PRIVATE
-      PUBLIC :: ocean_bc_apply, oc2at, initseaalb
+      PUBLIC :: ocean_bc_apply, oc2at, initseaalb, ocean_bc_write, ocean_bc_read
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !  Ocean / sea-ice fields on the atmospheric grid (as gathered from the ocean model)
@@ -63,6 +64,17 @@
       INTEGER(ip), PARAMETER, PUBLIC :: ibc_hsn = 5   ! snow thickness on sea ice            [m]
 
       REAL(dblp), DIMENSION(nlat,nlon,n_ocn_bc), PUBLIC :: ocn_bc
+
+      CHARACTER(LEN=8), DIMENSION(n_ocn_bc), PARAMETER :: ocn_bc_name  = [ CHARACTER(LEN=8) ::                         &
+                                                           "sst", "sic", "tsi", "hic", "hsn" ]
+      CHARACTER(LEN=8), DIMENSION(n_ocn_bc), PARAMETER :: ocn_bc_unit  = [ CHARACTER(LEN=8) ::                         &
+                                                           "K", "1", "K", "m", "m" ]
+      CHARACTER(LEN=40),DIMENSION(n_ocn_bc), PARAMETER :: ocn_bc_lname = [ CHARACTER(LEN=40) ::                        &
+                                                           "sea surface temperature",                                  &
+                                                           "sea-ice fraction of the ocean part",                       &
+                                                           "sea-ice surface temperature",                              &
+                                                           "sea-ice thickness",                                        &
+                                                           "snow thickness on sea ice" ]
 
       CONTAINS
 
@@ -358,6 +370,132 @@
       return
       end
 
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!  Record / replay of ocn_bc (ROADMAP step 0a)
+!
+!  Indexing: kday = absolute model day of the ocean state, i.e. number of days completed since model year 0
+!            (the state gathered at the start of day i of a run labelled irunlabel is kday = irunlabel*360 + i-1).
+!  One NetCDF file per model year: <path>ocean_bc_<year>.nc, record = day of year (1..360) of that state.
+!  Fields are stored exactly (NF90_DOUBLE), as (lon, lat, time).
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      SUBROUTINE ocean_bc_write(kday, path)
+
+        use io_nc_mod,            only: IO_NC_FILE, IO_NC_AXIS, IO_GRID_VAR
+        use global_constants_mod, only: rad_to_deg
+        use comatm,               only: phi
+
+        INTEGER(ip),      INTENT(IN) :: kday
+        CHARACTER(LEN=*), INTENT(IN) :: path
+
+        TYPE(IO_NC_FILE), TARGET, SAVE :: bc_file
+        TYPE(IO_NC_AXIS),         SAVE :: ax_lon, ax_lat, ax_time
+        TYPE(IO_GRID_VAR),        SAVE :: bc_var(n_ocn_bc)
+        INTEGER(ip),              SAVE :: cur_year = -HUGE(1_ip)
+
+        INTEGER(ip) :: year, irec, k, j
+        REAL(dblp)  :: lons(nlon), lats(nlat), fld(nlon,nlat)
+
+        year = ocean_bc_year(kday)
+        irec = ocean_bc_rec(kday)
+
+        if (year /= cur_year) then
+           call bc_file%init(FileName=ocean_bc_filename(path, year),                                                       &
+                             OPT_TitleFile="iLOVECLIM ocean/sea-ice boundary conditions for ECBilt (T21), record mode")
+           do j = 1, nlon
+              lons(j) = 360.0_dblp*real(j-1,dblp)/real(nlon,dblp)
+           enddo
+           lats(:) = phi(:)*rad_to_deg
+           call ax_lon%init("lon", OPT_vals_to_write1D=lons, OPT_AxisUnit="degrees_east")
+           call ax_lat%init("lat", OPT_vals_to_write1D=lats, OPT_AxisUnit="degrees_north")
+           call ax_time%init("time", OPT_AxisUnit="days since start of year (state at start of day)", OPT_isTime=.true., &
+                             OPT_calendar="360_day")
+           call ax_lon%wrte(ocean_bc_filename(path, year))
+           call ax_lat%wrte(ocean_bc_filename(path, year))
+           call ax_time%wrte(ocean_bc_filename(path, year))
+           do k = 1, n_ocn_bc
+              call bc_var(k)%init(trim(ocn_bc_name(k)), bc_file, "lon lat time", OPT_longname=trim(ocn_bc_lname(k)),    &
+                                  OPT_units=trim(ocn_bc_unit(k)))
+           enddo
+           cur_year = year
+        endif
+
+        do k = 1, n_ocn_bc
+           fld(:,:) = transpose(ocn_bc(:,:,k))
+           call bc_var(k)%wrte(fld, irec)
+        enddo
+
+      END SUBROUTINE ocean_bc_write
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      SUBROUTINE ocean_bc_read(kday, path)
+
+        use io_nc_mod,  only: IO_NC_FILE, IO_GRID_VAR
+
+        INTEGER(ip),      INTENT(IN) :: kday
+        CHARACTER(LEN=*), INTENT(IN) :: path
+
+        TYPE(IO_NC_FILE), TARGET, SAVE :: bc_file
+        TYPE(IO_GRID_VAR),        SAVE :: bc_var(n_ocn_bc)
+        INTEGER(ip),              SAVE :: cur_year = -HUGE(1_ip), cur_nrec = 0
+
+        INTEGER(ip) :: year, irec, k
+        REAL(dblp)  :: fld(nlon,nlat)
+
+        year = ocean_bc_year(kday)
+        irec = ocean_bc_rec(kday)
+
+        if (year /= cur_year) then
+           call bc_file%open(ocean_bc_filename(path, year))
+           cur_nrec = bc_file%nrec()
+           do k = 1, n_ocn_bc
+              call bc_var(k)%init(trim(ocn_bc_name(k)), bc_file, "lon lat time")
+           enddo
+           cur_year = year
+        endif
+
+        if (irec > cur_nrec) then
+           write(*,*) "ocean_bc_read: record ", irec, " not in ", trim(ocean_bc_filename(path, year)),                    &
+                      " (", cur_nrec, " records). Was the recording complete for this year?"
+           STOP 1
+        endif
+
+        do k = 1, n_ocn_bc
+           call bc_var(k)%read(fld, irec)
+           ocn_bc(:,:,k) = transpose(fld(:,:))
+        enddo
+
+      END SUBROUTINE ocean_bc_read
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      INTEGER(ip) FUNCTION ocean_bc_year(kday)
+        INTEGER(ip), INTENT(IN) :: kday
+        ocean_bc_year = (kday - modulo(kday, 360_ip)) / 360_ip        ! floor(kday/360), also for kday < 0
+      END FUNCTION ocean_bc_year
+
+      INTEGER(ip) FUNCTION ocean_bc_rec(kday)
+        INTEGER(ip), INTENT(IN) :: kday
+        ocean_bc_rec = modulo(kday, 360_ip) + 1_ip
+      END FUNCTION ocean_bc_rec
+
+      FUNCTION ocean_bc_filename(path, year) result(fname)
+        CHARACTER(LEN=*), INTENT(IN) :: path
+        INTEGER(ip),      INTENT(IN) :: year
+        CHARACTER(LEN=str_len)       :: fname
+        CHARACTER(LEN=8)             :: cyear
+        if (year >= 0) then
+           write(cyear,'(i6.6)') year
+        else
+           write(cyear,'("m",i6.6)') -year
+        endif
+        fname = trim(path)//'ocean_bc_'//trim(cyear)//'.nc'
+      END FUNCTION ocean_bc_filename
+
+
       END MODULE OCEAN_BC_MOD
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! The End of All Things (op. cit.)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

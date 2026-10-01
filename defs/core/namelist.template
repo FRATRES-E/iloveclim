@@ -8,3 +8,7 @@ iobtrop  = 1
 iobclin  = 1
 nwrskip  = @NSKIP@
 $end
+$oceanctl
+ocean_mode    = 'coupled'
+ocean_bc_path = 'outputdata/coupler/'
+$end

@@ -143,6 +143,7 @@
 #endif
 
       use file_libs, ONLY: fileDescriptor, open_f, close_f
+      use ocean_coupling_mod, only: ocean_coupling_read_nml
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...
@@ -253,6 +254,9 @@
 ! dmr --- iuo+46 == "namelist"
 ! dmr --- read the namelist data, tstepctl defined above
       read(namelist_f%id, NML = tstepctl)
+
+! dmr --- optional group oceanctl: ocean boundary conditions for the atmosphere (coupled | record | replay)
+      call ocean_coupling_read_nml(namelist_f%id)
 
       call close_f(namelist_f)
 
