@@ -193,7 +193,7 @@
 #endif
 
       USE COUPL2OCEAN_COM, only: ec_co2oc
-      use ocean_coupling_mod, only: ocean_bc_update, ocean_is_replay
+      use ocean_coupling_mod, only: ocean_bndcon_update, ocean_is_replay
 
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
@@ -561,7 +561,7 @@ cnb try to call first to have the date t update bathy
 #endif
 
 !     mab: oceanic data to coupler (or replayed ocean state, see ocean_coupling_mod)
-        call ocean_bc_update(i)
+        call ocean_bndcon_update(i)
 
 !*** PERTURBATION OF THE ATMOSPHERE VIA tsurfn
 #if ( PERTATMOS == 1 )

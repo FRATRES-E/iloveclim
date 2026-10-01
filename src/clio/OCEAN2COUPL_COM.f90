@@ -35,8 +35,8 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   History
 ! dmr           Change from 0.0.0: Created a modular version from the initial no-module legacy code
-! dmr           Change from 0.1.0: split into gather (here, CLIO -> ocn_bc on the T21 grid) and apply (ocean_bc_mod,
-! dmr                              coupler side). detseaalb, initseaalb, oc2at, ec_shine moved to ocean_bc_mod.
+! dmr           Change from 0.1.0: split into gather (here, CLIO -> ocn_bndcon on the T21 grid) and apply (ocean_bndcon_mod,
+! dmr                              coupler side). detseaalb, initseaalb, oc2at, ec_shine moved to ocean_bndcon_mod.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       CHARACTER(LEN=5), PARAMETER :: version_mod ="0.2.0"
@@ -59,17 +59,17 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       SUBROUTINE ec_oc2co(ist)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! *** communicate oceanic data to the coupler: gather (CLIO -> ocn_bc) then apply (ocn_bc -> surface state)
+! *** communicate oceanic data to the coupler: gather (CLIO -> ocn_bndcon) then apply (ocn_bndcon -> surface state)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      use ocean_bc_mod, only: ocean_bc_apply
+      use ocean_bndcon_mod, only: ocean_bndcon_apply
 
       implicit none
 
       integer ist
 
       call ec_oc2co_gather()
-      call ocean_bc_apply()
+      call ocean_bndcon_apply()
 
       return
       end
@@ -77,12 +77,12 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       SUBROUTINE ec_oc2co_gather()
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! *** interpolate the CLIO surface fields needed by the atmosphere onto the atmospheric grid (ocn_bc)
+! *** interpolate the CLIO surface fields needed by the atmosphere onto the atmospheric grid (ocn_bndcon)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 !! START_OF_USE_SECTION
 
-      use ocean_bc_mod, only: ocn_bc, ibc_sst, ibc_sic, ibc_tsi, ibc_hic, ibc_hsn, oc2at
+      use ocean_bndcon_mod, only: ocn_bndcon, BNDCON_SST, BNDCON_SIC, BNDCON_TSI, BNDCON_HIC, BNDCON_HSN, oc2at
 
 #if ( ISOOCN >= 2 )
       USE isoatm_mod, ONLY: ratio_oceanatm
@@ -113,7 +113,7 @@
           zfld(ix,jy) = scal(ix,jy,ks2,1)
         enddo
       enddo
-      call oc2at(zfld,ocn_bc(:,:,ibc_sst))
+      call oc2at(zfld,ocn_bndcon(:,:,BNDCON_SST))
 
 #if ( ISOOCN >= 2 )
 ! [NOTA] Loop here should be on the ocean part, hence owisostrt -> owisostop
@@ -139,7 +139,7 @@
           zfld(ix,jy) = 1.0-albq(ix,jy)
         enddo
       enddo
-      call oc2at(zfld,ocn_bc(:,:,ibc_sic))
+      call oc2at(zfld,ocn_bndcon(:,:,BNDCON_SIC))
 
 ! *** STI
 
@@ -148,7 +148,7 @@
           zfld(ix,jy) = ts(ix,jy)
         enddo
       enddo
-      call oc2at(zfld,ocn_bc(:,:,ibc_tsi))
+      call oc2at(zfld,ocn_bndcon(:,:,BNDCON_TSI))
 
 ! *** hic
 
@@ -157,7 +157,7 @@
           zfld(ix,jy) = hgbq(ix,jy)
         enddo
       enddo
-      call oc2at(zfld,ocn_bc(:,:,ibc_hic))
+      call oc2at(zfld,ocn_bndcon(:,:,BNDCON_HIC))
 
 ! *** hsn
 
@@ -166,7 +166,7 @@
           zfld(ix,jy) = hnbq(ix,jy)
         enddo
       enddo
-      call oc2at(zfld,ocn_bc(:,:,ibc_hsn))
+      call oc2at(zfld,ocn_bndcon(:,:,BNDCON_HSN))
 
       return
       end

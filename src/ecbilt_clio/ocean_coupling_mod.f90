@@ -1,5 +1,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!   Copyright 2026 Didier M. Roche (a.k.a. dmr)
+
+!   Copyright 2026 Didier M. Roche (a.k.a. dmr) | iLOVECLIM / FRATRES coding group
 
 !   Licensed under the Apache License, Version 2.0 (the "License");
 !   you may not use this file except in compliance with the License.
@@ -12,84 +13,95 @@
 !   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 !   See the License for the specific language governing permissions and
 !   limitations under the License.
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+!   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
 #include "choixcomposantes.h"
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      MODULE OCEAN_COUPLING_MOD
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!  How the atmosphere gets its ocean / sea-ice boundary conditions (ROADMAP step 0a).
+!      MODULE: [ocean_coupling_mod]
 !
-!  ocean_mode (namelist group oceanctl in the global "namelist" file):
-!    "coupled" : ocn_bc gathered from CLIO every day (default, historical behaviour)
-!    "record"  : as coupled, and ocn_bc is written to <ocean_bc_path>ocean_bc_<year>.nc
-!    "replay"  : ocn_bc read from <ocean_bc_path>ocean_bc_<year>.nc; CLIO is initialised (restart read)
-!                but never stepped: ec_co2oc, clio, CLIO restart files and CLIO outputs are skipped.
+!>     @brief Selects how the atmosphere gets its ocean / sea-ice boundary conditions: coupled, record or replay.
 !
-!  Acceptance: replay of a record run (same restart, same executable) gives bit-identical atmosphere and land.
-!  For now record/replay is only allowed for the standard choixcomposantes.h (and included switch headers).
+!      DESCRIPTION:
+!>     ocean_mode is read from the optional group oceanctl of the global "namelist" file (absent group = coupled):
+!!       "coupled" : ocn_bndcon gathered from CLIO every day (historical behaviour).
+!!       "record"  : as coupled, and ocn_bndcon is written to <ocean_bndcon_path>ocean_bndcon_<year>.nc.
+!!       "replay"  : ocn_bndcon read from <ocean_bndcon_path>ocean_bndcon_<year>.nc. CLIO is initialised (its restart is
+!!                   read) but never stepped: ec_co2oc, clio, the CLIO restart files and CLIO outputs are skipped.
+!!     Replay of a record run (same restart, same executable) gives bit-identical atmosphere, land and coupler restarts
+!!     (ROADMAP step 0a). For now record and replay are only allowed with the standard flag headers.
+!!
+!!     Contract (public entry points):
+!!       ocean_coupling_read_nml(nml_unit) : read oceanctl from the open global namelist, check the configuration.
+!!       ocean_bndcon_update(ist)          : set the ocean / sea-ice surface state for day ist (0 = initialisation).
+!!       ocean_is_replay()                 : .true. in replay mode (callers skip the ocean model and its files).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       USE global_constants_mod, ONLY: dblp=>dp, ip, str_len
+      module ocean_coupling_mod
 
-       IMPLICIT NONE
+        use global_constants_mod, only: str_len, ip, dblp=>dp
+
+        implicit none
+
+        private
+
+        public :: ocean_coupling_read_nml, ocean_bndcon_update, ocean_is_replay
+
+! dmr&clo   Values of ocean_mode.
+        character(len=*), parameter :: OCEAN_MODE_COUPLED = "coupled"   ! ocean model stepped, nothing saved
+        character(len=*), parameter :: OCEAN_MODE_RECORD  = "record"    ! ocean model stepped, ocn_bndcon saved
+        character(len=*), parameter :: OCEAN_MODE_REPLAY  = "replay"    ! ocean model frozen, ocn_bndcon read
+
+! dmr&clo   Namelist oceanctl and derived state.
+        character(len=8)       :: ocean_mode        = OCEAN_MODE_COUPLED      ! coupled | record | replay
+        character(len=str_len) :: ocean_bndcon_path = "outputdata/coupler/"   ! directory of the ocean_bndcon files
+        logical                :: is_record         = .false.
+        logical                :: is_replay         = .false.
+
+        real(dblp), dimension(:,:,:), allocatable :: ocn_bndcon_init   ! record mode: init gather, checked against day 1
+
+        namelist /oceanctl/ ocean_mode, ocean_bndcon_path
+
+      contains
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   History
-! dmr           0.1.0: created (coupled | record | replay)
+! dmr&clo   Namelist reading and configuration checks.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-      CHARACTER(LEN=5), PARAMETER :: version_mod ="0.1.0"
+        subroutine ocean_coupling_read_nml(nml_unit)
 
-      PRIVATE
-      PUBLIC :: ocean_coupling_read_nml, ocean_bc_update, ocean_is_replay
+          use, intrinsic :: iso_fortran_env, only: iostat_end
 
-      CHARACTER(LEN=8)      , SAVE :: ocean_mode    = "coupled"
-      CHARACTER(LEN=str_len), SAVE :: ocean_bc_path = "outputdata/coupler/"
+          integer(ip), intent(in) :: nml_unit   !< global namelist file, open and positioned after tstepctl
 
-      LOGICAL, SAVE :: is_record = .false., is_replay = .false.
+          integer(ip) :: ios
+          logical     :: std_config
 
-      REAL(dblp), DIMENSION(:,:,:), ALLOCATABLE, SAVE :: ocn_bc_init   ! record mode: init gather, checked against day 1
+          read(nml_unit, nml=oceanctl, iostat=ios)
+          if (ios == iostat_end) then
+            ocean_mode = OCEAN_MODE_COUPLED
+          else if (ios /= 0) then
+            write(*,*) "ocean_coupling: error reading namelist group oceanctl, iostat = ", ios
+            stop 1
+          endif
 
-      NAMELIST /oceanctl/ ocean_mode, ocean_bc_path
+          select case (trim(ocean_mode))
+          case (OCEAN_MODE_COUPLED)
+          case (OCEAN_MODE_RECORD)
+            is_record = .true.
+          case (OCEAN_MODE_REPLAY)
+            is_replay = .true.
+          case default
+            write(*,*) "ocean_coupling: unknown ocean_mode = ", trim(ocean_mode), " (coupled | record | replay)"
+            stop 1
+          end select
 
-      CONTAINS
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE ocean_coupling_read_nml(nml_unit)
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!  Read the optional group oceanctl from the (already open, positioned) global namelist file.
-!  Absent group => coupled.
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-        use, intrinsic :: iso_fortran_env, only: iostat_end
-
-        INTEGER, INTENT(IN) :: nml_unit
-        INTEGER             :: ios
-        LOGICAL             :: std_config
-
-        read(nml_unit, NML=oceanctl, iostat=ios)
-        if (ios == iostat_end) then
-           ocean_mode = "coupled"
-        else if (ios /= 0) then
-           write(*,*) "ocean_coupling: error reading namelist group oceanctl, iostat = ", ios
-           STOP 1
-        endif
-
-        select case (trim(ocean_mode))
-        case ("coupled")
-        case ("record")
-           is_record = .true.
-        case ("replay")
-           is_replay = .true.
-        case default
-           write(*,*) "ocean_coupling: unknown ocean_mode = ", trim(ocean_mode), " (coupled | record | replay)"
-           STOP 1
-        end select
-
-        std_config = .true.
+          ! record / replay are restricted to the standard choixcomposantes.h, clio_switches.h, BC_switches.h and
+          ! additional_flags.h: any flag differing from its standard value aborts (strict on purpose, for now)
+          std_config = .true.
 #if ( VEGGIE != 0 || FAST_OUTPUT != 0 || CLM_INDICES != 0 || BIOM_GEN != 0 || FROG_EXP != 0 || CARAIB != 0 || \
       CARAIB_FORC_W != 0 || HOURLY_RAD != 0 || OXYISO != 0 || D17ISO != 0 || WAXISO != 0 || VEG_LUH != 0 || \
       IMSK != 1 || COMATM != 1 || ROUTEAU != 1 || EVAPTRS != 1 || EVAPSI != 1 || CLAQUIN != 0 || F_PALAEO != 0 || \
@@ -106,66 +118,71 @@
       CTRL_FIRST_ITER != 0 || L_TEST != 3 || NIT_RAP != 0 || TIDEMIX != 0 || XSLOP != 1 || I_COUPL != 1 || \
       forced_winds != 0 || NC_BERG != 0 || NC_IMSK != 0 || CFC != 0 || NUDGING != 0 || PERTATMOS != 0 || \
       PERTOCEAN != 0 || LONG_SED_RUN != 0 || DOWN_T2M != 0 )
-        std_config = .false.
+          std_config = .false.
 #endif
-        if ((is_record .or. is_replay) .and. .not. std_config) then
-           write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), " is only allowed for now with the standard"
-           write(*,*) "                choixcomposantes.h / clio_switches.h / BC_switches.h / additional_flags.h"
-           STOP 1
-        endif
 
-        if (is_record) then
-           call execute_command_line("mkdir -p "//trim(ocean_bc_path))
-        endif
+          if ((is_record .or. is_replay) .and. .not. std_config) then
+            write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), " is only allowed for now with the standard"
+            write(*,*) "                choixcomposantes.h / clio_switches.h / BC_switches.h / additional_flags.h"
+            stop 1
+          endif
 
-        write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), "   ocean_bc_path = ", trim(ocean_bc_path)
+          if (is_record) then
+            call execute_command_line("mkdir -p "//trim(ocean_bndcon_path))
+          endif
 
-      END SUBROUTINE ocean_coupling_read_nml
+          write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), "   ocean_bndcon_path = ", trim(ocean_bndcon_path)
+
+        end subroutine ocean_coupling_read_nml
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE ocean_bc_update(ist)
+! dmr&clo   Daily ocean / sea-ice surface state for the atmosphere (replaces the direct calls to ec_oc2co).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!  Set the atmospheric ocean / sea-ice surface state for day ist of this run (ist = 0: initialisation call).
-!  Replaces the direct calls to ec_oc2co in the coupler initialisation and in the daily loop.
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-        use comemic_mod,     only: irunlabel
-        use ocean_bc_mod,    only: ocn_bc, ocean_bc_apply, ocean_bc_write, ocean_bc_read
-        use OCEAN2COUPL_COM, only: ec_oc2co_gather
 
-        INTEGER, INTENT(IN) :: ist
-        INTEGER(ip)         :: kday
+        subroutine ocean_bndcon_update(ist)
 
-        ! state at the start of day max(ist,1): the init call and day 1 see the same (restart) ocean state
-        kday = int(irunlabel,ip)*360_ip + int(max(ist-1,0),ip)
+          use comemic_mod,      only: irunlabel
+          use ocean_bndcon_mod, only: ocn_bndcon, ocean_bndcon_apply, ocean_bndcon_write, ocean_bndcon_read
+          use OCEAN2COUPL_COM,  only: ec_oc2co_gather
 
-        if (is_replay) then
-           call ocean_bc_read(kday, ocean_bc_path)
-        else
-           call ec_oc2co_gather()
-           if (is_record) then
+          integer(ip), intent(in) :: ist   !< day of this run [1..ntotday], 0 for the initialisation call
+
+          integer(ip) :: kday
+
+          ! state at the start of day max(ist,1): the initialisation call and day 1 see the same (restart) ocean state
+          kday = int(irunlabel,ip)*360_ip + max(ist-1_ip, 0_ip)
+
+          if (is_replay) then
+            call ocean_bndcon_read(kday, ocean_bndcon_path)
+          else
+            call ec_oc2co_gather()
+            if (is_record) then
               if (ist == 0) then
-                 ocn_bc_init = ocn_bc
+                ocn_bndcon_init = ocn_bndcon
               else if (ist == 1) then
-                 if (any(ocn_bc /= ocn_bc_init)) then
-                    write(*,*) "ocean_coupling: ocean state changed between initialisation and day 1;"
-                    write(*,*) "                replay cannot reproduce this run. Stopping."
-                    STOP 1
-                 endif
-                 deallocate(ocn_bc_init)
+                if (any(ocn_bndcon /= ocn_bndcon_init)) then
+                  write(*,*) "ocean_coupling: ocean state changed between initialisation and day 1;"
+                  write(*,*) "                replay cannot reproduce this run. Stopping."
+                  stop 1
+                endif
+                deallocate(ocn_bndcon_init)
               endif
-              call ocean_bc_write(kday, ocean_bc_path)
-           endif
-        endif
+              call ocean_bndcon_write(kday, ocean_bndcon_path)
+            endif
+          endif
 
-        call ocean_bc_apply()
+          call ocean_bndcon_apply()
 
-      END SUBROUTINE ocean_bc_update
+        end subroutine ocean_bndcon_update
+
+        function ocean_is_replay() result(replay)
+          logical :: replay
+
+          replay = is_replay
+        end function ocean_is_replay
+
+      end module ocean_coupling_mod
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      LOGICAL FUNCTION ocean_is_replay()
-        ocean_is_replay = is_replay
-      END FUNCTION ocean_is_replay
-
-      END MODULE OCEAN_COUPLING_MOD
+!      The End of All Things (op. cit.)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! The End of All Things (op. cit.)

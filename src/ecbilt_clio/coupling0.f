@@ -36,8 +36,8 @@
 
       use global_constants_mod, only: dblp=>dp, ip
 
-      use ocean_bc_mod, only: initseaalb
-      use ocean_coupling_mod, only: ocean_bc_update
+      use ocean_bndcon_mod, only: initseaalb
+      use ocean_coupling_mod, only: ocean_bndcon_update
 
       use landmodel_mod, only: ec_lae2co, ec_la2co
       use atmphys_mod, only: ec_fluxes
@@ -334,7 +334,7 @@ c~ #endif
       call ec_la2co
       call ec_lae2co
       call initseaalb
-      call ocean_bc_update(0)
+      call ocean_bndcon_update(0)
       call ec_at2co
 
 ! *** initialisation of fluxes
