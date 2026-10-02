@@ -39,13 +39,15 @@
 !!       ocean_bndcon_apply()           : ocn_bndcon -> fractn, tsurfn, albesn over ocean and sea ice.
 !!       ocean_bndcon_write(kday,path)  : append ocn_bndcon as the state of absolute day kday (record mode).
 !!       ocean_bndcon_read(kday,path)   : set ocn_bndcon to the recorded state of absolute day kday (replay mode).
+!!       ocean_bndcon_read_clim(kday,file) : set ocn_bndcon to the day of year of kday in a 360-record file (climatology).
 !!       initseaalb()                   : read the seasonal zonal-mean open-sea albedos (albsea).
 !!       oc2at(fin,fout)                : interpolate a field from the CLIO grid to the atmospheric grid.
 !!
 !>     Files: one NetCDF file per model year, <path>ocean_bndcon_<year>.nc (year as i6.6, "m" prefix if negative),
 !!     record = day of year (1..360) of the ocean state, fields stored exactly as double, layout (lon, lat, time).
 !!     kday is the number of days completed since model year 0: the state gathered at the start of day i of a run
-!!     labelled irunlabel is kday = irunlabel*360 + i-1.
+!!     labelled irunlabel is kday = irunlabel*360 + i-1. A climatology file has the same layout with exactly 360 records;
+!!     it is produced outside the model (e.g. NCO nces over complete recorded years) and its year is ignored.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module ocean_bndcon_mod
@@ -59,7 +61,7 @@
 
         public :: ocn_bndcon
         public :: N_OCN_BNDCON, BNDCON_SST, BNDCON_SIC, BNDCON_TSI, BNDCON_HIC, BNDCON_HSN
-        public :: ocean_bndcon_apply, ocean_bndcon_write, ocean_bndcon_read, initseaalb, oc2at
+        public :: ocean_bndcon_apply, ocean_bndcon_write, ocean_bndcon_read, ocean_bndcon_read_clim, initseaalb, oc2at
 
 ! dmr&clo   Fields of ocn_bndcon (third index).
         integer(ip), parameter :: N_OCN_BNDCON = 5   ! number of fields
@@ -196,34 +198,60 @@
 
         subroutine ocean_bndcon_read(kday, path)
 
-          use io_nc_mod, only: IO_NC_FILE, IO_GRID_VAR
-
           integer(ip),      intent(in) :: kday   !< absolute day of the ocean state
           character(len=*), intent(in) :: path   !< directory, with trailing "/"
 
+          call obnd_read_record(obnd_filename(path, obnd_year(kday)), obnd_rec(kday), .false.)
+
+        end subroutine ocean_bndcon_read
+
+        subroutine ocean_bndcon_read_clim(kday, fname)
+
+          integer(ip),      intent(in) :: kday    !< absolute day; only its day of year is used
+          character(len=*), intent(in) :: fname   !< climatology file (360 records)
+
+          call obnd_read_record(fname, obnd_rec(kday), .true.)
+
+        end subroutine ocean_bndcon_read_clim
+
+        subroutine obnd_read_record(fname, irec, is_clim)
+
+          use io_nc_mod, only: IO_NC_FILE, IO_GRID_VAR
+
+          character(len=*), intent(in) :: fname     !< file to read from
+          integer(ip),      intent(in) :: irec      !< record (day of year)
+          logical,          intent(in) :: is_clim   !< .true.: the file must hold exactly DAYS_PER_YEAR records
+
           type(IO_NC_FILE), target, save :: bndcon_file
           type(IO_GRID_VAR),        save :: bndcon_var(N_OCN_BNDCON)
-          integer(ip),              save :: cur_year = -huge(1_ip)
-          integer(ip),              save :: cur_nrec = 0
+          character(len=str_len),   save :: cur_fname = ""
+          integer(ip),              save :: cur_nrec  = 0
 
-          integer(ip) :: year, irec, k
+          integer(ip) :: k
           real(dblp)  :: fld(nlon,nlat)
 
-          year = obnd_year(kday)
-          irec = obnd_rec(kday)
-
-          if (year /= cur_year) then
-            call bndcon_file%open(obnd_filename(path, year))
+          if (fname /= cur_fname) then
+            call bndcon_file%open(fname)
+            ! grid check: nrec reads the length of any named dimension
+            if (bndcon_file%nrec("lon") /= nlon .or. bndcon_file%nrec("lat") /= nlat) then
+              write(*,*) "ocean_bndcon_read: ", trim(fname), " is not on the ", nlon, " x ", nlat, " (lon, lat) grid"
+              stop 1
+            endif
             cur_nrec = bndcon_file%nrec()
+            if (is_clim .and. cur_nrec /= DAYS_PER_YEAR) then
+              write(*,*) "ocean_bndcon_read: climatology file ", trim(fname), " has ", cur_nrec, " records instead of ",   &
+                         DAYS_PER_YEAR
+              stop 1
+            endif
             do k = 1, N_OCN_BNDCON
               call bndcon_var(k)%init(trim(BNDCON_NAME(k)), bndcon_file, "lon lat time")
             enddo
-            cur_year = year
+            cur_fname = fname
           endif
 
           if (irec > cur_nrec) then
-            write(*,*) "ocean_bndcon_read: record ", irec, " not in ", trim(obnd_filename(path, year)),                   &
-                       " (", cur_nrec, " records). Was the recording complete for this year?"
+            write(*,*) "ocean_bndcon_read: record ", irec, " not in ", trim(fname), " (", cur_nrec, " records).",        &
+                       " Was the recording complete for this year?"
             stop 1
           endif
 
@@ -232,7 +260,7 @@
             ocn_bndcon(:,:,k) = transpose(fld(:,:))
           enddo
 
-        end subroutine ocean_bndcon_read
+        end subroutine obnd_read_record
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Indexing helpers: model year and record (day of year) of an absolute day, file name of a year.

@@ -23,21 +23,25 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [ocean_coupling_mod]
 !
-!>     @brief Selects how the atmosphere gets its ocean / sea-ice boundary conditions: coupled, record or replay.
+!>     @brief Selects how the atmosphere gets its ocean / sea-ice boundary conditions: coupled, record, replay or
+!!            climatology.
 !
 !      DESCRIPTION:
 !>     ocean_mode is read from the optional group oceanctl of the global "namelist" file (absent group = coupled):
 !!       "coupled" : ocn_bndcon gathered from CLIO every day (historical behaviour).
 !!       "record"  : as coupled, and ocn_bndcon is written to <ocean_bndcon_path>ocean_bndcon_<year>.nc.
-!!       "replay"  : ocn_bndcon read from <ocean_bndcon_path>ocean_bndcon_<year>.nc. CLIO is initialised (its restart is
-!!                   read) but never stepped: ec_co2oc, clio, the CLIO restart files and CLIO outputs are skipped.
+!!       "replay"  : ocn_bndcon read from <ocean_bndcon_path>ocean_bndcon_<year>.nc.
+!!       "climatology" : ocn_bndcon read from the single 360-record file ocean_bndcon_file, cycled by day of year.
+!!     In replay and climatology the ocean is prescribed: CLIO is initialised (its restart is read) but never stepped,
+!!     and ec_co2oc, clio, the CLIO restart files and CLIO outputs are skipped.
 !!     Replay of a record run (same restart, same executable) gives bit-identical atmosphere, land and coupler restarts
-!!     (ROADMAP step 0a). For now record and replay are only allowed with the standard flag headers.
+!!     (ROADMAP step 0a). Climatology is ROADMAP step 0b. For now all modes other than coupled are only allowed with
+!!     the standard flag headers.
 !!
 !!     Contract (public entry points):
 !!       ocean_coupling_read_nml(nml_unit) : read oceanctl from the open global namelist, check the configuration.
 !!       ocean_bndcon_update(ist)          : set the ocean / sea-ice surface state for day ist (0 = initialisation).
-!!       ocean_is_replay()                 : .true. in replay mode (callers skip the ocean model and its files).
+!!       ocean_is_prescribed()             : .true. in replay and climatology (callers skip the ocean model and its files).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module ocean_coupling_mod
@@ -48,22 +52,25 @@
 
         private
 
-        public :: ocean_coupling_read_nml, ocean_bndcon_update, ocean_is_replay
+        public :: ocean_coupling_read_nml, ocean_bndcon_update, ocean_is_prescribed
 
 ! dmr&clo   Values of ocean_mode.
         character(len=*), parameter :: OCEAN_MODE_COUPLED = "coupled"   ! ocean model stepped, nothing saved
         character(len=*), parameter :: OCEAN_MODE_RECORD  = "record"    ! ocean model stepped, ocn_bndcon saved
-        character(len=*), parameter :: OCEAN_MODE_REPLAY  = "replay"    ! ocean model frozen, ocn_bndcon read
+        character(len=*), parameter :: OCEAN_MODE_REPLAY  = "replay"        ! ocean model frozen, recorded ocn_bndcon read
+        character(len=*), parameter :: OCEAN_MODE_CLIM    = "climatology"   ! ocean model frozen, 360-day ocn_bndcon cycled
 
 ! dmr&clo   Namelist oceanctl and derived state.
-        character(len=8)       :: ocean_mode        = OCEAN_MODE_COUPLED      ! coupled | record | replay
-        character(len=str_len) :: ocean_bndcon_path = "outputdata/coupler/"   ! directory of the ocean_bndcon files
+        character(len=16)      :: ocean_mode        = OCEAN_MODE_COUPLED      ! coupled | record | replay | climatology
+        character(len=str_len) :: ocean_bndcon_path = "outputdata/coupler/"   ! directory of the yearly ocean_bndcon files
+        character(len=str_len) :: ocean_bndcon_file = ""                      ! climatology: the 360-record file
         logical                :: is_record         = .false.
         logical                :: is_replay         = .false.
+        logical                :: is_clim           = .false.
 
         real(dblp), dimension(:,:,:), allocatable :: ocn_bndcon_init   ! record mode: init gather, checked against day 1
 
-        namelist /oceanctl/ ocean_mode, ocean_bndcon_path
+        namelist /oceanctl/ ocean_mode, ocean_bndcon_path, ocean_bndcon_file
 
       contains
 
@@ -94,8 +101,14 @@
             is_record = .true.
           case (OCEAN_MODE_REPLAY)
             is_replay = .true.
+          case (OCEAN_MODE_CLIM)
+            is_clim = .true.
+            if (len_trim(ocean_bndcon_file) == 0) then
+              write(*,*) "ocean_coupling: ocean_mode = climatology needs ocean_bndcon_file in namelist group oceanctl"
+              stop 1
+            endif
           case default
-            write(*,*) "ocean_coupling: unknown ocean_mode = ", trim(ocean_mode), " (coupled | record | replay)"
+            write(*,*) "ocean_coupling: unknown ocean_mode = ", trim(ocean_mode), " (coupled | record | replay | climatology)"
             stop 1
           end select
 
@@ -121,7 +134,7 @@
           std_config = .false.
 #endif
 
-          if ((is_record .or. is_replay) .and. .not. std_config) then
+          if ((is_record .or. is_replay .or. is_clim) .and. .not. std_config) then
             write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), " is only allowed for now with the standard"
             write(*,*) "                choixcomposantes.h / clio_switches.h / BC_switches.h / additional_flags.h"
             stop 1
@@ -131,7 +144,11 @@
             call execute_command_line("mkdir -p "//trim(ocean_bndcon_path))
           endif
 
-          write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), "   ocean_bndcon_path = ", trim(ocean_bndcon_path)
+          if (is_clim) then
+            write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), "   ocean_bndcon_file = ", trim(ocean_bndcon_file)
+          else
+            write(*,*) "ocean_coupling: ocean_mode = ", trim(ocean_mode), "   ocean_bndcon_path = ", trim(ocean_bndcon_path)
+          endif
 
         end subroutine ocean_coupling_read_nml
 
@@ -142,7 +159,8 @@
         subroutine ocean_bndcon_update(ist)
 
           use comemic_mod,      only: irunlabel
-          use ocean_bndcon_mod, only: ocn_bndcon, ocean_bndcon_apply, ocean_bndcon_write, ocean_bndcon_read
+          use ocean_bndcon_mod, only: ocn_bndcon, ocean_bndcon_apply, ocean_bndcon_write, ocean_bndcon_read,          &
+                                      ocean_bndcon_read_clim
           use OCEAN2COUPL_COM,  only: ec_oc2co_gather
 
           integer(ip), intent(in) :: ist   !< day of this run [1..ntotday], 0 for the initialisation call
@@ -154,6 +172,8 @@
 
           if (is_replay) then
             call ocean_bndcon_read(kday, ocean_bndcon_path)
+          else if (is_clim) then
+            call ocean_bndcon_read_clim(kday, ocean_bndcon_file)
           else
             call ec_oc2co_gather()
             if (is_record) then
@@ -175,11 +195,11 @@
 
         end subroutine ocean_bndcon_update
 
-        function ocean_is_replay() result(replay)
-          logical :: replay
+        function ocean_is_prescribed() result(prescribed)
+          logical :: prescribed
 
-          replay = is_replay
-        end function ocean_is_replay
+          prescribed = is_replay .or. is_clim
+        end function ocean_is_prescribed
 
       end module ocean_coupling_mod
 
