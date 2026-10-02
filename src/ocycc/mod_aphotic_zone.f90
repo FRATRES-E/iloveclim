@@ -82,7 +82,8 @@
 
 #if ( OOISO == 1 )
        use iso_dioxygen_mod, ONLY: iair16, iair17, iair18
-       use iso_dioxygen_mod, ONLY: r18smow, r17smow
+       use iso_dioxygen_mod, ONLY: r18smow, r17smow 
+       use iso_dioxygen_mod, ONLY: epsilon_O2
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -494,16 +495,27 @@
             OO2_dif = 0.0
          endif
 
-         OO2(j,iair)=OO2(j,iair)+OO2_dif
+         OO2(j,iair) = OO2(j,iair) + OO2_dif
 
 #if ( OOISO == 1 )
+! ecl -- Specific safety feature on 16O, independant of the bulk
+         if ( OO2(j,iair16) <= epsilon_o2 ) then
+             OO2_dif = 0.0_dblp   ! pool 16O already critical levels: no isotopic remineralisation at this step
+         endif 
 
 #if ( RAYLEIGH == 0 )
          call compute_ISOO2_maphot(OO2_dif,OO2(j,:),OO2_flux_isoremin(:)) !TM(j) optional
          OO2(j,iair16:NISOO2) = max(0.0, OO2(j,iair16:NISOO2)+OO2_flux_isoremin(iair16:NISOO2))
 #else
          OO2_flux_isoremin(:) = Ray_reminO2(OO2_dif,OO2_before_remin, OO2(j,:)) !Tm(j) optional argument
-         OO2(j,iair16:NISOO2) = max(0.0, OO2(j,iair16:NISOO2) + OO2_flux_isoremin(iair16:NISOO2))
+ 
+         if ( any( OO2(j,iair16:NISOO2) + OO2_flux_isoremin(iair16:NISOO2) < 0.0_dblp ) ) then
+            ! Do not apply anything in this step, rather than breakin conservation
+         else
+             OO2(j,iair16:NISOO2) = OO2(j,iair16:NISOO2) + OO2_flux_isoremin(iair16:NISOO2)
+             ! Old version: 0.0 break the conservation in this case: 
+             !OO2(j,iair16:NISOO2) = max(0.0, OO2(j,iair16:NISOO2) + OO2_flux_isoremin(iair16:NISOO2))
+         endif
 #endif
 
 ! Residual --> Verification de la conservation des isotopes:

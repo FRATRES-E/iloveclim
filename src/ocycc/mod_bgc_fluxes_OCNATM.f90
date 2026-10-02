@@ -112,7 +112,7 @@
       real, dimension(LT, JT, NOC_CBR), intent(inout):: OC13             ! from marine_bio_mod      
       
       ! Used by Compute_oxnitrous_flux SUBROUTINE
-      real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: ON2O                ! from marine_bio_mod   
+      real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: ON2O   ! from marine_bio_mod   
 
       ! Used by Compute_argon_flux SUBROUTINE
       real, dimension(LT, JT, NOC_CBR), intent(inout), OPTIONAL:: OARG   ! from marine_bio_mod     
@@ -183,19 +183,9 @@ endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 !     DESCRIPTION : Function for gaz transfer velocity. 
-!     Schmitto2 is the Schmidt number for oxygen.
-!     O2_factor is the air sea transfer velocity.
+!     Schmitto2 is the Schmidt number for oxygen, and O2_factor is the air sea transfer velocity.
 !     X_conv is a constant factor to convert the piston velocity from [cm/hr] to [m/s].
-
-!     Schmidt number is calculated according Keeling et al in 1998, Eq. 12,
-!     p. 141-163 : Schmitto2 = 1638 - 81.83T + 1.483T**2 - 0.008004T**3 
-!     The temperature (T) is in degrees Celsius. 
-
-!     O2_factor (Kgo2) is calculated according Wanninkhof, 1992. 
-!     Kgo2 (cm/h) = 0.39 * uav**2 (schmitto2/660)**(-0.5) 
-!     uav (m/s) is the long term average wind speed. 
-!     0.39 is a constant adjusted to match the large-scale mass balance
-!     constraints for radiocarbon. 
+!     The temperature (T) is in degrees Celsius.  
 
         REAL(kind=dblp), INTENT(in) :: tm_cell, surf_wind
         REAL(kind=dblp), PARAMETER  :: Xconv=1._dblp/3.6e+05 
@@ -205,28 +195,15 @@ endif
         REAL(kind=dblp), parameter  :: pv = 0.251_dblp
 
         ! Schmitto2 calculation:
-        ! A) According to keeling et al. :
+        ! A) According to keeling et al. (1998), Equation 12 :
         !schmitto2=1638.0-81.83*tm_cell+1.483*tm_cell**2-0.008004*tm_cell**3 
 
         ! B) According to Wanninkhof 2014  -> A + BT + CT**2 + dT**3 + ET**4
         schmitto2 = 1920.4_dblp - 135.6_dblp*tm_cell + 5.2122_dblp*tm_cell**2 &
                    - 0.10939_dblp*tm_cell**3 + 0.00093777_dblp*tm_cell**4 
 
-        ! kg_O2 calculation : Waninkof, 2014 
+        ! kg_O2 calculation: Waninkof, 2014 (unit = cm/h) 
         kg_O2=Xconv*pv*surf_wind**2*(schmitto2/660._dblp)**(-0.5)
-
-
-! [NOTA] drm&ec ---  Other equation version found in OOISO == 0 or OOISO == 1:
-! The schimdt_O2 calculations below do not significantly change the oxygen (and
-! isotope) results. This leads to a very slight decrease in oxygens. 
-!~ # if ( OOISO == 0 )
-!~         schmitto2=1953.4-128.0*tm_cell+3.9918*tm_cell**2 -0.050091*tm_cell**3
-!~         schmitto2=1638.0-81.83*tm_cell+1.483*tm_cell**2-0.008004*tm_cell**3 
-!~         kgo2(i,n)=(0.3*ws*ws+2.5*(0.5246+ttc*(0.016256+ttc*0.00049946)))*sqrt(660./schmitto2)
-!~ # else 
-!~         schmitto2=1920.4-135.6*tm_cell+5.2122*tm_cell**2-0.10939*tm_cell**3+0.00093777*tm_cell**4
-!~         kg_O2=Xconv*0.251*surf_wind**2*(schmitto2/660._dblp)**(-0.5)
-!~ # endif
 
 
       END FUNCTION O2_transfer_velocity
@@ -235,8 +212,8 @@ endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
        SUBROUTINE Compute_oxy_flux( TM, FRICE, OO2, O2_sat_thistime, FOO2)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Cette routine sert a appliquer les flux de surface Océan-Atmosphère appliqué pour l'oxygène lorsque 
-!      le flage OOISO ==1 ou 0, WINDINCC == 0 ou 1 
+!      This routine is used to apply the Ocean-Atmosphère surface fluxes for oxygen when
+!      the flag OOISO == 1 or 0, WINDINCC == 0 or 1 
 !      vm --- New parametrization for O2, based on PISCES model
 !
 !      Auteur : J. Bendtsen
@@ -285,7 +262,7 @@ endif
 #elif ( WINDINCC == 1 )
          norm_wind = WS_OC(i,n)
 #else
-         norm_wind = wind
+         norm_wind = wind    !ec - use this one or WINDS_ERA5 please (other havn't been checked)
 #endif
 
 ! ec --- If we choose the average wind at the ocean surface: we can apply a
@@ -363,7 +340,7 @@ endif
       ! Local variable
       INTEGER(kind=ip)  :: I,N
       REAL(kind=dblp)   :: norm_wind, temp_loc, salt_loc, kg_times_Ar
-      REAL(kind=dblp), parameter :: wind=4.7 ! m/s cnb
+      REAL(kind=dblp), parameter :: wind=4.7                             ! m/s cnb
        
 
 #define LIMIT_OCEAN_TEMP 0
@@ -374,12 +351,12 @@ endif
         if (MGT(i,1,n).eq.1) then !MGT
 
 ! dmr&ec --- Different options for wind forcing of molecular oxygen exchange       
-#if ( WINDINCC == 2 )
+#if ( WINDINCC == 2 ) 
           norm_wind = fco2ex !dmr&ec - fco2ex has a strange value of 6.E-5, not coherent with wind at 4.7 m.s-1
 #elif ( WINDINCC == 1 )
          norm_wind = WS_OC(i,n)
 #else
-         norm_wind = wind
+         norm_wind = wind    !ec -- Use this one or WINDS_ERA5, please
 #endif
 
 ! ec --- If we choose the average wind at the ocean surface: we can apply a

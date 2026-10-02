@@ -112,7 +112,7 @@
        ! ecl -- GPP to NPP factor
        real(kind=dblp) :: factor_GNPP_to_NPP = 2._dblp
 
-       ! ecl -- Parameter for fractionnement during respiration
+       ! ecl -- Dimension for fractionnement during respiration
        integer, PARAMETER :: alphaR18 = 1, alphaR17 = 2
        integer, PARAMETER :: alphaR = 2
 
@@ -121,22 +121,30 @@
        PUBLIC :: GPPO2_func, O2_transfer_velocity_iso, OO2_saturation
        PUBLIC :: Ray_respO2, Ray_reminO2
 
-      ! ecl - Parameters of fractionation factor during respiration
-      real(kind=dblp), PARAMETER :: alpha18_respiration = 0.980_dblp !BEST:0.983_dblp
-      real(kind=dblp), PARAMETER :: theta_17 = 0.518_dblp !BEST:0.517_dblp
+      ! ecl -- Parameters of fractionation factor: Respiration and photosynthesis 
+      ! ecl -- NB: The BEST parameters correspond to the best combination (HLS and RMSE analysis)
+      ! ecl -- 1) Fractionation factor during respiration:
+      real(kind=dblp), PARAMETER :: alpha18_resp = 0.980_dblp    !BEST: 0.983_dblp
+      real(kind=dblp), PARAMETER :: theta_resp = 0.518_dblp      !BEST:0.517_dblp
 
-      ! ecl - Parameters of fractionation factor during photosynthesis
-      real(kind=dblp), PARAMETER :: fphoto18 = 1.0_dblp !BEST: 1.00288 
-      real(kind=dblp), PARAMETER :: theta_photo = 1.0_dblp !BEST: 0.52140
+      ! ecl -- 2) Fractionation factor during photosynthesis: 
+      real(kind=dblp), PARAMETER :: alpha18_photo = 1.0_dblp     !BEST: 1.00288 
+      real(kind=dblp), PARAMETER :: theta_photo = 1.0_dblp       !BEST: 0.52140
+
+      ! ecl -- Limitation / garde-fou
+      real(kind=dblp), PUBLIC, PARAMETER :: epsilon_o2 = 1.0e-6_dblp
+      real(kind=dblp), PARAMETER :: epsilon_f = 1.0e-6_dblp
 
 #if ( OOISO_SCEN == 1 )
-      integer, parameter :: nb_ooiso_scen= 10 !nb of lines with data
+      integer, parameter :: nb_ooiso_scen= 10                    !nb of lines with data
       real, dimension(nb_ooiso_scen,5) :: r_scenario
       integer ooiso_r_scenario_id
       PUBLIC :: read_r_ISOO2, modif_r_ISOO2
 #endif      
 
       contains
+
+
 ! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  SUBROUTINE PART >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 #if ( OOISO_SCEN == 1 )
@@ -166,11 +174,6 @@
       r18air=r_scenario(0, 2)
       r17smow=r_scenario(0, 3)
       r18smow=r_scenario(0, 4)
-      !print*, 'test ooiso r17air ', r17air
-      !print*, 'test ooiso r18air ', r18air
-      !print*, 'test ooiso r17smow ', r17smow
-      !print*, 'test ooiso r18smow ', r18smow
-
 
       rair = [1.d0, 1.d0, r17air, r18air]
       rsmow = [1.0_dblp,1.0_dblp,r17smow,r18smow]
@@ -191,11 +194,6 @@
       r18air=r_scenario(NYR, 2)
       r17smow=r_scenario(NYR, 3)
       r18smow=r_scenario(NYR, 4)
-      !print*, 'test ooiso r17air ', r17air
-      !print*, 'test ooiso r18air ', r18air
-      !print*, 'test ooiso r17smow ', r17smow
-      !print*, 'test ooiso r18smow ', r18smow
-
 
       rair = [1.d0, 1.d0, r17air, r18air]
       rsmow = [1.0_dblp,1.0_dblp,r17smow,r18smow]
@@ -265,9 +263,7 @@
 
 
 ! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  FUNCTIONS PART >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-
-! Functions required for the compute_ISOO2_mbiodyn subroutine (Without Rayleigh) ---------------------------------------------------
+! A) Functions required for the compute_ISOO2_mbiodyn subroutine (Without Rayleigh) ------------------------------------------------
 !===================================================================================================================================
       function GPPO2_func(NPPO2) result(GPP_O2)
 !===================================================================================================================================
@@ -275,7 +271,7 @@
 !     DESCRIPTION : GPPO2_func describes the gross primary production of oxygen.
 !     Input variable : - NPPO2: the net primary production of oxygen.
 !                      - factor: to be adjust according to oxygen production.
-!                      - fphoto : fractionation during photosynthesis.
+!                      - alpha_photo : fractionation during photosynthesis.
 !                      - theta_photo : fractionation between 17 and 18 during photosynthesis
 !                      - r18smow and r17smow: refer to the smow reference std for oxygen 17 and 18 conversaly.
 !                      - Rsum_iso_smow : sum of relative isotope abundances according to rsmow. 
@@ -283,16 +279,13 @@
 
        real(kind=dblp), intent(in)         :: NPPO2           ! [umolO2/kg]
        real(kind=dblp), dimension(nairiso) :: GPP_O2
-       real(kind=dblp)                     :: fphoto17
+       real(kind=dblp)                     :: alpha17_photo
 
-       fphoto17 = fphoto18**theta_photo
+       alpha17_photo = alpha18_photo**theta_photo
 
        GPP_O2(iair) = factor_GNPP_to_NPP*NPPO2
-
-       GPP_O2(iair17) = fphoto17 * rsmow(iair17) * GPP_O2(iair) / Rsum_iso_smow
-
-       GPP_O2(iair18) = fphoto18 * rsmow(iair18) * GPP_O2(iair) / Rsum_iso_smow
-
+       GPP_O2(iair17) = alpha17_photo * rsmow(iair17) * GPP_O2(iair) / Rsum_iso_smow
+       GPP_O2(iair18) = alpha18_photo * rsmow(iair18) * GPP_O2(iair) / Rsum_iso_smow
        GPP_O2(iair16) = GPP_O2(iair) - GPP_O2(iair17) - GPP_O2(iair18)
          
       end function GPPO2_func
@@ -310,7 +303,7 @@
 
        real(kind=dblp), intent(in), optional :: watTemp
        real(kind=dblp), dimension(alphaR)    :: aresp
-       real(kind=dblp) :: theta_O2 ! diff integration between 17O et 18O
+       real(kind=dblp)                       :: theta_O2 ! diff integration between 17O et 18O
 
 
       if (present(watTemp)) then 
@@ -318,8 +311,8 @@
        theta_O2 = (2.1*10**(-4))*watTemp+0.5054_dblp
  
       else 
-       aresp(alphaR18) = alpha18_respiration
-       theta_O2 = theta_17
+       aresp(alphaR18) = alpha18_resp
+       theta_O2 = theta_resp
       endif 
        
       aresp(alphaR17) = aresp(alphaR18)**theta_O2
@@ -476,7 +469,7 @@
 
 
 
-! Rayleigh's fonctions ------------------------------------------------------------------------------------------------------------
+! B) Rayleigh's fonctions ----------------------------------------------------------------------------------------------------------
 !===================================================================================================================================
       FUNCTION Ray_respO2(GPPO2,NCP,OO2_before,OO2_cell,waterTemp) result(consum_O2)
 !===================================================================================================================================
@@ -518,23 +511,26 @@
        OO2_interm = OO2_before + GPPO2 
 
        ! Time (t) = Rayleigh -----------------------------------------------------------------
-    
        ! 1) Calculation of f after t-1 : f_oxy = O2 restant / O2 init
        ! with  OO2_cell: Oxy tot in the cell after prod + resp
        consum_O2(iair) = GPPO2 - NCP
        O2t = OO2_interm - consum_O2(iair)
-       f_oxy = O2t / OO2_interm
 
-       if ( f_oxy > 1.0) then 
-         WRITE(*,*) "RAYLEIGH FAIT N IMPORTE QUOI !!!"
-!         WRITE(*,*) "R intermediaire", R18_interm, R17_interm
-!         WRITE(*,*) "f_oxy", f_oxy
-!         WRITE(*,*) "R out", R18_out, R17_out
-!         WRITE(*,*) "O estimé", O16t, O17t, O18t
-!         WRITE(*,*) "conso", consum_O2(iair16), consum_O2(iair17), consum_O2(iair18)
-!         WRITE(*,*) "GPP,NCP", GPPO2, NCP
-         f_oxy = 1.0_dblp
-       endif 
+       ! -- Rayleigh guard -> protects both the division and the sign --
+       if (OO2_interm <= epsilon_o2) then
+         f_oxy = 1.0_dblp ! Almost empty: no further fractionation possible
+       else
+
+         if (O2t < 0.0_dblp) then
+           WRITE(*,*) "OVERSHOOT (resp): O2t<0", O2t, OO2_interm
+           O2t = 0.0_dblp
+         endif
+
+         f_oxy = O2t / OO2_interm
+         if (f_oxy > 1.0_dblp) f_oxy = 1.0_dblp
+         if (f_oxy <= 0.0_dblp) f_oxy = epsilon_f  
+       endif
+
 
        ! 2) Isotopic ratio calculated according to f_oxy. 
        if (present(waterTemp)) then 
@@ -547,14 +543,13 @@
        R17_out = R17_interm * f_oxy**(a_resp(alphaR17)-1.0)
 
        ! 3) Concentration final : OO2 avec -> O2_restant = 16O+17O+18O = 16O * (1+R17 + R18)
-       !O16t = OO2_cell(iair) / ( 1 + R17_out + R18_out)
        O16t = O2t / ( 1 + R17_out + R18_out)
        O18t = R18_out * O16t
        O17t = R17_out * O16t
 
        ! 4) Respiration flux
-       consum_O2(iair17) = ABS(OO2_cell(iair17) - O17t) 
-       consum_O2(iair18) = ABS(OO2_cell(iair18) - O18t) 
+       consum_O2(iair17) = OO2_cell(iair17) - O17t 
+       consum_O2(iair18) = OO2_cell(iair18) - O18t 
        consum_O2(iair16) = consum_O2(iair) - consum_O2(iair17) - consum_O2(iair18)
 
 
@@ -588,7 +583,6 @@
        real(kind=dblp), dimension(nairiso)             :: remin_oxy     
 
        REAL(kind=dblp), dimension(alphaR) ::  a_resp
-       REAL(kind=dblp) ::  OO2_before_resp
        REAL(kind=dblp) ::  f_remin, R18_init, R17_init
        REAL(kind=dblp) ::  R18_out, R17_out
        REAL(kind=dblp) ::  O16t, O17t, O18t
@@ -601,7 +595,16 @@
     
        ! 1) Calculation of f : f_oxy = O2 restant / O2 init 
        remin_oxy(iair) = OO2_dif
-       f_remin = OO2_cell(iair) / OO2_before_remin
+
+       ! -- Gardrail --
+       if (OO2_before_remin <= epsilon_o2) then
+         f_remin = 1.0_dblp   ! no fractionation possible
+       else
+         f_remin = OO2_cell(iair) / OO2_before_remin
+         if (f_remin > 1.0_dblp) f_remin = 1.0_dblp
+         if (f_remin <= 0.0_dblp) f_remin = epsilon_f   
+         WRITE(*,*) "f_remin", f_remin
+       endif
 
        ! 2) Isotopic ratio calculated according to f_oxy. 
        if (present(waterTemp)) then 
@@ -618,21 +621,10 @@
        O18t = R18_out * O16t
        O17t = R17_out * O16t
 
-       ! 4) Respiration flux
-       remin_oxy(iair17) = - (ABS(OO2_cell(iair17) - O17t)) !Keep remin negative 
-       remin_oxy(iair18) = - (ABS(OO2_cell(iair18) - O18t)) 
+       ! 4) Respiration flux: NEW
+       remin_oxy(iair17) = - (OO2_cell(iair17) - O17t) !Keep remin negative 
+       remin_oxy(iair18) = - (OO2_cell(iair18) - O18t)
        remin_oxy(iair16) = remin_oxy(iair) - remin_oxy(iair17) - remin_oxy(iair18)
-
-
-       if ( f_remin > 1.0 ) then 
-         WRITE(*,*) "RAYREMIN FAIT N IMPORTE QUOI !!!"
-!         WRITE(*,*) "R init maphot", R18_init, R17_init
-!         WRITE(*,*) "f_remin maphot", f_remin
-!         WRITE(*,*) "R out maphot", R18_out, R17_out
-!         WRITE(*,*) "O estimé maphot", O16t, O17t, O18t
-!         WRITE(*,*) "remin", remin_oxy(iair16), remin_oxy(iair17), remin_oxy(iair18)
-         f_remin = 1.0_dblp
-       endif 
 
       END FUNCTION Ray_reminO2
 
@@ -650,8 +642,8 @@
 !     [NOTA]dmr&ec : This is written assuming that the flux associated can be computed as:
 !                          FOO2 = kgO2*(1-FRICE(i,n))*O2_dif*SQRO2(i,n)
 
-!     [NOTA] ec : if ( OO2 > O2_sat) then flux ocean to atm  
-!                 if (OO2 < O2_sat) donc flux atm to océan
+!     [NOTA] ec : if ( OO2 > O2_sat) => then flux ocean to atm  
+!                 if (OO2 < O2_sat) =>then flux atm to océan
 
 !     Input variable : - tm_cell: temperature of the cell
 !                      - alpha_eq : equilibrium fractionation -> according to Benson & Krause, 1980 
