@@ -144,6 +144,7 @@
 
       use file_libs, ONLY: fileDescriptor, open_f, close_f
       use ocean_coupling_mod, only: ocean_coupling_read_nml
+      use io_nc_mod, only: io_nc_read_ncmeta
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...
@@ -257,6 +258,9 @@
 
 ! dmr --- optional group oceanctl: ocean boundary conditions for the atmosphere (coupled | record | replay)
       call ocean_coupling_read_nml(namelist_f%id)
+
+! dmr&clo --- optional group ncmeta: global attributes (institution, author, source) of the netCDF files written by io_nc
+      call io_nc_read_ncmeta(namelist_f%id)
 
       call close_f(namelist_f)
 

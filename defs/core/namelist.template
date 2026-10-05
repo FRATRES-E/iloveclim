@@ -13,3 +13,8 @@ ocean_mode        = 'coupled'
 ocean_bndcon_path = 'outputdata/coupler/'
 ocean_bndcon_file = ''
 $end
+$ncmeta
+institution = '@NC_INSTITUTION@'
+author      = '@NC_AUTHOR@'
+source      = '@NC_SOURCE@'
+$end

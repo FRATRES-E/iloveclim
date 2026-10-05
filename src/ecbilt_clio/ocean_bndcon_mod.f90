@@ -44,7 +44,8 @@
 !!       oc2at(fin,fout)                : interpolate a field from the CLIO grid to the atmospheric grid.
 !!
 !>     Files: one NetCDF file per model year, <path>ocean_bndcon_<year>.nc (year as i6.6, "m" prefix if negative),
-!!     record = day of year (1..360) of the ocean state, fields stored exactly as double, layout (lon, lat, time).
+!!     record = day of year (1..360) of the ocean state, fields stored exactly as double, layout (lon, lat, time),
+!!     CF-1.8 metadata; time coordinate = kday in "days since 1600-01-01 00:00:00" (360_day; 1600 is a dummy origin).
 !!     kday is the number of days completed since model year 0: the state gathered at the start of day i of a run
 !!     labelled irunlabel is kday = irunlabel*360 + i-1. A climatology file has the same layout with exactly 360 records;
 !!     it is produced outside the model (e.g. NCO nces over complete recorded years) and its year is ignored.
@@ -71,7 +72,7 @@
         integer(ip), parameter :: BNDCON_HIC   = 4   ! sea-ice thickness                    [m]
         integer(ip), parameter :: BNDCON_HSN   = 5   ! snow thickness on sea ice            [m]
 
-! dmr&clo   NetCDF names, units and long names of the fields, in the order above.
+! dmr&clo   NetCDF names, units, long names, CF standard names (table v95) and cell methods of the fields, in order.
         character(len=8),  dimension(N_OCN_BNDCON), parameter :: BNDCON_NAME  = [ character(len=8) ::                   &
                                                                   "sst", "sic", "tsi", "hic", "hsn" ]
         character(len=8),  dimension(N_OCN_BNDCON), parameter :: BNDCON_UNIT  = [ character(len=8) ::                   &
@@ -82,9 +83,23 @@
                                                                   "sea-ice surface temperature",                        &
                                                                   "sea-ice thickness",                                  &
                                                                   "snow thickness on sea ice" ]
+        character(len=32), dimension(N_OCN_BNDCON), parameter :: BNDCON_STDNAME = [ character(len=32) ::                &
+                                                                  "sea_surface_temperature",                            &
+                                                                  "sea_ice_area_fraction",                              &
+                                                                  "sea_ice_surface_temperature",                        &
+                                                                  "sea_ice_thickness",                                  &
+                                                                  "surface_snow_thickness" ]
+        ! CF: without cell_methods a quantity applies to the whole grid box; CLIO ts, hgbq, hnbq are per ice-covered area
+        character(len=32), dimension(N_OCN_BNDCON), parameter :: BNDCON_CELLMETH = [ character(len=32) ::               &
+                                                                  "area: mean where sea",                               &
+                                                                  "area: mean where sea",                               &
+                                                                  "area: mean where sea_ice",                           &
+                                                                  "area: mean where sea_ice",                           &
+                                                                  "area: mean where sea_ice" ]
 
         integer(ip),       parameter :: DAYS_PER_YEAR = 360                     ! 360-day model calendar
         character(len=*),  parameter :: BNDCON_FILE_ROOT = "ocean_bndcon_"      ! file name: <path><root><year>.nc
+        character(len=*),  parameter :: BNDCON_TIME_UNITS = "days since 1600-01-01 00:00:00"   ! time value = kday
 
 ! dmr&clo   The ocean / sea-ice state on the atmospheric grid, as gathered from the ocean model or replayed.
         real(dblp), dimension(nlat,nlon,N_OCN_BNDCON) :: ocn_bndcon
@@ -162,6 +177,7 @@
 
           integer(ip)            :: year, irec, k, j
           real(dblp)             :: lons(nlon), lats(nlat), fld(nlon,nlat)
+          real(dblp)             :: lon_edges(nlon+1), lat_edges(nlat+1), lon_bnds(2,nlon), lat_bnds(2,nlat)
           character(len=str_len) :: fname
 
           year = obnd_year(kday)
@@ -175,23 +191,43 @@
               lons(j) = 360.0_dblp*real(j-1,dblp)/real(nlon,dblp)
             enddo
             lats(:) = phi(:)*rad_to_deg
-            call ax_lon%init("lon", OPT_vals_to_write1D=lons, OPT_AxisUnit="degrees_east")
-            call ax_lat%init("lat", OPT_vals_to_write1D=lats, OPT_AxisUnit="degrees_north")
-            call ax_time%init("time", OPT_AxisUnit="days since start of year (state at start of day)",                    &
-                              OPT_isTime=.true., OPT_calendar="360_day")
+
+            ! cell bounds computed as in atmoutp0: mid-points, end cells extrapolated by half a spacing
+            do j = 2, nlat
+              lat_edges(j) = lats(j-1) - (lats(j-1) - lats(j))/2.0_dblp
+            enddo
+            lat_edges(1)      = lats(1) - (lat_edges(3) - lat_edges(2))/2.0_dblp
+            lat_edges(nlat+1) = lats(nlat) + (lat_edges(nlat) - lat_edges(nlat-1))/2.0_dblp
+            do j = 2, nlon
+              lon_edges(j) = lons(j-1) - (lons(j-1) - lons(j))/2.0_dblp
+            enddo
+            lon_edges(1)      = lons(1) - (lon_edges(3) - lon_edges(2))/2.0_dblp
+            lon_edges(nlon+1) = lons(nlon) + (lon_edges(nlon) - lon_edges(nlon-1))/2.0_dblp
+            lat_bnds(1,:) = lat_edges(1:nlat)
+            lat_bnds(2,:) = lat_edges(2:nlat+1)
+            lon_bnds(1,:) = lon_edges(1:nlon)
+            lon_bnds(2,:) = lon_edges(2:nlon+1)
+
+            call ax_lon%init("lon", OPT_vals_to_write1D=lons, OPT_AxisUnit="degrees_east", OPT_LongName="longitude",     &
+                             OPT_StdName="longitude", OPT_Axis="X", OPT_bounds=lon_bnds)
+            call ax_lat%init("lat", OPT_vals_to_write1D=lats, OPT_AxisUnit="degrees_north", OPT_LongName="latitude",     &
+                             OPT_StdName="latitude", OPT_Axis="Y", OPT_bounds=lat_bnds)
+            call ax_time%init("time", OPT_AxisUnit=BNDCON_TIME_UNITS, OPT_isTime=.true., OPT_calendar="360_day",         &
+                              OPT_LongName="time of the ocean state (start of day)", OPT_StdName="time", OPT_Axis="T")
             call ax_lon%wrte(fname)
             call ax_lat%wrte(fname)
             call ax_time%wrte(fname)
             do k = 1, N_OCN_BNDCON
               call bndcon_var(k)%init(trim(BNDCON_NAME(k)), bndcon_file, "lon lat time",                                  &
-                                      OPT_longname=trim(BNDCON_LNAME(k)), OPT_units=trim(BNDCON_UNIT(k)))
+                                      OPT_longname=trim(BNDCON_LNAME(k)), OPT_stdname=trim(BNDCON_STDNAME(k)),           &
+                                      OPT_units=trim(BNDCON_UNIT(k)), OPT_cellmethods=trim(BNDCON_CELLMETH(k)))
             enddo
             cur_year = year
           endif
 
           do k = 1, N_OCN_BNDCON
             fld(:,:) = transpose(ocn_bndcon(:,:,k))
-            call bndcon_var(k)%wrte(fld, irec)
+            call bndcon_var(k)%wrte(fld, irec, OPT_TimeValue=real(kday,dblp))
           enddo
 
         end subroutine ocean_bndcon_write

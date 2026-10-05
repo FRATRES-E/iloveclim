@@ -10,8 +10,15 @@
 # externe (namelist.template), en substituant les trois variables du run.
 #
 # Le template est un fichier INERTE et lisible (contenu stable) ; le hook n'y
-# injecte que ce qui varie : num_years, start_year, NSKIP. Séparation nette
+# injecte que ce qui varie : num_years, start_year, NSKIP, et les métadonnées
+# netCDF du groupe ncmeta (institution, author, source). Séparation nette
 # entre le "quoi" (template) et le "comment" (ce hook).
+#
+# Métadonnées netCDF (groupe ncmeta, global attributes CF des fichiers io_nc) :
+#   @NC_INSTITUTION@ <- ${ILOVECLIM_INSTITUTION:-NotSet}  (réglé à l'installation)
+#   @NC_AUTHOR@      <- ${USER:-${LOGNAME:-unknown}}
+#   @NC_SOURCE@      <- "iLOVECLIM " + git describe --tags --always --dirty sur
+#                       emic_dir ("unknown" si emic_dir n'est pas un dépôt git)
 #
 # Contrat : reçoit
 #   $1 = run_dir
@@ -20,6 +27,14 @@
 # Le template est cherché à côté du cache (copié là par le générateur) ; à défaut
 # dans le répertoire source de la composante.
 # Retourne 0 si succès, non-zéro sinon (template ou variable manquant => arrêt).
+# _core_nml_str : protège une chaîne libre pour l'insérer entre apostrophes
+# dans un namelist Fortran ('  -> '') puis comme remplacement sed (\ & |).
+_core_nml_str() {
+    local v=$1
+    v=${v//\'/\'\'}
+    printf '%s' "$v" | sed -e 's/[\\&|]/\\&/g'
+}
+
 core_namelist() {
     local run_dir=$1
     local target_sub=$2
@@ -54,12 +69,34 @@ core_namelist() {
         fi
     done
 
+    # --- Métadonnées netCDF (texte libre) ---------------------------------------
+    local nc_version nc_institution nc_author nc_source
+
+        # --- Model version for the netCDF attribute "source" ----------------------
+    local nc_vtag nc_hash nc_dirty
+    nc_vtag=$(git -C "${emic_dir:-.}" log --format=%s 2>/dev/null | grep -m1 -oE '^v[0-9]+\.[0-9]+\.[0-9]+')
+    if [ -n "$nc_vtag" ]; then
+        nc_hash=$(git -C "${emic_dir:-.}" rev-parse --short HEAD 2>/dev/null)
+        git -C "${emic_dir:-.}" diff --quiet HEAD 2>/dev/null || nc_dirty=", dirty"
+        nc_version="${nc_vtag} (git ${nc_hash}${nc_dirty})"
+    else
+        nc_version=$(git -C "${emic_dir:-.}" describe --tags --always --dirty 2>/dev/null) || nc_version="unknown"
+        [ -z "$nc_version" ] && nc_version="unknown"
+    fi
+
+    [ -z "$nc_version" ] && nc_version="unknown"
+    nc_institution=$(_core_nml_str "${ILOVECLIM_INSTITUTION:-NotSet}")
+    nc_author=$(_core_nml_str "${USER:-${LOGNAME:-unknown}}")
+    nc_source=$(_core_nml_str "iLOVECLIM ${nc_version}")
     # --- Substituer les marqueurs et écrire le namelist -----------------------
-    # sed sur chaque marqueur. Les valeurs sont numériques (pas de caractère
-    # spécial sed attendu), mais on reste prudent sur le délimiteur.
+    # sed sur chaque marqueur. Les valeurs numériques n'ont pas de caractère
+    # spécial ; les chaînes libres sont protégées par _core_nml_str.
     sed -e "s|@NUM_YEARS@|${num_years}|g" \
         -e "s|@START_YEAR@|${start_year}|g" \
         -e "s|@NSKIP@|${NSKIP}|g" \
+        -e "s|@NC_INSTITUTION@|${nc_institution}|g" \
+        -e "s|@NC_AUTHOR@|${nc_author}|g" \
+        -e "s|@NC_SOURCE@|${nc_source}|g" \
         "$tmpl" > "$dest" || {
         echo "[core_namelist] ERROR: écriture du namelist échouée ($dest)" >&2
         return 1

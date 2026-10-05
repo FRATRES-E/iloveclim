@@ -82,11 +82,12 @@
 
           use, intrinsic :: iso_fortran_env, only: iostat_end
 
-          integer(ip), intent(in) :: nml_unit   !< global namelist file, open and positioned after tstepctl
+          integer(ip), intent(in) :: nml_unit   !< global namelist file, open
 
           integer(ip) :: ios
           logical     :: std_config
 
+          rewind(nml_unit)                       ! optional groups may come in any order
           read(nml_unit, nml=oceanctl, iostat=ios)
           if (ios == iostat_end) then
             ocean_mode = OCEAN_MODE_COUPLED
