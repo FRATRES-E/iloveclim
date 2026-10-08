@@ -18,8 +18,8 @@ FFLAGS  ?= -O2 -g -cpp -std=f2008 -Wall -Wextra -ffree-line-length-132 -fimplici
            -fconvert=big-endian -frecord-marker=4 -fcheck=all -ffpe-trap=invalid,zero,overflow
 COEF    ?= $(TOP)/inputs/ecbilt/coef.dat
 
-OBJS    := global_constants_mod.o fvt_legendre_mod.o fvt_grid_mod.o
-PROGS   := test_fvt_grid
+OBJS    := global_constants_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o
+PROGS   := test_fvt_grid test_fvt_ffsl
 
 .PHONY: all check clean
 
@@ -33,13 +33,18 @@ global_constants_mod.o: $(SRC_GC)
 
 fvt_legendre_mod.o: global_constants_mod.o
 fvt_grid_mod.o:     fvt_legendre_mod.o
+fvt_ffsl_mod.o:     fvt_grid_mod.o
 
 # the tests compare reals bitwise on purpose (exact poles, symmetry)
 test_fvt_grid: test_fvt_grid.f90 $(OBJS)
 	$(FC) $(FFLAGS) -Wno-compare-reals $(INC) $< $(OBJS) -o $@
 
+test_fvt_ffsl: test_fvt_ffsl.f90 $(OBJS)
+	$(FC) $(FFLAGS) $(INC) $< $(OBJS) -o $@
+
 check: all
 	./test_fvt_grid $(COEF)
+	./test_fvt_ffsl
 
 clean:
 	rm -f *.o *.mod $(PROGS)
