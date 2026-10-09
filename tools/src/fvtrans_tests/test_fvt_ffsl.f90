@@ -58,6 +58,7 @@
         integer(ip), parameter :: LIMS(NSCHEME)   = [FVT_LIM_NONE, FVT_LIM_MONO, FVT_LIM_POSDEF, FVT_LIM_MONO]
         character(len=8), parameter :: NAMES(NSCHEME) = ['PPM-none', 'PPM-mono', 'PPM-pdef', 'vanLeer ']
         real(dblp),  parameter :: TOL_ROUND = 1.0e-12_dblp       !< round-off tolerance (relative)
+        real(dblp),  parameter :: TOL_STEP  = 1.0e-14_dblp       !< round-off growth per substep (uniform ratio)
         real(dblp),  parameter :: TOL_NEG   = 1.0e-14_dblp       !< tolerated negative values (relative to the maximum)
 
         type(fvt_grid_t) :: g
@@ -68,6 +69,7 @@
 
         call check_edges()
         call check_rotation()
+        call check_stability()
         call check_divergent()
 
         write(*, '(a)') repeat('-', 100)
@@ -332,6 +334,36 @@
         end subroutine check_rotation
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   4b. Stability at small Courant numbers (many substeps)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        ! Regression test: PPM reconstructed on the non-uniform mu coordinate in y was unstable over the pole when the
+        ! Courant numbers per substep are small. Forcing about 60 substeps per step, the unlimited and positive-definite
+        ! schemes must not grow.
+        subroutine check_stability()
+
+          real(dblp), parameter :: OUT_SMALL = 0.05_dblp
+          real(dblp)  :: fx(NLAT, NLON), fy(0:NLAT, NLON), q(NLAT, NLON, 1), h0(NLAT, NLON)
+          integer(ip) :: is, n, ns
+          character(len=100) :: lab
+
+          write(*, '(a)') repeat('-', 100)
+          call fluxes_sbr(0.5_dblp*PI, fx, fy)
+          write(*, '(a,i0,a)') '4b. Stability: solid-body rotation alpha = pi/2, 12 days, ', &
+                               fvt_ffsl_nsub(g, fx, fy, OUT_SMALL), ' substeps per step'
+          call cell_means_bell(.false., h0)
+          do is = 1, 3, 2
+            q(:, :, 1) = h0
+            do n = 1, NSTEP
+              call fvt_ffsl_density(g, fx, fy, q, RECONS(is), LIMS(is), ns, out_max=OUT_SMALL)
+            enddo
+            write(lab, '(a,a,a)') '  ', NAMES(is), ': max|q| / max|q0| (no growth)'
+            call report(trim(lab), maxval(abs(q(:, :, 1)))/maxval(h0), 1.0_dblp)
+          enddo
+
+        end subroutine check_stability
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   5. Divergent flow: ratio mode (C') against independent densities (C)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -383,8 +415,9 @@
               call fvt_ffsl_ratio(g, fx, fy, qc, r, rec, lim, ns, limiter_ratio=limr)
               call fvt_ffsl_density(g, fx, fy, d, rec, lim, ns)
             enddo
+            ! the uniform ratio is exact in structure; round-off accumulates with the number of substeps
             write(lab, '(a,a,a)') '  ', name, " C': uniform ratio max |r - 0.7|"
-            call report(trim(lab), maxval(abs(r(:, :, 1) - R_UNIF)), TOL_ROUND)
+            call report(trim(lab), maxval(abs(r(:, :, 1) - R_UNIF)), max(TOL_ROUND, TOL_STEP*real(NSTEP*ns, dblp)))
             write(lab, '(a,a,a)') '  ', name, " C': relative carrier mass change"
             call report(trim(lab), abs(total(qc) - mc0)/mc0, TOL_ROUND)
             write(lab, '(a,a,a)') '  ', name, " C': relative tracer mass change (qc*bell)"

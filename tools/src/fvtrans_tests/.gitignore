@@ -2,3 +2,6 @@
 *.mod
 test_fvt_grid
 test_fvt_ffsl
+fvt_suite
+suite_build/
+__pycache__/

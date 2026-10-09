@@ -41,8 +41,14 @@
 !!     i.e. Lin and Rood (1996), with the inner updates in the advective form of the FV3 dynamical core (to verify)
 !!     (division by the updated volume, no subtraction of a divergence term). Exactly conservative (flux form).
 !!
-!!     Reconstruction (per 1-D sweep): PPM (Colella and Woodward 1984) on the non-uniform mu coordinate in y and
-!!     uniform in x, or piecewise linear with MC-limited slopes (van Leer). PPM limiters: none (4th-order edges,
+!!     Reconstruction (per 1-D sweep): PPM (Colella and Woodward 1984) or piecewise linear with MC-limited slopes
+!!     (van Leer), in cell-index space in both directions. In y this approximates a reconstruction in latitude: the FV
+!!     cells of a Gaussian grid are nearly uniform in latitude (adjacent widths within 21 %), whereas their widths in
+!!     mu vary by up to a factor 2.3 near the poles. The formally exact PPM on the non-uniform mu coordinate (CW84
+!!     eq. 1.6, still available in fvt_recon_1d) was found unstable in 2-D with this splitting when the Courant
+!!     numbers per step are small (ECBilt's regime): unlimited PPM blew up and positive-definite PPM lost accuracy in
+!!     the solid-body rotation over the pole, while the index-space version is stable with the same accuracy elsewhere
+!!     (fvt_suite, wiso:1c:0001). PPM limiters: none (4th-order edges,
 !!     unlimited, for convergence tests), monotone (CW84), positive-definite (own variant in the spirit of Lin 2004:
 !!     edges clipped at 0, then the parabola is moved so that its extremum sits on an edge when its interior minimum
 !!     is negative).
@@ -54,15 +60,21 @@
 !!                 fy(0,:) = fy(nlat,:) = 0 (pole faces; checked).
 !!     Zonal Courant numbers may exceed 1 (integer shift plus fractional flux, as in LR96). The step is split into
 !!     nsub equal substeps when the meridional Courant number (swept volume over upwind cell volume) exceeds
-!!     FFSL_CY_MAX, or when a 1-D sweep would remove more than FFSL_DIV_MAX of a cell's volume. Across the poles, the
-!!     y reconstruction uses the cells of the opposite meridian (j + nlon/2) as ghosts, so nlon must be even.
+!!     FFSL_CY_MAX, when a 1-D sweep would remove more than FFSL_DIV_MAX of a cell's volume, or when the volume leaving
+!!     a cell with |cx| < 1 through its four faces exceeds out_max of its volume (2-D condition for the limited schemes
+!!     to remain monotone). out_max defaults to FFSL_OUT_MAX = 1, the donor-cell bound: in the Lauritzen et al. (2012)
+!!     tests at T21 the monotone schemes then stay within the initial bounds to round-off at every step under
+!!     non-divergent flow; under their (strongly) divergent flow, ratios with monotone PPM in ratio mode show transient
+!!     excursions up to 3e-4 of the range, which vanish with out_max = 0.75 at the cost of more substeps (and more
+!!     numerical diffusion: substeps are not free for PPM, whose error is smallest near Courant number 1).
 !!
 !!     Contract (public entry points):
-!!       fvt_ffsl_density(grid,fx,fy,q,recon,limiter[,nsub])      : q(nlat,nlon,ntr) densities, updated in place.
-!!       fvt_ffsl_ratio(grid,fx,fy,qc,r,recon,limiter[,nsub][,limiter_ratio])
+!!       fvt_ffsl_density(grid,fx,fy,q,recon,limiter[,nsub][,out_max])
+!!                                                                : q(nlat,nlon,ntr) densities, updated in place.
+!!       fvt_ffsl_ratio(grid,fx,fy,qc,r,recon,limiter[,nsub][,limiter_ratio][,out_max])
 !!                                                                : carrier qc(nlat,nlon) and ratios r(nlat,nlon,nr);
 !!                                                                  optional separate limiter for the ratios.
-!!       fvt_ffsl_nsub(grid,fx,fy) result(nsub)                   : number of substeps the fluxes require.
+!!       fvt_ffsl_nsub(grid,fx,fy[,out_max]) result(nsub)         : number of substeps the fluxes require.
 !!       fvt_recon_1d(n,q,h,recon,limiter,al,ar,a6)               : 1-D reconstruction (exposed for the tests).
 !!       FVT_RECON_PPM, FVT_RECON_VL, FVT_LIM_NONE, FVT_LIM_MONO, FVT_LIM_POSDEF : option values.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -91,6 +103,8 @@
 
         real(dblp),  parameter :: FFSL_CY_MAX  = 1.0_dblp           !< max meridional Courant number per substep
         real(dblp),  parameter :: FFSL_DIV_MAX = 0.5_dblp           !< max net volume loss of a cell per 1-D sweep
+        real(dblp),  parameter :: FFSL_OUT_MAX = 1.0_dblp           !< default max outflow fraction of a cell per substep
+        integer(ip), parameter :: FFSL_NSUB_MAX = 64                !< cap on the number of substeps
         integer(ip), parameter :: FFSL_NG      = 2                  !< ghost cells on each side of a 1-D sweep
 
       contains
@@ -99,7 +113,7 @@
 ! dmr&clo   Public drivers
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        subroutine fvt_ffsl_density(grid, fx, fy, q, recon, limiter, nsub)
+        subroutine fvt_ffsl_density(grid, fx, fy, q, recon, limiter, nsub, out_max)
 
           type(fvt_grid_t),      intent(in)    :: grid
           real(dblp),            intent(in)    :: fx(:,:)       !< (nlat,nlon)   east-face volume fluxes
@@ -108,6 +122,7 @@
           integer(ip),           intent(in)    :: recon         !< FVT_RECON_*
           integer(ip),           intent(in)    :: limiter       !< FVT_LIM_* (PPM only)
           integer(ip), optional, intent(out)   :: nsub          !< substeps used
+          real(dblp),  optional, intent(in)    :: out_max       !< see fvt_ffsl_nsub
 
           real(dblp)  :: fxs(grid%nlat, grid%nlon), fys(0:grid%nlat, grid%nlon)
           integer(ip) :: ns, is, k
@@ -115,7 +130,7 @@
           call ffsl_check(grid, fx, fy, recon, limiter)
           if (size(q, 1) /= grid%nlat .or. size(q, 2) /= grid%nlon) error stop 'fvt_ffsl_density: q has the wrong shape'
 
-          ns  = fvt_ffsl_nsub(grid, fx, fy)
+          ns  = fvt_ffsl_nsub(grid, fx, fy, out_max)
           fxs = fx/real(ns, dblp)
           fys = fy/real(ns, dblp)
           do is = 1, ns
@@ -127,7 +142,7 @@
 
         end subroutine fvt_ffsl_density
 
-        subroutine fvt_ffsl_ratio(grid, fx, fy, qc, r, recon, limiter, nsub, limiter_ratio)
+        subroutine fvt_ffsl_ratio(grid, fx, fy, qc, r, recon, limiter, nsub, limiter_ratio, out_max)
 
           type(fvt_grid_t),      intent(in)    :: grid
           real(dblp),            intent(in)    :: fx(:,:)       !< (nlat,nlon)   east-face volume fluxes
@@ -138,6 +153,7 @@
           integer(ip),           intent(in)    :: limiter       !< FVT_LIM_* (PPM only), for the carrier
           integer(ip), optional, intent(out)   :: nsub          !< substeps used
           integer(ip), optional, intent(in)    :: limiter_ratio !< FVT_LIM_* for the ratios (default: limiter)
+          real(dblp),  optional, intent(in)    :: out_max       !< see fvt_ffsl_nsub
 
           real(dblp)  :: fxs(grid%nlat, grid%nlon), fys(0:grid%nlat, grid%nlon)
           integer(ip) :: ns, is, limr
@@ -151,7 +167,7 @@
           if (size(qc, 1) /= grid%nlat .or. size(qc, 2) /= grid%nlon) error stop 'fvt_ffsl_ratio: qc has the wrong shape'
           if (size(r, 1) /= grid%nlat .or. size(r, 2) /= grid%nlon) error stop 'fvt_ffsl_ratio: r has the wrong shape'
 
-          ns  = fvt_ffsl_nsub(grid, fx, fy)
+          ns  = fvt_ffsl_nsub(grid, fx, fy, out_max)
           fxs = fx/real(ns, dblp)
           fys = fy/real(ns, dblp)
           do is = 1, ns
@@ -161,15 +177,21 @@
 
         end subroutine fvt_ffsl_ratio
 
-        function fvt_ffsl_nsub(grid, fx, fy) result(nsub)
+        function fvt_ffsl_nsub(grid, fx, fy, out_max) result(nsub)
 
-          type(fvt_grid_t), intent(in) :: grid
-          real(dblp),       intent(in) :: fx(:,:)
-          real(dblp),       intent(in) :: fy(0:,:)
-          integer(ip)                  :: nsub
+          type(fvt_grid_t),     intent(in) :: grid
+          real(dblp),           intent(in) :: fx(:,:)
+          real(dblp),           intent(in) :: fy(0:,:)
+          real(dblp), optional, intent(in) :: out_max   !< max outflow fraction per substep (default FFSL_OUT_MAX)
+          integer(ip)                      :: nsub
 
-          integer(ip) :: i, j, jw
-          real(dblp)  :: cymax, divmax, c
+          integer(ip) :: i, j, jw, ns
+          real(dblp)  :: cymax, divmax, c, cx, omax
+          logical     :: ok
+
+          omax = FFSL_OUT_MAX
+          if (present(out_max)) omax = out_max
+          if (omax <= 0.0_dblp) error stop 'fvt_ffsl_nsub: out_max must be positive'
 
           cymax  = 0.0_dblp
           divmax = 0.0_dblp
@@ -191,6 +213,26 @@
             enddo
           enddo
           nsub = max(1_ip, ceiling(cymax/FFSL_CY_MAX, ip), ceiling(divmax/FFSL_DIV_MAX, ip))
+
+          ! 2-D condition for the limited schemes to stay monotone: the volume leaving a cell through its four faces in
+          ! one substep, relative to the cell volume, must not exceed omax (donor-cell bound; |cx| + |cy| for a
+          ! translation, stricter where the flow diverges). Cells moved by whole-cell zonal shifts (|cx| >= 1 per
+          ! substep, the rings near the poles) are left out: they would need tens of substeps.
+          do ns = nsub, FFSL_NSUB_MAX
+            ok = .true.
+            do j = 1, grid%nlon
+              jw = modulo(j - 2, grid%nlon) + 1
+              do i = 1, grid%nlat
+                cx = max(abs(fx(i, j)), abs(fx(i, jw)))/(grid%area(i)*real(ns, dblp))
+                if (cx >= 1.0_dblp) cycle
+                c  = (max(fx(i, j), 0.0_dblp) + max(-fx(i, jw), 0.0_dblp) + max(fy(i, j), 0.0_dblp)              &
+                      + max(-fy(i-1, j), 0.0_dblp))/(grid%area(i)*real(ns, dblp))
+                if (c > omax) ok = .false.
+              enddo
+            enddo
+            if (ok) exit
+          enddo
+          nsub = min(ns, FFSL_NSUB_MAX)
 
         end function fvt_ffsl_nsub
 
@@ -446,7 +488,8 @@
           real(dblp)  :: f, ma, mb
 
           n = g%nlat
-          call pole_extend_h(g, h)
+          ! reconstruction in cell-index space (see the module description)
+          h = 1.0_dblp
           py(0, :) = 0.0_dblp
           py(n, :) = 0.0_dblp
           do j = 1, g%nlon
@@ -526,22 +569,6 @@
           enddo
 
         end subroutine pole_extend
-
-        subroutine pole_extend_h(g, h)
-
-          type(fvt_grid_t), intent(in)  :: g
-          real(dblp),       intent(out) :: h(1-FFSL_NG:g%nlat+FFSL_NG)
-
-          integer(ip) :: n, m
-
-          n = g%nlat
-          h(1:n) = g%dmu(:)
-          do m = 1, FFSL_NG
-            h(1-m) = g%dmu(m)
-            h(n+m) = g%dmu(n+1-m)
-          enddo
-
-        end subroutine pole_extend_h
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Reconstruction
