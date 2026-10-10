@@ -20,8 +20,8 @@ FFLAGS  ?= -O2 -g -cpp -std=f2008 -Wall -Wextra -ffree-line-length-132 -fimplici
            -fconvert=big-endian -frecord-marker=4 -fcheck=all -ffpe-trap=invalid,zero,overflow
 COEF    ?= $(TOP)/inputs/ecbilt/coef.dat
 
-OBJS    := global_constants_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o
-PROGS   := test_fvt_grid test_fvt_ffsl
+OBJS    := global_constants_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o fvt_specflux_mod.o
+PROGS   := test_fvt_grid test_fvt_ffsl test_fvt_specflux
 
 # evaluation suite: optimised, no run-time checks, objects kept apart from the test build
 NCFFLAGS := $(shell nf-config --fflags 2>/dev/null)
@@ -44,6 +44,7 @@ global_constants_mod.o: $(SRC_GC)
 fvt_legendre_mod.o: global_constants_mod.o
 fvt_grid_mod.o:     fvt_legendre_mod.o
 fvt_ffsl_mod.o:     fvt_grid_mod.o
+fvt_specflux_mod.o: fvt_grid_mod.o
 
 # the tests compare reals bitwise on purpose (exact poles, symmetry)
 test_fvt_grid: test_fvt_grid.f90 $(OBJS)
@@ -52,9 +53,17 @@ test_fvt_grid: test_fvt_grid.f90 $(OBJS)
 test_fvt_ffsl: test_fvt_ffsl.f90 $(OBJS)
 	$(FC) $(FFLAGS) $(INC) $< $(OBJS) -o $@
 
+# ECBilt's NAG FFT (legacy fixed form), needed to reproduce the model transforms
+nag.o: $(TOP)/src/ecbilt/nag.f
+	$(FC) -O2 -cpp -std=legacy -w $(INC) -c $< -o $@
+
+test_fvt_specflux: test_fvt_specflux.f90 $(OBJS) nag.o
+	$(FC) $(FFLAGS) $(INC) $< $(OBJS) nag.o -o $@
+
 check: all
 	./test_fvt_grid $(COEF)
 	./test_fvt_ffsl
+	./test_fvt_specflux $(COEF)
 
 suite: fvt_suite
 

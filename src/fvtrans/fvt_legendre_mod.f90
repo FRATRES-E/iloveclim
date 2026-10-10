@@ -43,7 +43,8 @@
 !!     Contract (public entry points):
 !!       fvt_gauss_nodes(nlat,mu,w)              : Gaussian nodes (south to north) and weights (sum 2).
 !!       fvt_spec_index(ntrunc,nshm,ll)          : ECBilt spectral index tables for triangular truncation ntrunc.
-!!       fvt_legendre_eval(ntrunc,mu,p[,dpdmu])  : P(n,m) at any mu in [-1,1]; dP/dmu for |mu| < 1 only.
+!!       fvt_legendre_eval(ntrunc,mu,p[,dpdmu][,coslat]) : P(n,m) at any mu in [-1,1]; dP/dmu for |mu| < 1 only;
+!!                                                  optional accurate cos(latitude) of the points.
 !!       fvt_legendre_tables(ntrunc,nlat,pp,pd,pw): coef.dat equivalent at the nlat Gaussian latitudes.
 !!       fvt_nsh(ntrunc)                         : number of (n,m) pairs, (ntrunc+1)(ntrunc+2)/2.
 !!
@@ -171,12 +172,14 @@
 ! dmr&clo   Associated Legendre functions
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        subroutine fvt_legendre_eval(ntrunc, mu, p, dpdmu)
+        subroutine fvt_legendre_eval(ntrunc, mu, p, dpdmu, coslat)
 
           integer(ip),          intent(in)  :: ntrunc
           real(dblp),           intent(in)  :: mu(:)         !< points, sin(latitude), in [-1,1]
           real(dblp),           intent(out) :: p(:,:)        !< (size(mu), nsh) P(n,m)(mu)
           real(dblp), optional, intent(out) :: dpdmu(:,:)    !< (size(mu), nsh) dP(n,m)/dmu, requires |mu| < 1
+          real(dblp), optional, intent(in)  :: coslat(:)     !< cos(latitude) of the points, if known more
+                                                             !! accurately than sqrt((1-mu)(1+mu)) (near the poles)
 
           integer(ip) :: i, k, kdiag, m, n, npts
           real(dblp)  :: x, s, pmm, a, b, c, rn, rm
@@ -184,6 +187,9 @@
           npts = size(mu)
           if (size(p, 1) /= npts .or. size(p, 2) /= fvt_nsh(ntrunc)) error stop 'fvt_legendre_eval: p has the wrong shape'
           if (any(abs(mu) > 1.0_dblp)) error stop 'fvt_legendre_eval: |mu| > 1'
+          if (present(coslat)) then
+            if (size(coslat) /= npts) error stop 'fvt_legendre_eval: coslat has the wrong size'
+          endif
           if (present(dpdmu)) then
             if (size(dpdmu, 1) /= npts .or. size(dpdmu, 2) /= fvt_nsh(ntrunc)) &
               error stop 'fvt_legendre_eval: dpdmu has the wrong shape'
@@ -193,7 +199,11 @@
 
           do i = 1, npts
             x   = mu(i)
-            s   = sqrt((1.0_dblp - x)*(1.0_dblp + x))
+            if (present(coslat)) then
+              s = coslat(i)
+            else
+              s = sqrt((1.0_dblp - x)*(1.0_dblp + x))
+            endif
             pmm = 1.0_dblp
             k   = 0
             do m = 0, ntrunc
