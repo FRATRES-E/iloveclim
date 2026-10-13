@@ -50,6 +50,8 @@
 !!       tc_filament(g,phi,phi0,tau,lf)          : l_f(tau) in percent.
 !!       tc_mixing(g,chi,xi,lr,lu,lo)            : mixing diagnostics of the pair (cosine bells, correlated bells).
 !!       tc_total(g,phi)                         : area integral of phi over the unit sphere.
+!!       tc_winds(g,flow,alpha,t,u,v,div)        : point winds and divergence at the Gaussian grid points (for the
+!!                                                 spectral baseline, as u800 + udivg, v800 + vdivg, divg).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module fvt_testcases_mod
@@ -64,7 +66,7 @@
 
         public :: TC_PERIOD, TC_FLOW_SBR, TC_FLOW_DEFORM, TC_FLOW_DIVERGENT
         public :: TC_IC_WG_BELL, TC_IC_HILLS, TC_IC_BELLS, TC_IC_CYLINDERS, TC_IC_CORRELATED
-        public :: tc_norms_t, tc_fluxes, tc_cell_means, tc_norms, tc_filament, tc_mixing, tc_total
+        public :: tc_norms_t, tc_fluxes, tc_cell_means, tc_norms, tc_filament, tc_mixing, tc_total, tc_winds
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Module constants
@@ -224,6 +226,49 @@
           v = (2.5_dblp/TC_PERIOD)*sin(lonp)*coslat**3*cos(PI*t/TC_PERIOD)
 
         end function v_div
+
+        ! Point winds (rad/day on the unit sphere) and divergence (1/day) at the cell centres (Gaussian latitudes)
+        subroutine tc_winds(g, flow, alpha, t, u, v, div)
+
+          type(fvt_grid_t), intent(in)  :: g
+          integer(ip),      intent(in)  :: flow
+          real(dblp),       intent(in)  :: alpha       !< rotation angle (TC_FLOW_SBR only)
+          real(dblp),       intent(in)  :: t           !< time (days)
+          real(dblp),       intent(out) :: u(:,:)      !< (nlat,nlon)
+          real(dblp),       intent(out) :: v(:,:)
+          real(dblp),       intent(out) :: div(:,:)
+
+          integer(ip) :: i, j
+          real(dblp)  :: lat, lon, lonp, ct, u0
+
+          u0 = 2.0_dblp*PI/TC_PERIOD
+          ct = cos(PI*t/TC_PERIOD)
+          do j = 1, g%nlon
+            lon  = g%lon(j)
+            lonp = lon - 2.0_dblp*PI*t/TC_PERIOD
+            do i = 1, g%nlat
+              lat = g%lat(i)
+              select case (flow)
+                case (TC_FLOW_SBR)
+                  u(i, j)   = u0*(cos(lat)*cos(alpha) + sin(lat)*cos(lon)*sin(alpha))
+                  v(i, j)   = -u0*sin(lon)*sin(alpha)
+                  div(i, j) = 0.0_dblp
+                case (TC_FLOW_DEFORM)
+                  u(i, j)   = (10.0_dblp/TC_PERIOD)*sin(lonp)**2*sin(2.0_dblp*lat)*ct + u0*cos(lat)
+                  v(i, j)   = (10.0_dblp/TC_PERIOD)*sin(2.0_dblp*lonp)*cos(lat)*ct
+                  div(i, j) = 0.0_dblp
+                case (TC_FLOW_DIVERGENT)
+                  u(i, j)   = u_div(lon, lat, t)
+                  v(i, j)   = v_div(lon, cos(lat), t)
+                  ! (1/cos(lat)) (du/dlon + d(v cos(lat))/dlat), from eqs. 21-22
+                  div(i, j) = -(15.0_dblp/TC_PERIOD)*sin(lonp)*sin(lat)*cos(lat)**2*ct
+                case default
+                  error stop 'tc_winds: unknown flow'
+              end select
+            enddo
+          enddo
+
+        end subroutine tc_winds
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Initial fields

@@ -145,7 +145,8 @@
           ! nodes and weights: mu = P(1,0)/sqrt(3), w = 2 pw(:,1) since P(0,0) = 1
           call fvt_gauss_nodes(NL, mu, w)
           call report('Gaussian nodes   max |mu - pp(:,2)/sqrt(3)|', maxval(abs(mu - pp_f(:, 2)/sqrt(3.0_dblp))), 1.0e-14_dblp)
-          call report('Gaussian weights max |w - 2 pw(:,1)|', maxval(abs(w - 2.0_dblp*pw_f(:, 1))), 1.0e-14_dblp)
+          ! coef.dat carries the weights to about 1e-14 only (8.6e-15 measured): 5e-14 leaves room for other compilers
+          call report('Gaussian weights max |w - 2 pw(:,1)|', maxval(abs(w - 2.0_dblp*pw_f(:, 1))), 5.0e-14_dblp)
 
           call fvt_legendre_tables(NT, NL, pp, pd, pw)
           ! errors relative to the largest value of each function (pd reaches about 1e3 near the poles)

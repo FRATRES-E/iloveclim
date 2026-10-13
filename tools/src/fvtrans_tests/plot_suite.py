@@ -24,8 +24,10 @@ SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]
 SEQ = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
 INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 SCHEMES = ["ppm_none", "ppm_mono", "ppm_pdef", "vanleer", "pdef_mono"]
+SPECS = ["spectral", "spec_nodif"]   # current ECBilt chain (fvt_specref_mod), with and without ec_hdiff
 LABEL = {"ppm_none": "PPM unlimited", "ppm_mono": "PPM monotone", "ppm_pdef": "PPM pos.-def.",
-         "vanleer": "van Leer", "pdef_mono": "pos.-def. carrier + monotone ratios"}
+         "vanleer": "van Leer", "pdef_mono": "pos.-def. carrier + monotone ratios",
+         "spectral": "current spectral chain", "spec_nodif": "spectral chain without diffusion"}
 COLOR = dict(zip(SCHEMES, SERIES))
 CONV_RUNS = [(32, 72), (64, 144), (128, 288), (256, 576)]   # constant Courant numbers
 DLON = {32: 5.625, 64: 2.8125, 128: 1.40625, 256: 0.703125}
@@ -96,6 +98,10 @@ def read_nc(path, var):
     return lon_edges, lat_edges, np.asarray(f)
 
 
+def ncpath(outdir, case, mode, sch, nlat, nstep, timing="mid"):
+    return os.path.join(outdir, f"{case}_{mode}_{sch}_n{nlat}_s{nstep}_{timing}.nc")
+
+
 def fig_maps(outdir, nlat, nstep, case, mode, var, schemes, title, fname):
     nrow = len(schemes)
     fig, axes = plt.subplots(nrow, 3, figsize=(11, 2.15*nrow + 0.7), sharex=True, sharey=True, squeeze=False,
@@ -104,7 +110,7 @@ def fig_maps(outdir, nlat, nstep, case, mode, var, schemes, title, fname):
     under_cmap = LinearSegmentedColormap.from_list("under", [SERIES[1], SERIES[1]])
     pm = None
     for row, sch in enumerate(schemes):
-        path = os.path.join(outdir, f"{case}_{mode}_{sch}_n{nlat}_mid.nc")
+        path = ncpath(outdir, case, mode, sch, nlat, nstep)
         if not os.path.exists(path):
             continue
         lone, late, f = read_nc(path, var)
@@ -135,7 +141,7 @@ def fig_mixing(outdir, nlat, t):
                ("divergent", "ratio", "ppm_mono", "divergent, option C' (ratios to the carrier)")]
     fig, axes = plt.subplots(1, 3, figsize=(11, 3.6), sharex=True, sharey=True)
     for ax, (case, mode, sch, title) in zip(axes, configs):
-        path = os.path.join(outdir, f"{case}_{mode}_{sch}_n{nlat}_mid.nc")
+        path = ncpath(outdir, case, mode, sch, nlat, CONV_STEPS[nlat])
         if not os.path.exists(path):
             continue
         with Dataset(path) as nc:
@@ -160,6 +166,7 @@ def fig_mixing(outdir, nlat, t):
 
 
 CONV_STEPS = dict(CONV_RUNS)
+MODEL_STEPS = 576   # T21 run at model-like Courant numbers (test winds ~8x the umoisr * 800 hPa winds)
 
 
 def report(t, outdir):
@@ -173,8 +180,10 @@ def report(t, outdir):
         lines += [f"## T{ {32: 21, 64: 42, 128: 85, 256: 170}[nlat] } ({nlat} x {2*nlat}), {nstep} steps per period", ""]
         lines += ["| scheme | SBR a=0 l2 | SBR a=90 l2 | hills l2 | bells l2 | cyl. l2 | cyl. under | cyl. over | "
                   "lf(0.5) | l_r | l_u | l_o |", "|" + "---|"*12]
-        for sch in SCHEMES[:4]:
+        for sch in SCHEMES[:4] + SPECS:
             g = lambda c, tr, m, mode="density": get(t, nlat, nstep, c, mode, sch, tr, m)  # noqa: E731
+            if np.isnan(g('deform', 'hills', 'l2')) and np.isnan(g('sbr_a00', 'wg_bell', 'l2')):
+                continue
             lines.append(f"| {sch} | {g('sbr_a00','wg_bell','l2'):.3g} | {g('sbr_a90','wg_bell','l2'):.3g} | "
                          f"{g('deform','hills','l2'):.3g} | {g('deform','bells','l2'):.3g} | "
                          f"{g('deform','cylinders','l2'):.3g} | {g('deform','cylinders','trans_under'):.1e} | "
@@ -184,7 +193,7 @@ def report(t, outdir):
                   "| mode | scheme | bells l2 | cyl. under | cyl. over | corr. under | corr. over | l_r | l_u | l_o |",
                   "|" + "---|"*10]
         for mode in ("density", "ratio"):
-            for sch in SCHEMES:
+            for sch in SCHEMES + SPECS:
                 g = lambda tr, m: get(t, nlat, nstep, "divergent", mode, sch, tr, m)  # noqa: E731
                 if np.isnan(g("bells", "l2")):
                     continue
@@ -206,6 +215,30 @@ def report(t, outdir):
                      f"{g('deform','density','ppm_pdef','bells','l2'):.3g} | "
                      f"{g('deform','density','ppm_mono','cylinders','trans_under'):.1e} | "
                      f"{g('divergent','ratio','ppm_mono','cylinders','trans_over'):.1e} |")
+    # model-like Courant numbers: FV against the current spectral chain
+    for timing in ("mid", "start"):
+        g0 = get(t, 32, MODEL_STEPS, "deform", "density", "ppm_pdef", "hills", "l2", timing)
+        if np.isnan(g0):
+            continue
+        lines += ["", f"## T21, {MODEL_STEPS} steps per period (model-like Courant numbers), winds at {timing}: "
+                  "FV against the current spectral chain", "",
+                  "| scheme | SBR a=0 l2 | SBR a=90 l2 | SBR a=90 mass | hills l2 | bells l2 | cyl. over | l_o | "
+                  "div. bells l2 | div. cyl. under | div. cyl. over | div. l_o |", "|" + "---|"*12]
+        for mode, sch in (("density", "ppm_pdef"), ("density", "ppm_mono"), ("ratio", "pdef_mono"),
+                          ("density", "spectral"), ("density", "spec_nodif")):
+            g = lambda c, mo, tr, m: get(t, 32, MODEL_STEPS, c, mo, sch, tr, m, timing)  # noqa: E731
+            name = sch + (" (C')" if mode == "ratio" else "")
+            lines.append(f"| {name} | {g('sbr_a00','density','wg_bell','l2'):.3g} | "
+                         f"{g('sbr_a90','density','wg_bell','l2'):.3g} | {g('sbr_a90','density','wg_bell','mass_err'):.1e} | "
+                         f"{g('deform','density','hills','l2'):.3g} | {g('deform','density','bells','l2'):.3g} | "
+                         f"{g('deform','density','cylinders','trans_over'):.1e} | {g('deform','density','pair','lo'):.1e} | "
+                         f"{g('divergent',mode,'bells','l2'):.3g} | {g('divergent',mode,'cylinders','trans_under'):.1e} | "
+                         f"{g('divergent',mode,'cylinders','trans_over'):.1e} | {g('divergent',mode,'pair','lo'):.1e} |")
+    # runs reported as diverged (spectral baseline)
+    div = sorted({(k[0], k[1], k[2], k[3], k[5]) for k, v in t.items() if k[7] == "diverged_step"})
+    if div:
+        lines += ["", "Runs that diverged (|q| > 1e6; nlat, steps, winds, case, scheme): " +
+                  "; ".join(f"{a} {b} {c} {d} {e}" for a, b, c, d, e in div)]
     open(os.path.join(outdir, "report.md"), "w").write("\n".join(lines) + "\n")
 
 
@@ -225,6 +258,9 @@ def main():
                  f"Slotted cylinders, divergent flow, option C', T{ {32: 21, 64: 42}[nlat] }",
                  f"cylinders_div_Cp_n{nlat}.png")
         fig_mixing(outdir, nlat, t)
+    fig_maps(outdir, 32, MODEL_STEPS, "deform", "density", "cylinders", ["ppm_mono", "spectral"],
+             f"Slotted cylinders, non-divergent flow, T21, {MODEL_STEPS} steps (model-like Courant numbers)",
+             "cylinders_deform_n32_model_courant.png")
     report(t, outdir)
     print("plot_suite: figures and report.md in", outdir)
 

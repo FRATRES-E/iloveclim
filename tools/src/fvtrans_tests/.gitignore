@@ -6,3 +6,4 @@ fvt_suite
 suite_build/
 __pycache__/
 test_fvt_specflux
+test_fvt_specref

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 #-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#  Runs the FV transport evaluation suite (fvt_suite) and the plots (ROADMAP step 1.1, wiso:1c:0001).
+#  Runs the FV transport evaluation suite (fvt_suite) and the plots (ROADMAP step 1.1, wiso:1c:0001, 1d:0002).
 #
 #  Usage: ./run_suite.sh <outdir> [--full]
 #    T21 (32 x 64) with 72 steps per period (the ECBilt 4 h step), winds at mid-step and at the start of the step,
 #    T21 with 144 steps (half step), T42 with 144 and T85 with 288 steps (same Courant numbers as T21/72);
+#    T21 with 576 steps, mid and start (model-like Courant numbers: the test winds are ~8x umoisr * 800 hPa winds);
+#    the spectral baseline (current ECBilt chain) runs in every case and is reported as diverged where it blows up;
 #    --full adds T170 with 576 steps (about one hour; T85 takes about 4 min, the rest seconds).
 #  Outputs in <outdir>: summary.csv, one netCDF file per case/mode/scheme/run, figures in <outdir>/figures.
 #-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -22,7 +24,8 @@ mkdir -p "${outdir}"
 rm -f "${outdir}/summary.csv"
 make -C "${here}" suite > /dev/null
 
-runs=("32 64 72 mid" "32 64 72 start" "32 64 144 mid" "64 128 144 mid" "128 256 288 mid")
+runs=("32 64 72 mid" "32 64 72 start" "32 64 144 mid" "32 64 576 mid" "32 64 576 start" "64 128 144 mid"
+      "128 256 288 mid")
 if [ "${2:-}" = "--full" ]; then
   runs+=("256 512 576 mid")
 fi

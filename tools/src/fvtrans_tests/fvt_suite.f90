@@ -40,7 +40,9 @@
 !!          either as independent densities rho and rho*phi (option C, phi = rho*phi / rho) or as ratios to the
 !!          carrier rho (option C').
 !!     Schemes: PPM unlimited, monotone, positive-definite, van Leer; in C' also positive-definite carrier with
-!!     monotone ratios.
+!!     monotone ratios. In density mode also the spectral baseline (current ECBilt chain, fvt_specref_mod) with
+!!     tdifq = 1000 d ('spectral') and without diffusion ('spec_nodif'); it uses the point winds at the grid points and
+!!     is reported as diverged (metric diverged_step) if |q| exceeds SPEC_BLOWUP.
 !!     Outputs: outdir/summary.csv (one line per metric, appended), and one netCDF file per case, mode and scheme
 !!     with the fields at t = 0, T/2, T. Stops with exit code 1 if mass is not conserved to round-off.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -53,8 +55,9 @@
                                         FVT_LIM_NONE, FVT_LIM_MONO, FVT_LIM_POSDEF
         use fvt_testcases_mod,    only: TC_PERIOD, TC_FLOW_SBR, TC_FLOW_DEFORM, TC_FLOW_DIVERGENT, TC_IC_WG_BELL,       &
                                         TC_IC_HILLS, TC_IC_BELLS, TC_IC_CYLINDERS, TC_IC_CORRELATED, tc_norms_t,         &
-                                        tc_fluxes, tc_cell_means, tc_norms, tc_filament, tc_mixing, tc_total
+                                        tc_fluxes, tc_cell_means, tc_norms, tc_filament, tc_mixing, tc_total, tc_winds
         use fvt_ncout_mod,        only: nco_write_fields
+        use fvt_specref_mod,      only: spr_t, spr_init, spr_step
 
         implicit none
 
@@ -63,10 +66,18 @@
         integer(ip), parameter :: S_LIM(NSCHEME)   = [FVT_LIM_NONE, FVT_LIM_MONO, FVT_LIM_POSDEF, FVT_LIM_MONO, FVT_LIM_POSDEF]
         integer(ip), parameter :: S_LIMR(NSCHEME)  = [FVT_LIM_NONE, FVT_LIM_MONO, FVT_LIM_POSDEF, FVT_LIM_MONO, FVT_LIM_MONO]
         character(len=9), parameter :: S_NAME(NSCHEME) = ['ppm_none ', 'ppm_mono ', 'ppm_pdef ', 'vanleer  ', 'pdef_mono']
+        ! spectral baseline (current ECBilt chain, density mode only): with the namelist tdifq and without diffusion
+        integer(ip), parameter :: NSPEC = 2
+        character(len=10), parameter :: SPEC_NAME(NSPEC) = ['spectral  ', 'spec_nodif']
+        real(dblp),  parameter :: SPEC_TDIFQ(NSPEC) = [1000.0_dblp, 0.0_dblp]   !< days; 0 = no diffusion
+        real(dblp),  parameter :: SPEC_BLOWUP = 1.0e6_dblp                      !< |q| above which a run has diverged
+        integer(ip), parameter :: NDENS = 6
+        integer(ip), parameter :: DENS_LIST(NDENS) = [1, 2, 3, 4, NSCHEME + 1, NSCHEME + 2]  !< schemes in density mode
         integer(ip), parameter :: NTAU = 19
         real(dblp),  parameter :: TOL_MASS = 1.0e-12_dblp       !< relative mass conservation tolerance
 
         type(fvt_grid_t)       :: g
+        type(spr_t)            :: sr
         integer(ip)            :: nlat, nlon, nstep, ucsv, nfail, it
         real(dblp)             :: dt, tau(NTAU)
         logical                :: midstep
@@ -74,6 +85,7 @@
 
         call read_args()
         call fvt_grid_init(g, nlat, nlon)
+        call spr_init(sr, g)
         dt = TC_PERIOD/real(nstep, dblp)
         do it = 1, NTAU
           tau(it) = 0.10_dblp + 0.05_dblp*real(it - 1, dblp)
@@ -178,6 +190,34 @@
 
         end subroutine check_mass
 
+        ! Relative mass change as a metric; a failure for the FV schemes (conservative by construction), a metric only
+        ! for the spectral baseline (clipping and hole filling)
+        subroutine mass_metric(cas, mode, is, tracer, m, m0)
+
+          character(len=*), intent(in) :: cas
+          character(len=*), intent(in) :: mode
+          integer(ip),      intent(in) :: is
+          character(len=*), intent(in) :: tracer
+          real(dblp),       intent(in) :: m
+          real(dblp),       intent(in) :: m0
+
+          call csv(cas, mode, sname(is), tracer, 'mass_err', (m - m0)/m0)
+          if (is <= NSCHEME) call check_mass(trim(cas)//' '//trim(mode)//' '//sname(is)//' '//trim(tracer), m, m0)
+
+        end subroutine mass_metric
+
+        subroutine report_diverged(cas, mode, scheme, n)
+
+          character(len=*), intent(in) :: cas
+          character(len=*), intent(in) :: mode
+          character(len=*), intent(in) :: scheme
+          integer(ip),      intent(in) :: n
+
+          write(*, '(a,a,a,a,a,a,a,i0)') '  ', trim(cas), ' ', trim(mode), ' ', trim(scheme), ': diverged at step ', n
+          call csv(cas, mode, scheme, 'all', 'diverged_step', real(n, dblp))
+
+        end subroutine report_diverged
+
         function ncname(cas, mode, scheme) result(path)
 
           character(len=*), intent(in) :: cas
@@ -185,8 +225,8 @@
           character(len=*), intent(in) :: scheme
           character(len=str_len)       :: path
 
-          write(path, '(a,a,a,a,a,a,a,a,i0,a,a,a)') trim(outdir), '/', trim(cas), '_', trim(mode), '_', trim(scheme), &
-                                                    '_n', nlat, '_', trim(timing), '.nc'
+          write(path, '(a,a,a,a,a,a,a,a,i0,a,i0,a,a,a)') trim(outdir), '/', trim(cas), '_', trim(mode), '_',       &
+                                                        trim(scheme), '_n', nlat, '_s', nstep, '_', trim(timing), '.nc'
 
         end function ncname
 
@@ -201,6 +241,50 @@
 
         end function t_wind
 
+        ! Name of scheme is: FV schemes 1..NSCHEME, then the spectral baselines
+        function sname(is) result(name)
+
+          integer(ip), intent(in) :: is
+          character(len=10)       :: name
+
+          if (is <= NSCHEME) then
+            name = S_NAME(min(is, NSCHEME))
+          else
+            name = SPEC_NAME(is - NSCHEME)
+          endif
+
+        end function sname
+
+        ! One step of the density-mode transport of q(:,:,k) with scheme is (FV from the face fluxes, or the spectral
+        ! baseline from the point winds); ok is false if the spectral baseline has diverged
+        subroutine advance_density(is, flow, alpha, n, q, ns, ok)
+
+          integer(ip), intent(in)    :: is
+          integer(ip), intent(in)    :: flow
+          real(dblp),  intent(in)    :: alpha
+          integer(ip), intent(in)    :: n
+          real(dblp),  intent(inout) :: q(:,:,:)
+          integer(ip), intent(out)   :: ns
+          logical,     intent(out)   :: ok
+
+          real(dblp)  :: fx(nlat, nlon), fy(0:nlat, nlon), u(nlat, nlon), v(nlat, nlon), dv(nlat, nlon)
+          integer(ip) :: k
+
+          ok = .true.
+          if (is <= NSCHEME) then
+            call tc_fluxes(g, flow, alpha, t_wind(n), dt, fx, fy)
+            call fvt_ffsl_density(g, fx, fy, q, S_RECON(min(is, NSCHEME)), S_LIM(min(is, NSCHEME)), ns)
+          else
+            call tc_winds(g, flow, alpha, t_wind(n), u, v, dv)
+            do k = 1, size(q, 3)
+              call spr_step(sr, q(:, :, k), u, v, dv, dt, SPEC_TDIFQ(is - NSCHEME))
+            enddo
+            ns = 1
+            ok = all(abs(q) < SPEC_BLOWUP)
+          endif
+
+        end subroutine advance_density
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   A. Solid-body rotation
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -209,26 +293,33 @@
 
           real(dblp), parameter :: ALPHAS(3) = [0.0_dblp, 0.25_dblp*PI, 0.5_dblp*PI]
           character(len=8), parameter :: CNAME(3) = ['sbr_a00 ', 'sbr_a45 ', 'sbr_a90 ']
-          real(dblp)  :: fx(nlat, nlon), fy(0:nlat, nlon), q(nlat, nlon, 1), q0(nlat, nlon), fld(nlat, nlon, 3, 1)
-          integer(ip) :: ia, is, n, ns, nsmax
+          real(dblp)  :: q(nlat, nlon, 1), q0(nlat, nlon), fld(nlat, nlon, 3, 1)
+          integer(ip) :: ia, ii, is, n, ns, nsmax
+          logical     :: ok
 
           call tc_cell_means(g, TC_IC_WG_BELL, q0)
           do ia = 1, 3
-            do is = 1, NSCHEME - 1
+            do ii = 1, NDENS
+              is = DENS_LIST(ii)
               q(:, :, 1) = q0
               fld(:, :, 1, 1) = q0
               nsmax = 0
+              ok = .true.
               do n = 0, nstep - 1
-                call tc_fluxes(g, TC_FLOW_SBR, ALPHAS(ia), t_wind(n), dt, fx, fy)
-                call fvt_ffsl_density(g, fx, fy, q, S_RECON(is), S_LIM(is), ns)
+                call advance_density(is, TC_FLOW_SBR, ALPHAS(ia), n, q, ns, ok)
+                if (.not. ok) exit
                 nsmax = max(nsmax, ns)
                 if (n + 1 == nstep/2) fld(:, :, 2, 1) = q(:, :, 1)
               enddo
+              if (.not. ok) then
+                call report_diverged(CNAME(ia), 'density', sname(is), n)
+                cycle
+              endif
               fld(:, :, 3, 1) = q(:, :, 1)
-              call check_mass(trim(CNAME(ia))//' '//S_NAME(is), tc_total(g, q(:, :, 1)), tc_total(g, q0))
-              call csv_norms(CNAME(ia), 'density', S_NAME(is), 'wg_bell', tc_norms(g, q(:, :, 1), q0, 1.0_dblp))
-              call csv(CNAME(ia), 'density', S_NAME(is), 'wg_bell', 'nsub_max', real(nsmax, dblp))
-              call nco_write_fields(ncname(CNAME(ia), 'density', S_NAME(is)), g, ['wg_bell'], fld,                       &
+              call mass_metric(CNAME(ia), 'density', is, 'wg_bell', tc_total(g, q(:, :, 1)), tc_total(g, q0))
+              call csv_norms(CNAME(ia), 'density', sname(is), 'wg_bell', tc_norms(g, q(:, :, 1), q0, 1.0_dblp))
+              call csv(CNAME(ia), 'density', sname(is), 'wg_bell', 'nsub_max', real(nsmax, dblp))
+              call nco_write_fields(ncname(CNAME(ia), 'density', sname(is)), g, ['wg_bell'], fld,                       &
                                     [0.0_dblp, 0.5_dblp*TC_PERIOD, TC_PERIOD], 'Williamson case 1, '//trim(CNAME(ia)))
             enddo
             write(*, '(a,a)') '  done ', trim(CNAME(ia))
@@ -245,49 +336,56 @@
           integer(ip), parameter :: NT = 4
           integer(ip), parameter :: ICS(NT) = [TC_IC_HILLS, TC_IC_BELLS, TC_IC_CYLINDERS, TC_IC_CORRELATED]
           character(len=10), parameter :: TNAME(NT) = ['hills     ', 'bells     ', 'cylinders ', 'correlated']
-          real(dblp)  :: fx(nlat, nlon), fy(0:nlat, nlon), q(nlat, nlon, NT), q0(nlat, nlon, NT), fld(nlat, nlon, 3, NT)
+          real(dblp)  :: q(nlat, nlon, NT), q0(nlat, nlon, NT), fld(nlat, nlon, 3, NT)
           real(dblp)  :: lf(NTAU), lr, lu, lo, tu(NT), to(NT)
-          integer(ip) :: k, is, n, ns, nsmax
+          integer(ip) :: k, ii, is, n, ns, nsmax
+          logical     :: ok
           character(len=16) :: met
 
           do k = 1, NT
             call tc_cell_means(g, ICS(k), q0(:, :, k))
           enddo
-          do is = 1, NSCHEME - 1
+          do ii = 1, NDENS
+            is = DENS_LIST(ii)
             q = q0
             fld(:, :, 1, :) = q0
             nsmax = 0
             tu = 0.0_dblp
             to = 0.0_dblp
+            ok = .true.
             do n = 0, nstep - 1
-              call tc_fluxes(g, TC_FLOW_DEFORM, 0.0_dblp, t_wind(n), dt, fx, fy)
-              call fvt_ffsl_density(g, fx, fy, q, S_RECON(is), S_LIM(is), ns)
+              call advance_density(is, TC_FLOW_DEFORM, 0.0_dblp, n, q, ns, ok)
+              if (.not. ok) exit
               nsmax = max(nsmax, ns)
               if (n + 1 == nstep/2) fld(:, :, 2, :) = q
               call track_bounds(q, q0, tu, to)
             enddo
+            if (.not. ok) then
+              call report_diverged('deform', 'density', sname(is), n)
+              cycle
+            endif
             fld(:, :, 3, :) = q
             do k = 1, NT
-              call check_mass('deform '//S_NAME(is)//' '//TNAME(k), tc_total(g, q(:, :, k)), tc_total(g, q0(:, :, k)))
-              call csv_norms('deform', 'density', S_NAME(is), TNAME(k),                                              &
+              call mass_metric('deform', 'density', is, TNAME(k), tc_total(g, q(:, :, k)), tc_total(g, q0(:, :, k)))
+              call csv_norms('deform', 'density', sname(is), TNAME(k),                                              &
                              tc_norms(g, q(:, :, k), q0(:, :, k), maxval(q0(:, :, k)) - minval(q0(:, :, k))))
-              call csv('deform', 'density', S_NAME(is), TNAME(k), 'trans_under', tu(k))
-              call csv('deform', 'density', S_NAME(is), TNAME(k), 'trans_over', to(k))
+              call csv('deform', 'density', sname(is), TNAME(k), 'trans_under', tu(k))
+              call csv('deform', 'density', sname(is), TNAME(k), 'trans_over', to(k))
             enddo
-            call csv('deform', 'density', S_NAME(is), 'all', 'nsub_max', real(nsmax, dblp))
+            call csv('deform', 'density', sname(is), 'all', 'nsub_max', real(nsmax, dblp))
             ! filaments (cosine bells) and mixing at T/2
             call tc_filament(g, fld(:, :, 2, 2), q0(:, :, 2), tau, lf)
             do k = 1, NTAU
               write(met, '(a,f4.2)') 'lf_', tau(k)
-              call csv('deform', 'density', S_NAME(is), 'bells', trim(met), lf(k))
+              call csv('deform', 'density', sname(is), 'bells', trim(met), lf(k))
             enddo
             call tc_mixing(g, fld(:, :, 2, 2), fld(:, :, 2, 4), lr, lu, lo)
-            call csv('deform', 'density', S_NAME(is), 'pair', 'lr', lr)
-            call csv('deform', 'density', S_NAME(is), 'pair', 'lu', lu)
-            call csv('deform', 'density', S_NAME(is), 'pair', 'lo', lo)
-            call nco_write_fields(ncname('deform', 'density', S_NAME(is)), g, TNAME, fld,                             &
+            call csv('deform', 'density', sname(is), 'pair', 'lr', lr)
+            call csv('deform', 'density', sname(is), 'pair', 'lu', lu)
+            call csv('deform', 'density', sname(is), 'pair', 'lo', lo)
+            call nco_write_fields(ncname('deform', 'density', sname(is)), g, TNAME, fld,                             &
                                   [0.0_dblp, 0.5_dblp*TC_PERIOD, TC_PERIOD], 'Lauritzen et al. 2012, non-divergent flow')
-            write(*, '(a,a)') '  done deform ', trim(S_NAME(is))
+            write(*, '(a,a)') '  done deform ', trim(sname(is))
           enddo
 
         end subroutine case_deform
@@ -305,7 +403,8 @@
           real(dblp)  :: phi0(nlat, nlon, NT), d(nlat, nlon, NT+1), qc(nlat, nlon), r(nlat, nlon, NT)
           real(dblp)  :: fld(nlat, nlon, 3, NT+1), m0(NT+1), rho0(nlat, nlon), lr, lu, lo
           real(dblp)  :: phit(nlat, nlon, NT+1), tu(NT+1), to(NT+1)
-          integer(ip) :: k, is, n, ns, nsmax, imode
+          integer(ip) :: k, ii, is, n, ns, nsmax, imode, nloop
+          logical     :: ok
           character(len=7) :: mode
 
           do k = 1, NT
@@ -318,9 +417,12 @@
           enddo
 
           do imode = 1, 2
-            do is = 1, NSCHEME
-              ! the pdef carrier with monotone ratios exists in ratio mode only
-              if (imode == 1 .and. is == NSCHEME) cycle
+            ! density mode: FV schemes and spectral baselines; ratio mode: FV schemes, incl. pdef carrier + mono ratios
+            nloop = NSCHEME
+            if (imode == 1) nloop = NDENS
+            do ii = 1, nloop
+              is = ii
+              if (imode == 1) is = DENS_LIST(ii)
               if (imode == 1) then
                 mode = 'density'
                 d(:, :, 1)  = rho0
@@ -335,11 +437,13 @@
               nsmax = 0
               tu = 0.0_dblp
               to = 0.0_dblp
+              ok = .true.
               do n = 0, nstep - 1
-                call tc_fluxes(g, TC_FLOW_DIVERGENT, 0.0_dblp, t_wind(n), dt, fx, fy)
                 if (imode == 1) then
-                  call fvt_ffsl_density(g, fx, fy, d, S_RECON(is), S_LIM(is), ns)
+                  call advance_density(is, TC_FLOW_DIVERGENT, 0.0_dblp, n, d, ns, ok)
+                  if (.not. ok) exit
                 else
+                  call tc_fluxes(g, TC_FLOW_DIVERGENT, 0.0_dblp, t_wind(n), dt, fx, fy)
                   call fvt_ffsl_ratio(g, fx, fy, qc, r, S_RECON(is), S_LIM(is), ns, limiter_ratio=S_LIMR(is))
                 endif
                 nsmax = max(nsmax, ns)
@@ -347,34 +451,37 @@
                 call store_div(imode, d, qc, r, phit)
                 call track_bounds(phit(:, :, 2:), fld(:, :, 1, 2:), tu(2:), to(2:))
               enddo
+              if (.not. ok) then
+                call report_diverged('divergent', mode, sname(is), n)
+                cycle
+              endif
               call store_div(imode, d, qc, r, fld(:, :, 3, :))
               ! conservation of rho and of rho*phi
               do k = 1, NT + 1
                 if (k == 1) then
-                  call check_mass('divergent '//trim(mode)//' '//S_NAME(is)//' rho', tc_total(g, fld(:, :, 3, 1)), m0(1))
+                  call mass_metric('divergent', mode, is, TNAME(k), tc_total(g, fld(:, :, 3, 1)), m0(1))
                 else
-                  call check_mass('divergent '//trim(mode)//' '//S_NAME(is)//' '//TNAME(k),                          &
-                                  tc_total(g, fld(:, :, 3, 1)*fld(:, :, 3, k)), m0(k))
+                  call mass_metric('divergent', mode, is, TNAME(k), tc_total(g, fld(:, :, 3, 1)*fld(:, :, 3, k)), m0(k))
                 endif
               enddo
               do k = 1, NT + 1
-                call csv_norms('divergent', mode, S_NAME(is), TNAME(k),                                              &
+                call csv_norms('divergent', mode, sname(is), TNAME(k),                                              &
                                tc_norms(g, fld(:, :, 3, k), fld(:, :, 1, k),                                         &
                                         max(maxval(fld(:, :, 1, k)) - minval(fld(:, :, 1, k)), 1.0_dblp)))
               enddo
               do k = 2, NT + 1
-                call csv('divergent', mode, S_NAME(is), TNAME(k), 'trans_under', tu(k))
-                call csv('divergent', mode, S_NAME(is), TNAME(k), 'trans_over', to(k))
+                call csv('divergent', mode, sname(is), TNAME(k), 'trans_under', tu(k))
+                call csv('divergent', mode, sname(is), TNAME(k), 'trans_over', to(k))
               enddo
-              call csv('divergent', mode, S_NAME(is), 'all', 'nsub_max', real(nsmax, dblp))
+              call csv('divergent', mode, sname(is), 'all', 'nsub_max', real(nsmax, dblp))
               call tc_mixing(g, fld(:, :, 2, 2), fld(:, :, 2, 4), lr, lu, lo)
-              call csv('divergent', mode, S_NAME(is), 'pair', 'lr', lr)
-              call csv('divergent', mode, S_NAME(is), 'pair', 'lu', lu)
-              call csv('divergent', mode, S_NAME(is), 'pair', 'lo', lo)
-              call nco_write_fields(ncname('divergent', mode, S_NAME(is)), g, TNAME, fld,                             &
+              call csv('divergent', mode, sname(is), 'pair', 'lr', lr)
+              call csv('divergent', mode, sname(is), 'pair', 'lu', lu)
+              call csv('divergent', mode, sname(is), 'pair', 'lo', lo)
+              call nco_write_fields(ncname('divergent', mode, sname(is)), g, TNAME, fld,                             &
                                     [0.0_dblp, 0.5_dblp*TC_PERIOD, TC_PERIOD],                                       &
                                     'Lauritzen et al. 2012, divergent flow, mixing ratios ('//trim(mode)//' mode)')
-              write(*, '(a,a,a,a)') '  done divergent ', trim(mode), ' ', trim(S_NAME(is))
+              write(*, '(a,a,a,a)') '  done divergent ', trim(mode), ' ', trim(sname(is))
             enddo
           enddo
 
