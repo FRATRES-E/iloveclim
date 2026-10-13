@@ -16,7 +16,8 @@ description  = "ECBilt atmosphere model"
 activated_by = "ATMOS"          # variable de composante (ATMOS=ecbilt)
 
 # Sources : raccourci répertoire => toutes les sources Fortran usuelles.
-sources = ["src/ecbilt"]
+# src/fvtrans : transport volumes finis (ROADMAP D20), utilisé par atm_fvmois_mod (wiso:1e:0001).
+sources = ["src/ecbilt", "src/fvtrans"]
 
 # --- Données strictes -------------------------------------------------------
 # Les sous-chemins (swrpar/..., artiforc/...) localisent la SOURCE ; la copie

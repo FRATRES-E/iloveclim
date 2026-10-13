@@ -31,6 +31,7 @@ contains
       use comemic_mod, only: fini
       use atmphys_mod, only: ec_iatmphys
       use ecbilt0_mod, only: ec_atmstate
+      use atm_fvmois_mod, only: atm_fvmois_init     ! dmr&clo wiso:1e:0001
       
 !~ #if ( ISOATM >= 1 )
 !~       use comsurf_mod, only: fractoc
@@ -172,6 +173,8 @@ contains
       call ec_iatmpar
       call ec_iatmdyn
       call ec_iatmphys
+! dmr&clo   FV moisture transport set-up (adv_mode = 'fv' only), needs coef.dat and gauss.asc read above
+      call atm_fvmois_init
       call ec_inioutparat
       call ec_inioutparat2
 
@@ -394,6 +397,7 @@ contains
       use comemic_mod, only: irunlabel
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: albocef, emisn, nld, noc, nse
+      use atm_fvmois_mod, only: adv_mode, atm_fvmois_check_mode     ! dmr&clo wiso:1e:0001
 
 
       use newunit_mod, only: namelistecbilt_id, parameterschk_id
@@ -405,7 +409,7 @@ contains
       NAMELIST /dispar/   tdis,addisl,addish,trel,tdif,idif,initfield,initdate
       NAMELIST /dfmpar/  rrdef1,rrdef2,h0
       NAMELIST /moipar/  ihavm,ivavm,imsink,tdifq,gpm500,relhmax, &
-                        hmoisr,umoisr,rainmax
+                        hmoisr,umoisr,rainmax,adv_mode
       NAMELIST /cloudpar/ relhcrit,relhfac
       NAMELIST /forpar/  iartif,ipvf1,ipvf2,ipvf3,ipvf4,ipvf5
       NAMELIST /radpar/    solarc,iradcloud,iscenghg,isghgstrt, &
@@ -625,6 +629,7 @@ contains
       read(namelistecbilt_id, NML = dispar)
       read(namelistecbilt_id, NML = dfmpar)
       read(namelistecbilt_id, NML = moipar)
+      call atm_fvmois_check_mode
       read(namelistecbilt_id, NML = cloudpar)
       read(namelistecbilt_id, NML = forpar)
       read(namelistecbilt_id, NML = radpar)
@@ -694,6 +699,7 @@ contains
       write(parameterschk_id, 910) 'hmoisr   =', hmoisr
       write(parameterschk_id, 910) 'umoisr   =', umoisr
       write(parameterschk_id, 910) 'rainmax  =', rainmax
+      write(parameterschk_id, '(a,a)') 'adv_mode =', trim(adv_mode)
 
 
       write(parameterschk_id, 900) 'iartif   =', iartif
