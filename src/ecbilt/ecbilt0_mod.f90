@@ -75,6 +75,9 @@ contains
         call ec_atmphyszero
         call ec_sensrad
 !        call ec_tracer
+
+!!       call wind_dump(istep)          ! Added for dumping winds to a replay binary file, see tools/src/winds_dump_mod
+
         success = ec_moisture()
 #if ( ISOATM >= 1 )
         success=ec_convec()
