@@ -31,7 +31,7 @@ SDIR     := suite_build
 SSRC     := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
             fvt_testcases_mod.f90 fvt_ncout_mod.f90 fvt_specref_mod.f90
 
-.PHONY: all check suite clean
+.PHONY: all check suite realwinds clean
 
 all: $(PROGS)
 
@@ -85,5 +85,21 @@ fvt_suite: fvt_suite.f90 $(SSRC)
 	cd $(SDIR) && $(FC) $(SFLAGS) $(NCFFLAGS) -I../$(TOP)/defs/ecbilt_clio/global_flags -I../$(TOP)/src/clio \
 	  ../$< *.o $(NCLIBS) -o ../$@
 
+# FV transport with real ECBilt winds (reads the big-endian dump of the temporary model diagnostic)
+RDIR := realwinds_build
+RSRC := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
+        $(SRC_FVT)/fvt_specflux_mod.f90 fvt_specref_mod.f90
+
+realwinds: fvt_realwinds
+
+fvt_realwinds: fvt_realwinds.f90 $(RSRC)
+	mkdir -p $(RDIR)
+	cd $(RDIR) && for f in $(RSRC); do $(FC) $(SFLAGS) -I../$(TOP)/defs/ecbilt_clio/global_flags \
+	  -I../$(TOP)/src/clio -c ../$$f || exit 1; done
+	cd $(RDIR) && $(FC) -O2 -cpp -std=legacy -w -I../$(TOP)/defs/ecbilt_clio/global_flags -I../$(TOP)/src/clio \
+	  -c ../$(TOP)/src/ecbilt/nag.f
+	cd $(RDIR) && $(FC) $(SFLAGS) -fconvert=big-endian -I../$(TOP)/defs/ecbilt_clio/global_flags -I../$(TOP)/src/clio \
+	  ../$< *.o -o ../$@
+
 clean:
-	rm -rf *.o *.mod $(PROGS) fvt_suite $(SDIR)
+	rm -rf *.o *.mod $(PROGS) fvt_suite $(SDIR) fvt_realwinds $(RDIR)

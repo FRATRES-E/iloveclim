@@ -48,7 +48,8 @@
 !!
 !!     Contract (public entry points):
 !!       spr_init(sr,g)                     : tables for the grid g, truncation (nlon - 1)/3 (T21 on 64 longitudes).
-!!       spr_step(sr,q,u,v,div,dt,tdifq)    : one ec_moisture transport step; tdifq <= 0 switches the diffusion off.
+!!       spr_step(sr,q,u,v,div,dt,tdifq[,clipped]) : one ec_moisture transport step; tdifq <= 0 switches the
+!!                                            diffusion off; optional amount clipped into cormois.
 !!       spr_trafluxdiv, spr_hdiff, spr_rggtosp, spr_sptogg : the individual operators (exposed for the tests).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -134,7 +135,7 @@
 ! dmr&clo   One transport step of ec_moisture
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        subroutine spr_step(sr, q, u, v, div, dt, tdifq)
+        subroutine spr_step(sr, q, u, v, div, dt, tdifq, clipped)
 
           type(spr_t), intent(in)    :: sr
           real(dblp),  intent(inout) :: q(:,:)      !< (nlat,nlon) grid field
@@ -143,6 +144,8 @@
           real(dblp),  intent(in)    :: div(:,:)    !< divergence at the grid points (1/day)
           real(dblp),  intent(in)    :: dt          !< step (days)
           real(dblp),  intent(in)    :: tdifq       !< diffusion time scale (days); <= 0: no diffusion
+          real(dblp), optional, intent(out) :: clipped  !< Gaussian-weighted total of cormois (amount added by clipping
+                                                       !! in steps 2 and 5, removed again by ec_moisbalance)
 
           real(dblp)  :: qs(sr%nsh, 2), cormois(sr%nlat, sr%nlon), hdivmg(sr%nlat, sr%nlon), hdmoisg(sr%nlat, sr%nlon)
           integer(ip) :: i, j
@@ -176,6 +179,13 @@
               endif
             enddo
           enddo
+
+          if (present(clipped)) then
+            clipped = 0.0_dblp
+            do i = 1, sr%nlat
+              clipped = clipped + 2.0_dblp*sqrt(real(sr%nlon, dblp))*sr%pw(i, 1)*sum(cormois(i, :))
+            enddo
+          endif
 
           ! 6. hole filling (ec_moisbalance)
           call spr_moisbalance(sr, q, cormois)

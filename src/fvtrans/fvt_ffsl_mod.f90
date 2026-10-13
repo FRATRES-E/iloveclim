@@ -41,6 +41,10 @@
 !!     i.e. Lin and Rood (1996), with the inner updates in the advective form of the FV3 dynamical core (to verify)
 !!     (division by the updated volume, no subtraction of a divergence term). Exactly conservative (flux form).
 !!
+!!     Positivity: for the limited schemes (all but unlimited PPM), where the outer update would make a cell negative its
+!!     outgoing fluxes are scaled so that outflow = holding + inflow (ffsl_outflow_factors): the two sweeps of the outer
+!!     update can otherwise draw on the same mass. Conservative; a no-op wherever the update is already non-negative.
+!!
 !!     Reconstruction (per 1-D sweep): PPM (Colella and Woodward 1984) or piecewise linear with MC-limited slopes
 !!     (van Leer), in cell-index space in both directions. In y this approximates a reconstruction in latitude: the FV
 !!     cells of a Gaussian grid are nearly uniform in latitude (adjacent widths within 21 %), whereas their widths in
@@ -105,6 +109,7 @@
         real(dblp),  parameter :: FFSL_DIV_MAX = 0.5_dblp           !< max net volume loss of a cell per 1-D sweep
         real(dblp),  parameter :: FFSL_OUT_MAX = 1.0_dblp           !< default max outflow fraction of a cell per substep
         integer(ip), parameter :: FFSL_NSUB_MAX = 64                !< cap on the number of substeps
+        integer(ip), parameter :: FFSL_POS_PASSES = 5               !< max passes of the positivity fix
         integer(ip), parameter :: FFSL_NG      = 2                  !< ghost cells on each side of a 1-D sweep
 
       contains
@@ -270,6 +275,7 @@
           integer(ip),      intent(in)    :: lim
 
           real(dblp)  :: px(g%nlat, g%nlon), py(0:g%nlat, g%nlon)
+          real(dblp)  :: rfx(g%nlat, g%nlon), rfy(0:g%nlat, g%nlon)
           real(dblp)  :: qx(g%nlat, g%nlon), qy(g%nlat, g%nlon)
           integer(ip) :: i, j, jw
 
@@ -289,6 +295,11 @@
           qx = 0.5_dblp*(q + qx)
           call ffsl_xflux(g, fx, qy, qy, .false., recon, lim, lim, px)
           call ffsl_yflux(g, fy, qx, qx, .false., recon, lim, lim, py)
+          if (lim /= FVT_LIM_NONE .or. recon == FVT_RECON_VL) then
+            call ffsl_outflow_factors(g, q, px, py, rfx, rfy)
+            px = px*rfx
+            py = py*rfy
+          endif
           do j = 1, g%nlon
             jw = modulo(j - 2, g%nlon) + 1
             do i = 1, g%nlat
@@ -315,6 +326,7 @@
           real(dblp)  :: qca(g%nlat, g%nlon), qcb(g%nlat, g%nlon)         ! carrier fed to the outer x, y sweeps
           real(dblp)  :: rx(g%nlat, g%nlon), ry(g%nlat, g%nlon)
           real(dblp)  :: qcn(g%nlat, g%nlon), tn
+          real(dblp)  :: rfx(g%nlat, g%nlon), rfy(0:g%nlat, g%nlon)               ! positivity factors of the faces
           integer(ip) :: i, j, jw, k
 
           ! carrier: exactly the density-mode substep, keeping the inner states and the outer fluxes
@@ -333,6 +345,15 @@
           qcb = 0.5_dblp*(qc + qcx)
           call ffsl_xflux(g, fx, qca, qca, .false., recon, lim, lim, pcx)
           call ffsl_yflux(g, fy, qcb, qcb, .false., recon, lim, lim, pcy)
+          ! positivity of the carrier; the same face factors are applied to the tracer fluxes below, so that the
+          ! tracer fluxes stay the carrier fluxes times a ratio (a uniform ratio stays uniform)
+          rfx = 1.0_dblp
+          rfy = 1.0_dblp
+          if (lim /= FVT_LIM_NONE .or. recon == FVT_RECON_VL) then
+            call ffsl_outflow_factors(g, qc, pcx, pcy, rfx, rfy)
+            pcx = pcx*rfx
+            pcy = pcy*rfy
+          endif
           do j = 1, g%nlon
             jw = modulo(j - 2, g%nlon) + 1
             do i = 1, g%nlat
@@ -363,6 +384,8 @@
             enddo
             call ffsl_xflux(g, fx, qca, ry, .true., recon, lim, limr, prx)
             call ffsl_yflux(g, fy, qcb, rx, .true., recon, lim, limr, pry)
+            prx = prx*rfx
+            pry = pry*rfy
             do j = 1, g%nlon
               jw = modulo(j - 2, g%nlon) + 1
               do i = 1, g%nlat
@@ -375,6 +398,71 @@
           qc = qcn
 
         end subroutine ffsl_substep_ratio
+
+        ! Positivity of the outer update, only where it would fail: if the new value of a cell would be negative, all
+        ! its outgoing face fluxes are scaled so that its outflow equals what it holds plus its inflow. Reducing an
+        ! outflow reduces a neighbour's inflow, so the pass is repeated (FFSL_POS_PASSES at most; one or two suffice in
+        ! practice). Each face has one upwind cell, so the factors are per face and the update stays exactly
+        ! conservative; cells whose update is already non-negative (e.g. any uniform field) are left untouched.
+        ! Needed because the two 1-D sweeps of the Lin-Rood outer update can draw on the same mass: each is positive
+        ! alone, their sum is not (seen with the real ECBilt winds next to zero-moisture cells, wiso:1d:0003).
+        subroutine ffsl_outflow_factors(g, q, px, py, rfx, rfy)
+
+          type(fvt_grid_t), intent(in)  :: g
+          real(dblp),       intent(in)  :: q(:,:)        !< tracer at the start of the substep
+          real(dblp),       intent(in)  :: px(:,:)       !< outer tracer fluxes, east faces (units of area * q)
+          real(dblp),       intent(in)  :: py(0:,:)      !< outer tracer fluxes, north faces
+          real(dblp),       intent(out) :: rfx(:,:)      !< factors for px
+          real(dblp),       intent(out) :: rfy(0:,:)     !< factors for py
+
+          real(dblp)  :: rc(g%nlat, g%nlon), fxs(g%nlat, g%nlon), fys(0:g%nlat, g%nlon)
+          real(dblp)  :: outf, inf, hold
+          integer(ip) :: i, j, jw, je, n, ipass
+          logical     :: changed
+
+          n = g%nlon
+          rfx = 1.0_dblp
+          rfy = 1.0_dblp
+          do ipass = 1, FFSL_POS_PASSES
+            fxs = px*rfx
+            fys = py*rfy
+            rc = 1.0_dblp
+            changed = .false.
+            do j = 1, n
+              jw = modulo(j - 2, n) + 1
+              do i = 1, g%nlat
+                outf = max(fxs(i, j), 0.0_dblp) + max(-fxs(i, jw), 0.0_dblp) + max(fys(i, j), 0.0_dblp)              &
+                       + max(-fys(i-1, j), 0.0_dblp)
+                inf  = max(-fxs(i, j), 0.0_dblp) + max(fxs(i, jw), 0.0_dblp) + max(-fys(i, j), 0.0_dblp)             &
+                       + max(fys(i-1, j), 0.0_dblp)
+                hold = max(q(i, j), 0.0_dblp)*g%area(i) + inf
+                if (outf > hold) then
+                  rc(i, j) = hold/outf
+                  changed = .true.
+                endif
+              enddo
+            enddo
+            if (.not. changed) exit
+            do j = 1, n
+              je = modulo(j, n) + 1
+              do i = 1, g%nlat
+                if (px(i, j) > 0.0_dblp) then
+                  rfx(i, j) = rfx(i, j)*rc(i, j)
+                else
+                  rfx(i, j) = rfx(i, j)*rc(i, je)
+                endif
+              enddo
+              do i = 1, g%nlat - 1
+                if (py(i, j) > 0.0_dblp) then
+                  rfy(i, j) = rfy(i, j)*rc(i, j)
+                else
+                  rfy(i, j) = rfy(i, j)*rc(i+1, j)
+                endif
+              enddo
+            enddo
+          enddo
+
+        end subroutine ffsl_outflow_factors
 
         ! num/den, or the fallback value where the carrier has vanished
         pure function ratio_or_keep(num, den, fallback) result(rat)

@@ -7,3 +7,5 @@ suite_build/
 __pycache__/
 test_fvt_specflux
 test_fvt_specref
+fvt_realwinds
+realwinds_build/
