@@ -344,6 +344,7 @@
 
       use atmphys_mod, only: ec_trafluxdiv, ec_hdiff, ec_moisbalance
       use atmdyn_mod, only: ec_rggtosp, ec_sptogg
+      use atm_fvmois_mod, only: atm_fvmois_is_on, atm_fvmois_step     ! dmr&clo wiso:1e:0002
       use global_constants_mod, only: dblp=>dp, ip
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
       use comdyn, only: omegg,pp
@@ -573,32 +574,44 @@
 
 !~ #else /* normal version, no isotopes */
 
+! dmr&clo   wiso:1e:0002 adv_mode = 'fv': the FV step replaces the spectral round trip, the clipping and
+!           ec_trafluxdiv; the moisture is updated here, so the horizontal tendency hdivmg is zero below.
+      if (atm_fvmois_is_on()) then
+
+        cormois(:,:,iwater) = 0.0_dblp
+        hdivmg(:,:,iwater)  = 0.0_dblp
+        if (ihavm /= 0) call atm_fvmois_step(rmoisg(:,:,iwater))
+
+      else
+
 !dmr --- Transfer of the variables from the lat-lon grid to the
 !dmr ---   spectral grid
 !dmr --- Wild guess: initialization of rmoiss ?
-      call ec_rggtosp(rmoisg(:,:,iwater),rmoiss(:,iwater))
+        call ec_rggtosp(rmoisg(:,:,iwater),rmoiss(:,iwater))
 !dmr --- Transfer of the variables from the lat-lon grid to the
 !dmr ---   spectral grid
 !dmr --- Wild guess: initialization of pp
-      call ec_sptogg(rmoiss(:,iwater),rmoisg(:,:,iwater),pp)
+        call ec_sptogg(rmoiss(:,iwater),rmoisg(:,:,iwater),pp)
 
 !~ !$OMP PARALLEL DO
-      do j=1,nlon
-        do i=1,nlat
+        do j=1,nlon
+          do i=1,nlat
 
-          cormois(i,j,iwater)=0e0_dblp
-          if (rmoisg(i,j,iwater).lt.0e0_dblp) then
-            cormois(i,j,iwater)=cormois(i,j,iwater)-rmoisg(i,j,iwater)
-            rmoisg(i,j,iwater)= 0e0_dblp
-          endif
+            cormois(i,j,iwater)=0e0_dblp
+            if (rmoisg(i,j,iwater).lt.0e0_dblp) then
+              cormois(i,j,iwater)=cormois(i,j,iwater)-rmoisg(i,j,iwater)
+              rmoisg(i,j,iwater)= 0e0_dblp
+            endif
 
+          enddo
         enddo
-      enddo
 !~ !$OMP END PARALLEL DO
 
 ! *** horizontal divergence of moisture
 
-      call ec_trafluxdiv(hdivmg,rmoiss(:,iwater),rmoisg(:,:,iwater))
+        call ec_trafluxdiv(hdivmg,rmoiss(:,iwater),rmoisg(:,:,iwater))
+
+      endif
 !~ #endif /* On ISOATM >= 1 */
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -860,7 +873,12 @@
 !~ #if ( ISOATM >= 1 )
 !~       call ec_hdiff(rmoiss(:,ieau),hdmoisg(:,:,ieau))
 !~ #else
-      call ec_hdiff(rmoiss(:,iwater),hdmoisg(:,:,iwater))
+! dmr&clo   wiso:1e:0002 no explicit diffusion with adv_mode = 'fv' (spectral ec_hdiff would bring negatives back)
+      if (atm_fvmois_is_on()) then
+        hdmoisg(:,:,iwater) = 0.0_dblp
+      else
+        call ec_hdiff(rmoiss(:,iwater),hdmoisg(:,:,iwater))
+      endif
 !~ #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
