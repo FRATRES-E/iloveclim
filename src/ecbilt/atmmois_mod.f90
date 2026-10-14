@@ -345,6 +345,7 @@
       use atmphys_mod, only: ec_trafluxdiv, ec_hdiff, ec_moisbalance
       use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use atm_fvmois_mod, only: atm_fvmois_is_on, atm_fvmois_step     ! dmr&clo wiso:1e:0002
+      use atm_wbudget_mod, only: atm_wb_transport, atm_wb_moisbalance_pre, atm_wb_moisbalance_post   ! dmr&clo wiso:1e:0003
       use global_constants_mod, only: dblp=>dp, ip
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
       use comdyn, only: omegg,pp
@@ -945,6 +946,9 @@
         enddo ! end spatial loop
       enddo   ! end spatial loop
 
+! dmr&clo   wiso:1e:0003 water budget diagnostic: transport and diffusion tendencies applied above
+      call atm_wb_transport(hdivmg(:,:,iwater), hdmoisg(:,:,iwater))
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !                 RAYLEIGH TYPE CALCULATIONS FOR ISOTOPES
 !
@@ -1194,7 +1198,10 @@
 !~ !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 !~ #else
+! dmr&clo   wiso:1e:0003 water budget diagnostic around the hole filling (C1 = cormois, C2 = removed)
+        call atm_wb_moisbalance_pre
         call ec_moisbalance(iwater)
+        call atm_wb_moisbalance_post
 !~ #endif
 
         returnValue = .true.

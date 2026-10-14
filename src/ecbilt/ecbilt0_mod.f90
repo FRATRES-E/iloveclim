@@ -44,6 +44,7 @@ contains
       use comdyn, only: iartif
       use comemic_mod, only: iyear, iatm, day
       use atmphys_mod, only: ec_atmphyszero, ec_sensrad, ec_fortemp, ec_meantemp
+      use atm_wbudget_mod, only: atm_wb_step_begin, atm_wb_step_end     ! dmr&clo wiso:1e:0003
 
 #if ( ISOATM == 0 )      
       use ec_convec_mod, only: ec_convec_two
@@ -78,12 +79,15 @@ contains
 
 !!       call wind_dump(istep)          ! Added for dumping winds to a replay binary file, see tools/src/winds_dump_mod
 
+! dmr&clo   wiso:1e:0003 water budget diagnostic brackets the moisture physics (no effect on the state)
+        call atm_wb_step_begin
         success = ec_moisture()
 #if ( ISOATM >= 1 )
         success=ec_convec()
 #else
         call ec_convec_two
 #endif
+        call atm_wb_step_end
         call ec_fortemp
         call ec_meantemp
 

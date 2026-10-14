@@ -36,6 +36,7 @@
                          gams, teta, torain, tosnow
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: tsurf
+      use atm_wbudget_mod, only: wb_clip_conv     ! dmr&clo wiso:1e:0003
       use atm_thermo_mod, only: ec_qsat
       use atmphys_mod, only: ec_ptmoisgp
       use error0_mod, only: ec_error
@@ -466,6 +467,7 @@
             rmoisg(i,j,iwater)=rmoisg(i,j,iwater)-ivavm*dcmoisg*dtime
 
               if (rmoisg(i,j,iwater).lt.0e0_dblp) then
+                wb_clip_conv(i,j) = wb_clip_conv(i,j) - rmoisg(i,j,iwater)   ! dmr&clo wiso:1e:0003 diagnostic (C3)
                 rmoisg(i,j,iwater)= 0e0_dblp
               endif
               ! [TODO] -> pas conservatif ajout à cormois?
