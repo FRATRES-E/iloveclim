@@ -278,16 +278,16 @@ c~       dimension irn(imax,8), jrn(jmax,8)
 
 !dmr --- Added the testing of to_from_CLIO
 !dmr --- 2022-05-05
-      write(*,*) "given, i, j          ", input_i, input_j
+!!      write(*,*) "given, i, j          ", input_i, input_j
       
       lon_lat_C = get_lonlat_C(input_i, input_j)
       
-      write(*,*) "obtained, lon, lat ==", lon_lat_C(1), lon_lat_C(2)
+!!      write(*,*) "obtained, lon, lat ==", lon_lat_C(1), lon_lat_C(2)
 
       indexes_C = get_indexes_C(lon_lat_C(1), lon_lat_C(2))
              
              
-      write(*,*) "obtained, i, j ==    ", indexes_C(1), indexes_C(2)
+!!      write(*,*) "obtained, i, j ==    ", indexes_C(1), indexes_C(2)
 !dmr --- Added the testing of to_from_CLIO
 
 

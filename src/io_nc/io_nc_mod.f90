@@ -371,13 +371,12 @@
 
             this%VarName = varname
 
-            WRITE(*,*) "DEBUG ===", this%nbaxes, (axeslist(i:i), i=1, len_trim(axeslist)-1)
+!!            WRITE(*,*) "DEBUG ===", this%nbaxes, (axeslist(i:i), i=1, len_trim(axeslist)-1)
             this%nbaxes = count( (/ (axeslist(i:i), i=1, len_trim(axeslist)) /) == " ")+1
 
             ALLOCATE(this%Axes_List(this%nbaxes))
             read(axeslist,fmt=*) (this%Axes_List(i),i=1,this%nbaxes)
 
-!~             CALL UUID_V4(this%uuid_var)
             this%uuid_var = generate_uuid(4)
             this%nc_file => nc_file
 
