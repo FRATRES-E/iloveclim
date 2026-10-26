@@ -110,7 +110,7 @@
       use ec_masq_mod, only: ec_masq, load_topo_masq 
 #endif
 #endif
-#if ( ISM >= 2 )
+#if ( ISM >= 2 || DOWNSCALING == 2 || F_PALAEO == 2 )
       use ec_masq_mod, only: ec_masq
 #endif
 #if ( BATHY >= 2 )
