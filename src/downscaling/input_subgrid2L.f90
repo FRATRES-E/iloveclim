@@ -68,20 +68,14 @@ real (kind=4), dimension(sgnxm,sgnym,sgd)          :: pfyear
 real (kind=4), dimension(sgnxm,sgnym,sgd)          :: SMB_iLCM
 #endif
 #if ( ISM >= 2 )
-real (kind=4), dimension(:,:), pointer :: tfyearnord
-real (kind=4), dimension(:,:), pointer :: pfyearnord
-real (kind=4), pointer                 :: nivo_mer
-real (kind=4), dimension(:,:), pointer :: SMB_iLCMnord
+real (kind=4)                                :: nivo_mer
 #else
 real (kind=4), parameter                     :: nivo_mer = 0.
 #endif
 real (kind=4), dimension(sgnxm,sgnym,sgd)          :: relhumyear
 #if ( ISM >= 2 )
-real (kind=8), dimension(:,:), pointer :: topoGRIS_sansnivomernord
 real (kind=8), dimension(sgnxm,sgnym,sgd)      :: topoGRIS
 real (kind=8), dimension(sgnxm,sgnym,sgd)      :: masqueGRIS
-
-real (kind=8), dimension(:,:), pointer :: epaisglaceGRISnord
 
 
 !      Definition des tableaux contenant les latitudes, longitudes sur
@@ -90,10 +84,6 @@ real, dimension(CNX, CNY) :: latClio, lonClio
 !      Definition des tableaux contenant les indices de correspondance
 !      de la grille CLIO sur la grille ISM
 integer, dimension(sgnxm, sgnym,sgd) :: iCliog, jCliog
-#if ( SHELFMELT == 1 )
-! basal melting under ice shelves
-real (kind=8), dimension(:,:,:), pointer :: bmshelf_clionord
-#endif
 
 #endif
 

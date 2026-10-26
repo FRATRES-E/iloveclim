@@ -234,6 +234,11 @@ c~      >                       , ec_sumfluxland
 #if ( PROGRESS == 1 )
       character*10 progname
 #endif
+      
+#if ( ISM >= 2 )
+      integer year_grisli
+#endif
+
 
 #if ( MEDUSA == 1 )
       LOGICAL              :: l_ncout = .true. ! dmr --- added a default value 2020-06-02
@@ -381,6 +386,7 @@ cnb try to call first to have the date t update bathy
       call Init_subgrid
 #endif
 
+
 !END OF INITIALIZATION
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
@@ -395,6 +401,41 @@ cnb try to call first to have the date t update bathy
 #if ( F_PALAEO >= 1 && UNCORFLUX >= 1 )
          CALL init_CLIO_ormen()
 #endif
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
+! dmr  Initialization for GRISLI and accordingly the coupling procedures
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
+
+#if ( ISM == 2 || ISM == 3 )
+
+! mab: 0=without model of the ice sheet
+!      1=use agISM  (without starting it)
+!      2=utilize and start GRISLI
+!      3=ice-sheet coupled but fixed
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
+!     dmr   Ajout de l initialisation du couplage ECV - GRISLI (LUDUS)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
+
+         WRITE(*,*) "INIT COUPLAGE ECV - GRISLI"
+
+         IF ((nord_GRIS.GE.1).OR.(sud_GRIS.GE.1)) THEN
+
+!-----|--1--------2---------3---------4---------5---------6---------7-|
+!     dmr   Ajout de l initialisation du modele GRISLI
+!-----|--1--------2---------3---------4---------5---------6---------7-|
+         ! TODO SEPT :
+!              Attention, avec linit de GRISLI on a un "time" qui est celui de la namelist, pas celui d'iloveclim. on peut le changer 
+!              manuellement apres coup mais cest pas top car on aura un sealevel etc. qui ne sera pas bon pour le premier pas de temps. peut etre
+!              quil faudrait mettre un argument optionel a grisli_init.
+!              Ensuite actuellement on fait une boucle sur le temps de le main de grisli, il faudrait avoir un wrapper legerement different dans le cas de ilc.
+            WRITE(*,*) "===================================="
+            WRITE(*,*) "INIT GRISLI"
+            IF (nord_GRIS.GE.1) CALL GRISLI_INIT
+            WRITE(*,*) "===================================="
+         ENDIF
+#endif
+
 
 #if ( F_PALAEO == 1 )
          CALL load_topo_masq(.TRUE.) ! parameter given is init
@@ -416,8 +457,7 @@ cnb try to call first to have the date t update bathy
          call subgrid_ecb_wrapper
          call ec_masq(.FALSE.)
          call ec_topo
-#endif
-
+#endif /* on F_PALAEO == 2 */
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
 ! dmr&afq  Tentative placement of the CLIO masq call
@@ -431,56 +471,6 @@ cnb try to call first to have the date t update bathy
 
 #if ( DOWNSTS == 1 || DOWNSCALING == 2 )
          CALL initakkuVars
-#endif
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
-! dmr  Initialization for GRISLI and accordingly the coupling procedures
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
-
-#if ( ISM == 2 || ISM == 3 )
-
-! mab: 0=without model of the ice sheet
-!      1=use agISM  (without starting it)
-!      2=utilize and start GRISLI
-!      3=ice-sheet coupled but fixed
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
-!     dmr   Ajout de l initialisation du couplage ECV - GRISLI (LUDUS)
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8|
-
-      WRITE(*,*) "INIT COUPLAGE ECV - GRISLI"
-
-      freqsortie = nwrskip*freqdecoup
-
-      IF ((nord_GRIS.GE.1).OR.(sud_GRIS.GE.1)) THEN
-
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!     dmr   Ajout de l initialisation du modele GRISLI
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-         WRITE(*,*) "INIT GRISLI"
-         IF (nord_GRIS.GE.1) CALL GRISLI_INIT
-
-!     dmr La ligne suivante lit la topo GRISLI et le masque calotte GRISLI
-!     dmr dans un fichier externe. A reutiliser pour un forcage offline ?
-!     dmr         CALL input_VAR_GRISLI
-
-         WRITE(*,*) "INTERPOL GRISLI => L"
-
-! dmr --- added subgrid_ecb_wrapper call back. Do not replace Interp yet.
-         call subgrid_ecb_wrapper()
-
-!     mab: in this subroutine the new icemask is defined (1,if there is ice,
-!     otherwise 0) the icemask is also updated in regard of the ocean (there
-!     no ice possible and a differentiation between greenland and antarctica
-!     is made. if the flag is set to .TRUE. then a parametrised mask is used)
-         CALL ec_masq(.FALSE.)
-         CALL ec_topo
-
-       WRITE(*,*) "===================================="
-       WRITE(*,'(a,i8,a)') "Coupling timestep iLOVECLIM to GRISLI is ",
-     &                    timCplGRISday, "  days"
-       WRITE(*,*) "===================================="
-       ENDIF
 #endif
 
 #if ( CARAIB > 0 || CARAIB_FORC_W > 0 )
@@ -778,24 +768,18 @@ c~ #endif
                WRITE(*,*) "Je couple a GRISLI", FLOOR(day)+1, timCplGRISday
 #endif
                CALL akkuVars(1,iatm)
-! -- afq: this is commented as only ann. fields are interpolated now --->
-!!     mab: nwrskip=number of years between writing the model state to disk
-!               if (mod(iyear,nwrskip).eq.0.or.(iyear.eq.nyears)) then
-!!     mab(lcm2ism/sources/) 1 means interpolating AND writing results out
-!                  CALL Interp_ECBilt_GRISLI(1)
-!               else
-!                  CALL Interp_ECBilt_GRISLI(0)
-!               endif
-!     -- afq            <---
+
                call transfer_wrapper_subgrid
 
-!     CALL Interp_CLIO_GRISLI
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !     Appel du modele GRISLI NORD
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 #if ( ISM == 2 )
-               IF (nord_GRIS.GE.1) CALL ISM_NORD(timCplGRISyr)
+               !call reset_ism_fluxes ! TODO SEPT: bmshelf_clio etc reset to 0!
+               do year_grisli=1,freqdecoup
+                 call step_time_loop !to be replaced by grisli_step one day...
+               enddo
 #endif
 
 #if ( ISM >= 2 )

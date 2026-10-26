@@ -33,7 +33,7 @@
 #if ( ISM >= 2 )
        use input_subgrid2L, only: CNX,CNY,latClio,lonClio,icliog,jcliog
 #if ( SHELFMELT == 1 )
-       use input_subgrid2L, only: bmshelf_CLIOnord
+       use bmelt_clio_coupl_mod, only: bmshelf_CLIO
 #endif
 #endif
 
@@ -70,19 +70,6 @@
        double precision, dimension(iEcb,jEcb,max_nb_points) :: lon_sgloc,lat_sgloc
 #endif
 
-!--- #if ( DOWNSTS == 1 )
-!---       character(len=256) :: file_nm
-!--- #endif
-
-#if ( ISM >= 2 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Associe les pointeurs des variables L2G aux variables cibles
-!        dans GRISLI : a terme le module input_GRISLI doit etre
-!        remplace par un autre coherent avec le vrai modele GRISLI
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       call faitPointer
-#endif
 
 ! afq -- we need to init the topo outside the subgrid:
        topoECB(:,:) = rmount(:,:)
@@ -261,6 +248,6 @@
 #endif
 
 #if ( SHELFMELT == 1 )
-       bmshelf_clionord(:,:,:) = 0.
+       bmshelf_clio(:,:,:) = 0.
 #endif
        end subroutine Init_subgrid

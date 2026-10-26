@@ -756,7 +756,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 !cnb end sediments
 
 #if ( ISM == 2 )
-            COMMANDE='mv -f '//'*-grestart* '//TRIM(REPERTOIRE)//'/.'
+            COMMANDE='mv -f '//'*_grestart* '//TRIM(REPERTOIRE)//'/.'
 #if ( IFORT_USAGE == 1 )
             ETAT = SYSTEMQQ(TRIM(COMMANDE))
             WRITE(*,*) 'Moved ISM: ', ETAT

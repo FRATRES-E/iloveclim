@@ -28,8 +28,9 @@
 
 #if ( SHELFMELT == 1 )
       !use interpol_clio_grisli_mod, only : interpol_one_field_clio
-      use input_subgrid2L, only : icliog,jcliog,bmshelf_clionord
-      use input_timerCplGRIS, only: timcplgrisday
+      use bmelt_clio_coupl_mod,only: bmshelf_clio
+      use input_subgrid2L,     only: icliog,jcliog
+      use input_timerCplGRIS,  only: timcplgrisday
 #endif
 #if ( F_PALAEO >=1 && UNCORFLUX >= 1 )
       use palaeo_timer_mod, only: celest_year, equil_flag
@@ -1515,12 +1516,12 @@
          enddo
       enddo
 
-      do j=1,ubound(bmshelf_clionord,dim=2)
-         do i=1,ubound(bmshelf_clionord,dim=1)
+      do j=1,ubound(bmshelf_clio,dim=2)
+         do i=1,ubound(bmshelf_clio,dim=1)
             ! we sum the daily values
             ! bmshelf_clio is reset in GRISLI
             ! taking into account the decoupling factor
-            bmshelf_clionord(i,j,:) =  bmshelf_clionord(i,j,:) +
+            bmshelf_clio(i,j,:) =  bmshelf_clio(i,j,:) +
      &        bmshelf(icliog(i,j,1),jcliog(i,j,1),:)/(dble(timCplGRISday)/360.)
          enddo
       enddo

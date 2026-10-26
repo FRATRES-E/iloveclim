@@ -64,7 +64,7 @@
         use input_subgrid2L, only: SMB_iLCM
 #endif
 #if ( ISM >= 2 )
-        use input_subgrid2L, only: tfyearnord, pfyearnord, SMB_iLCMnord
+        use module3d_phy, only: tann, acc, Bm ! from GRISLI
 #endif
         ! -- afq, function that does the horizontal interpolation:
 ! afq -- outdated 11/2022        use interpol_ecb_subgrid_mod, only: interpol_one_field
@@ -327,9 +327,9 @@
         pfyear = real(prec_down) *1000./910. ! in ice equivalent
         SMB_iLCM = real(smb_down)*1000./910. ! in ice equivalent
 #if ( ISM >= 2 )
-        tfyearnord(:,:) = tfyear(1:sgnx(1),1:sgny(1),1)
-        pfyearnord(:,:) = pfyear(1:sgnx(1),1:sgny(1),1)
-        SMB_iLCMnord(:,:) = SMB_iLCM(1:sgnx(1),1:sgny(1),1)
+        tann(:,:) = tfyear(1:sgnx(1),1:sgny(1),1)
+        acc(:,:) = pfyear(1:sgnx(1),1:sgny(1),1)
+        Bm(:,:) = SMB_iLCM(1:sgnx(1),1:sgny(1),1)
 #endif
 #endif
 

@@ -93,7 +93,7 @@
 
           use input_subgrid2L, only: topoSG, epaisSG, masqueSGice, areaSG, nbpointsSG, sub_grid_notflat, iEg, jEg
 #if (ISM >= 2)
-          use input_subgrid2L, only:  topoGRIS, masqueGRISice=>masqueGRIS, epaisglaceGRISnord
+          use input_subgrid2L, only:  topoGRIS, masqueGRIS
 #endif
 #if ( SMB_TYP == 2)
           use input_subgrid2L, only: annbiasSG
@@ -171,7 +171,7 @@
 #if ( F_PALAEO_FWF == 1 )
           call update_forced_FWF
 #endif
-          masqueSGice=masqueGRISice
+          masqueSGice=masqueGRIS
           topoSG=topoGRIS
 #else
           call update_topo_masks() ! update the masks
@@ -182,7 +182,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 !#if (ISM >= 2)
-!          call aggreg_one_field(masqueGRISice,masqueECB,1)
+!          call aggreg_one_field(masqueGRIS,masqueECB,1)
 !#endif
           masqueECB_loc(:,:) = 0.
           topoECB_loc(:,:) = 0.
@@ -501,7 +501,8 @@
 !       Module contenant les definitions de la sous grille
        use input_subgrid2L, only: topoSG, masqueSGice, epaisSG
 #if ( ISM >= 2 )
-       use input_subgrid2L, only: topoGRIS, masqueGRISice=>masqueGRIS, epaisglaceGRISnord, nivo_mer, topoGRIS_sansnivomernord
+       use input_subgrid2L, only: topoGRIS, masqueGRIS, nivo_mer
+       use module3D_phy, only: S, H, sealevel !from GRISLI, S: surface topography, H: ice thickness
        use global_constants_mod, only: str_len
 #endif 
 
@@ -525,23 +526,23 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      In GRISLI, the topography is relative to the current sea-level, even if it is lower / higher than present.
 !      In ECBilt, the topography is related to constant defined sea-level, so we need to account for this (small) difference
-!      nivo_mer is the sealevel variable in GRISLI
 !
 !      topoGRIS is thus the GRISLI variable corrected for sea-level change
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+       nivo_mer = sealevel ! for downscaling use
        topoGRIS(:,:,:) = 0.
-       topoGRIS(1:sgnx(1),1:sgny(1),1) = max(topoGRIS_sansnivomernord(:,:) - dble(nivo_mer),0.0E0)
+       topoGRIS(1:sgnx(1),1:sgny(1),1) = max(S(:,:) - dble(sealevel),0.0E0)
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       1.2) Building of an icemask, based on GRISLI ice-sheet thickness
 !            Beware that GRISLI assumes 1.0 meters of ice everywhere, hence the limit below
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       masqueGRISice(:,:,:) = 0.
-       where(epaisglaceGRISnord(:,:) > 1.0)
-         masqueGRISice(1:sgnx(1),1:sgny(1),1)=1.0
+       masqueGRIS(:,:,:) = 0.
+       where(H(:,:) > 1.0)
+         masqueGRIS(1:sgnx(1),1:sgny(1),1)=1.0
        !elsewhere
-       !  masqueGRISice(:,:,1)=0.0
+       !  masqueGRIS(:,:,1)=0.0
        end where
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -569,14 +570,14 @@
           open(newunit=checkGRISLImasksMKItxt_id,file=file_nm,form='formatted')
           DO ix=1, sgnx(nbd)
              DO jy=1, sgny(nbd)
-                write(checkGRISLImasksMKItxt_id,'(2I5,12F15.3)') ix,jy, masqueGRISice(ix,jy,1)
+                write(checkGRISLImasksMKItxt_id,'(2I5,12F15.3)') ix,jy, masqueGRIS(ix,jy,1)
              ENDDO
           ENDDO
           close(checkGRISLImasksMKItxt_id)
        enddo
 #endif
         epaisSG(:,:,:) = 0.
-        epaisSG(1:sgnx(1),1:sgny(1),1)=epaisglaceGRISnord(:,:)
+        epaisSG(1:sgnx(1),1:sgny(1),1)=H(:,:)
         topoSG(:,:,:)=topoGRIS(:,:,:)
 #endif
 
@@ -918,7 +919,7 @@
 
       subroutine update_forcedISM
 
-        use input_subgrid2L, only: indx_fISM,topoGRIS,masqueGRISice=>masqueGRIS,forcedISM,forcedMSK
+        use input_subgrid2L, only: indx_fISM,topoGRIS,masqueGRIS,forcedISM,forcedMSK
 
         use taillesGrilles, only: sgnx, sgny
         use routageEAU_mod, only: exutiSG, exutjSG, eniSG, enjSG, nbexuts
@@ -926,14 +927,13 @@
         integer :: i,j
 
         topoGRIS(:,:) = max(forcedISM(:,:,indx_fISM),0.0E0)
-        masqueGRISice(:,:) = 1.-forcedMSK(:,:,indx_fISM)
+        masqueGRIS(:,:) = 1.-forcedMSK(:,:,indx_fISM)
 
 ! dmr&nb --- MàJ du routage sur nouvelle TOPO et nouveau masque
 
-
-        !CALL routageEAU(GNX,GNY,topoGRIS,masqueGRISice,nbexuts,exutiSG,exutjSG,eniSG,enjSG)
+        !CALL routageEAU(GNX,GNY,topoGRIS,masqueGRIS,nbexuts,exutiSG,exutjSG,eniSG,enjSG)
         !nb Beware the mask should be integers for routageEAU!
-        CALL routageEAU(sgnx,sgny,topoGRIS,int(masqueGRISice),nbexuts,exutiSG,exutjSG,eniSG,enjSG,1)
+        CALL routageEAU(sgnx,sgny,topoGRIS,int(masqueGRIS),nbexuts,exutiSG,exutjSG,eniSG,enjSG,1)
 
 !        do i=1,ubound(eniSG,dim=1)
 !        do j=1, ubound(eniSG,dim=2)

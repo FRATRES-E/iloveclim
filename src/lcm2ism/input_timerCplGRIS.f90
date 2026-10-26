@@ -23,8 +23,5 @@
 ! Si dessous la frequence de couplage vue par GRISLI
        INTEGER, PARAMETER :: timCplGRISyr = INT(timCplGRISday/360)      &
                                              *freqdecoup
-! La frequence d'ecriture des fichiers de redemarrage GRISLI
-!       INTEGER, PARAMETER :: freqsortie = 25*timCplGRISyr
-       INTEGER :: freqsortie 
 
        END MODULE input_timerCplGRIS
