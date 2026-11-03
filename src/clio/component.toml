@@ -53,7 +53,7 @@ files = [
 [[clio.data]]
 from  = "${emic_dir}/param/clio"
 to    = ""                       # "" = run_dir directement
-files = ["run.param", "output.param"]
+files = ["run.param", "output.param", "evolu_netcdf.nml"]
 
 # --- Hook traceurs : dérive nsmax et pose netcdfout.param-scal<nsmax> ---------
 # Remplace le système de sentinelles .activated et les copies netcdfout.param

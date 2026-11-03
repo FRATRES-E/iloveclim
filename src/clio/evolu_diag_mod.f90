@@ -110,6 +110,9 @@
        real(dblp), save :: saltatlantic_old_sav = 0._dblp
        logical,    save :: first_dtsalt         = .true.
 
+! MOVB --- one-shot flag for the closure printout of the Mov_B/Maz_B/Mbt_B diagnostic (written once to mouchard).
+       logical,    save :: first_movb           = .true.
+
 ! dmr&clo --- module-private running counter for the registry; the single writer of the column ordering.
        integer(ip), save :: nv_reg = 0
 
@@ -328,6 +331,17 @@
          nv = register('dtsaltA', AVG_NEVER)    !     (header 'dtsal')
          nv = register('Mov30A', AVG_NEVER)     !     (header 'Mov30')
          nv = register('Fsber', AVG_NEVER)      ! 32
+! MOVB --- Cimatoribus et al. (2012) decomposition of the 30S salt (virtual freshwater) transport, Sv. Registered BEFORE
+!          the block-B ntmoy>=1 closure below, so that they are time-averaged like the other block-B columns. Names are
+!          exactly 5 characters on purpose: the evolu header truncates to nchinf=5, and 'Mov30B' would collide with the
+!          legacy 'Mov30A' ('Mov30'). Mov_B = overturning, Maz_B = azonal (gyre), Mbt_B = barotropic residual
+!          (zero when depth-mean v is zero; kept so that the budget closes with variable topography).
+         nv = register('Mov_B', AVG_NEVER)
+         nv = register('Maz_B', AVG_NEVER)
+         nv = register('Mbt_B', AVG_NEVER)
+! MOVB --- Mov_E: same as Mov_B but with the Eulerian velocity only (viso, the GM/isopycnal bolus part, left out); this
+!          is the quantity closest to what hydrographic sections and most model intercomparisons call M_ov.
+         nv = register('Mov_E', AVG_NEVER)
 #if ( FRAZER_ARCTIC == 1 )
 ! dmr&clo --- Temps 2 reintegration point: Frazer Davies strait-flux columns.
          nv = register('BSFF', AVG_NEVER)
@@ -747,6 +761,8 @@
          integer(ip), save :: i_adgin, i_adpro, i_adout, i_aabpr, i_aabex, i_aabat
          integer(ip), save :: i_fc30a, i_fs30a, i_fsa30, i_fsd30, i_fsana, i_fsdna
          integer(ip), save :: i_dtsalt, i_mov30, i_fsber
+         integer(ip), save :: i_movb, i_mazb, i_mbtb, i_move
+         real(dblp)        :: clos_b, dum_a, dum_b, dum_c
          integer(ip), save, dimension(:), allocatable :: i_scmean, i_sclvl1, i_scanom
          integer(ip), save, dimension(:), allocatable :: i_to_lvl, i_so_lvl
          integer(ip), save :: i_absw, i_absu, i_absv, i_ke
@@ -785,6 +801,7 @@
            i_fsa30 = idx('Fsa30A'); i_fsd30 = idx('Fsd30A')
            i_fsana = idx('FsaNA'); i_fsdna = idx('FsdNA')
            i_dtsalt = idx('dtsaltA'); i_mov30 = idx('Mov30A'); i_fsber = idx('Fsber')
+           i_movb = idx('Mov_B'); i_mazb = idx('Maz_B'); i_mbtb = idx('Mbt_B'); i_move = idx('Mov_E')
 
            allocate(i_scmean(nsmax), i_sclvl1(nsmax), i_scanom(nsmax))
 !dmr --- Only T (ns=1) and S (ns=2) have Block-C basin-mean diagnostics in the
@@ -1119,6 +1136,16 @@
          vvpsm = face_scalar_flux(DIR_MERID, FLUX_TOTAL, ii, jj, ks2, 2, ssc2) * dz(ks2)
          vinfor(i_fsber) = vvpsm * dx
 
+!--Mov_B / Maz_B / Mbt_B at 30 S (Cimatoribus et al. 2012 definition; Atlantic window 60W-20E, local depth mean)
+         yy = -30.0 ; jj = 1 + nint( (yy-ylat1)/dlat + 0.5 )
+         call mov_maz_section(jj, .true., vinfor(i_movb), vinfor(i_mazb), vinfor(i_mbtb), clos_b)
+         call mov_maz_section(jj, .false., vinfor(i_move), dum_a, dum_b, dum_c)
+         if (first_movb) then
+           write(mouchard_id,*) 'Mov_B/Maz_B/Mbt_B at 30S: jj, Mov_B, Maz_B, Mbt_B, closure residual (Sv) =',   &
+                                jj, vinfor(i_movb), vinfor(i_mazb), vinfor(i_mbtb), clos_b
+           first_movb = .false.
+         endif
+
 !--2.6 Block C : basin-mean scalars + per-level |anomaly| families (only when flgout .or. ntmoy==2)
          if (flgout .or. ntmoy == 2) then
            nnp = 3
@@ -1384,6 +1411,111 @@
          end select
 
        end function face_scalar_flux
+
+! MOVB --- mov_maz_section: Cimatoribus et al. (2012, Clim. Dyn.; arXiv:1108.1340, appendix A) decomposition of the
+!          virtual freshwater transport through the zonal section at row jj, returned in Sv:
+!            Mov = -1/S0 * Int vt (<S> - S0) dx dz     vt = v - vbar  (baroclinic part; vbar = LOCAL depth mean at each x)
+!            Maz = -1/S0 * Int v' S' dx dz             f' = f - <f>   (<> = zonal mean at each level)
+!            Mbt = -1/S0 * Int vbar (<S> - S0) dx dz   (barotropic residual; = 0 for flat bottom / zero depth-mean v)
+!          so that  -1/S0 Int v S = Mov + Mbt + Maz - Int v dx dz   (closure: clos returns the numerical residual, Sv).
+!          Conventions (all deliberate, document them when quoting numbers):
+!            * zonal window: cell centres in [60W, 20E] (300..380 deg E), further clipped to the Atlantic zone
+!              iszon..iezon(jj,nbsmax) of geogra. Cimatoribus defines <.> over 60W-20E; the window is NOT the zone edge.
+!            * only wet faces (tms(i,jj)*tms(i,jj-1)) enter ANY mean -- no land cell can contaminate <S> or S0.
+!            * widths weighted by cmx(i,jj,2); layer thickness by dz(k). S0 = area-weighted SECTION mean of the face
+!              salinity (the Cimatoribus definition; assumption: their eq. A4, not read in full).
+!            * face velocity = 0.5*(v(i)+v(i+1)) + viso : the model's residual (Eulerian + GM bolus) transport, same
+!              stencil as face_scalar_flux; face salinity = 0.5*(S(j-1)+S(j)). No extra 0.5 in the flux.
+       subroutine mov_maz_section(jj, with_viso, mov, maz, mbt, clos)
+         use const_mod,    only: epsil
+         use para0_mod,    only: imax, kmax
+         use para_mod,     only: nbsmax
+         use bloc0_mod,    only: dx, ks1, ks2, v, dz, scal, tms
+         use bloc_mod,     only: cmx
+         use isoslope_mod, only: viso
+         use reper_mod,    only: iszon, iezon, xlon1, dlong
+
+         integer(ip), intent(in)  :: jj
+         logical,     intent(in)  :: with_viso      ! .true.: Eulerian + viso (residual transport); .false.: Eulerian only
+         real(dblp),  intent(out) :: mov, maz, mbt, clos
+         real(dblp) :: fviso
+
+         real(dblp), parameter :: lon_w = 300._dblp, lon_e = 380._dblp    ! 60W .. 20E, degrees east
+         real(dblp), parameter :: sv    = 1.e6_dblp
+
+         real(dblp), dimension(imax,kmax) :: vf, sf, wm
+         real(dblp), dimension(imax)      :: vbar
+         real(dblp), dimension(kmax)      :: sbar, vzm
+         real(dblp) :: wk, wsum, ssum, s0, hs, vs, w, fac, vnet, m30s
+         integer(ip) :: i, k, i1, i2
+
+         mov = 0._dblp ; maz = 0._dblp ; mbt = 0._dblp ; clos = 0._dblp
+
+         i1 = max( int(iszon(jj,nbsmax),ip), ceiling( (lon_w - xlon1) / dlong, ip ) + 1 )
+         i2 = min( int(iezon(jj,nbsmax),ip), floor  ( (lon_e - xlon1) / dlong, ip ) + 1 )
+         if (i2 < i1) return
+
+         fviso = 0._dblp ; if (with_viso) fviso = 1._dblp
+         vf = 0._dblp ; sf = 0._dblp ; wm = 0._dblp
+         do k = ks1, ks2
+           do i = i1, i2
+             wm(i,k) = tms(i,jj,k) * tms(i,jj-1,k) * cmx(i,jj,2)
+             vf(i,k) = 0.5_dblp * ( v(i,jj,k) + v(i+1,jj,k) ) + fviso * viso(i,jj,k)
+             sf(i,k) = 0.5_dblp * ( scal(i,jj-1,k,2) + scal(i,jj,k,2) )
+           enddo
+         enddo
+
+! section mean salinity S0 (area weighted)
+         wsum = 0._dblp ; ssum = 0._dblp
+         do k = ks1, ks2
+           do i = i1, i2
+             wsum = wsum + wm(i,k) * dz(k)
+             ssum = ssum + wm(i,k) * dz(k) * sf(i,k)
+           enddo
+         enddo
+         if (wsum <= epsil) return
+         s0 = ssum / wsum
+
+! zonal means at each level (wet faces only)
+         sbar = 0._dblp ; vzm = 0._dblp
+         do k = ks1, ks2
+           wk = sum( wm(i1:i2,k) )
+           if (wk > epsil) then
+             sbar(k) = sum( wm(i1:i2,k) * sf(i1:i2,k) ) / wk
+             vzm(k)  = sum( wm(i1:i2,k) * vf(i1:i2,k) ) / wk
+           endif
+         enddo
+
+! local depth mean of v at each longitude (cmx cancels: same for all k at fixed i)
+         vbar = 0._dblp
+         do i = i1, i2
+           hs = 0._dblp ; vs = 0._dblp
+           do k = ks1, ks2
+             hs = hs + wm(i,k) * dz(k)
+             vs = vs + wm(i,k) * dz(k) * vf(i,k)
+           enddo
+           if (hs > epsil) vbar(i) = vs / hs
+         enddo
+
+         vnet = 0._dblp ; m30s = 0._dblp
+         do k = ks1, ks2
+           do i = i1, i2
+             w    = wm(i,k) * dz(k)
+             mov  = mov  + w * ( vf(i,k) - vbar(i) ) * ( sbar(k) - s0 )
+             mbt  = mbt  + w * vbar(i)               * ( sbar(k) - s0 )
+             maz  = maz  + w * ( vf(i,k) - vzm(k) )  * ( sf(i,k) - sbar(k) )
+             vnet = vnet + w * vf(i,k)
+             m30s = m30s + w * vf(i,k) * sf(i,k)
+           enddo
+         enddo
+
+         fac  = -dx / ( s0 * sv )
+         mov  = mov  * fac
+         mbt  = mbt  * fac
+         maz  = maz  * fac
+         clos = m30s * fac - ( mov + mbt + maz - vnet * dx / sv )
+
+       end subroutine mov_maz_section
 
 ! dmr&clo --- ice_freshwater_flux: freshwater carried in sea ice across a strait (Fram, Barents/Kara). Factored from
 !             the copied vfram/vbord/dxs1/hnbq/hgbq blocks. Sums i=ii1-1..ii2 at row j.

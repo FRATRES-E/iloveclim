@@ -74,6 +74,10 @@ FsdNA   ; salt_flux_natl_dif          ; North Atlantic boundary salt flux, diffu
 dtsaltA ; atl_salt_tendency           ; Atlantic salt-content tendency                            ; -                               ; TODO
 Mov30A  ; mov_30s                     ; freshwater transport by overturning at 30S (Mov)          ; -                               ; Sv
 Fsber   ; salt_flux_bering            ; salt flux through Bering Strait (see reserve R2)          ; -                               ; TODO
+Mov_B   ; mov_30s_vB                  ; freshwater transport by overturning at 30S (Mov)          ; -                               ; Sv
+Maz_B   ; maz_30S_vB                  ; azonal freshwater transport by overturning at 30S (Mov)   ; -                               ; Sv
+Mbt_B   ; mbt_30s_vB                  ; barotropic residual of freshwater transport by over.      ; -                               ; Sv
+Mov_R   ; mov_30s_eul                 ; Eulerian freshwater transport by overturning at 30S (Mov) ; -                               ; Sv
 
 # --- scalar means & velocities ---------------------------------------------
 T-c     ; T_ocean_mean                ; basin-mean ocean potential temperature                    ; sea_water_potential_temperature ; degC

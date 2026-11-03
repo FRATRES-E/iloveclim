@@ -25,3 +25,6 @@
 #define I_COUPL 1
 
 #define forced_winds 0
+
+#define EVOLU_NETCDF 0
+
