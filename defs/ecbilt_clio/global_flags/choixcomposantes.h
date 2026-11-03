@@ -33,7 +33,7 @@
 
 !
 ! 0 LOVECLIM standard version
-! 1 include d18Oatm of O2 (requires CARAIB > 0 and ISOATM>=2)
+! 1 include d18Oatm of O2 (requires CARAIB > 0 and WISOATM == 1)
 !
 #define OXYISO 0
 
@@ -45,7 +45,7 @@
 
 !
 ! 0 LOVECLIM standard version
-! 1 include dDwax isotopes (requires CARAIB > 0, OXYISO > 0 and ISOATM>=2)
+! 1 include dDwax isotopes (requires CARAIB > 0, OXYISO > 0 and WISOATM == 1)
 !
 #define WAXISO 0
 
@@ -109,23 +109,21 @@
 
 !
 ! 0 do not compute water isotopes in the atmosphere
-! 1 water isotopes are advected in the atmosphere without fractionnation
-! 2 water isotopes computed following MJ79's methodology and definitions
-! 3 water isotopes computed according to the full definition of Roche (2011)
+! 1 compute water isotopes in the atmosphere (tracer dimension nwisos = 5)
+!   (replaces the legacy ISOATM = 0/1/2/3, removed in wiso:2a:0001; physics options become runtime settings)
 !
-#define ISOATM 0
-! New iso switches should be 0/1
 #define WISOATM 0
 #define WISOATM_RESTART 0
 !
 ! 0 use equilibrium solid vapor fractionnation
 ! 1 use Jouzel & Merlivat (1984) formulation for effective kinetic SV fractionnation
-!   requires ISOATM == 2
+!   requires WISOATM == 1
 #define FRAC_KINETIK 0
 
 !
 ! 0 do not link surface isotopic content of land to atmosphere (fixed values for rmoisg)
 ! 1 water isotopes are computed in surface water content (bmoisg prognostic)
+!   (legacy land isotope coupling, not available until its migration, ROADMAP step 3)
 !
 #define ISOLBM 0
 ! New iso switches should be 0/1
@@ -134,8 +132,9 @@
 
 !
 ! 0 do not link surface oceanic isotopic content to atmosphere (fixed values for ratio_oceanatm)
-! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires ISOATM >= 2
-! 2 water isotopes are computed in ocean ("ratio_ocean" prognostic) Requires ISOATM >= 2
+! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires WISOATM == 1
+! 2 water isotopes are computed in ocean ("ratio_ocean" prognostic) Requires WISOATM == 1
+!   (legacy ocean isotope coupling, not available until its migration, ROADMAP step 3)
 !
 #define ISOOCN 0
 ! New iso switches should be 0/1

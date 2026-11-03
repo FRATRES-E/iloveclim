@@ -216,7 +216,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 
 !dmr --- Water isotopes, just need to copy a file
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
           COMMANDE='cp '//'wisoatm_restart.dat '//TRIM(REPERTOIRE)//'/.'
 
 !dmr --- intel fortran version
@@ -240,7 +240,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 #endif /* on PGI FORTRAN */
 #endif /* on IFORT_USAGE */
 
-#endif /* on ISOATM */
+#endif /* on WISOATM */
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Write section: LAND MODEL LBM
@@ -288,14 +288,14 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
             open(newunit=newunit_id ,file=''//TRIM(REPERTOIRE)//'/incoup'//chf//'.dat',form='unformatted')
 
 !dmr--- For water isotopes variables
-#if ( ISOATM >= 2 && ISOOCN >= 1 )
+#if ( WISOATM == 1 && ISOOCN >= 1 )
             open(newunit=wisocpl_restart_id,file=''//TRIM(REPERTOIRE)//'/wisocpl_restart.dat', form='unformatted')
 #endif
 
             call ec_wrendcoup
 
             close(newunit_id)
-#if ( ISOATM >= 2 && ISOOCN >= 1 )
+#if ( WISOATM == 1 && ISOOCN >= 1 )
             close(wisocpl_restart_id)
 #endif
 

@@ -43,7 +43,7 @@
 #if ( ROUTEAU == 1 )
       USE routageEAU_mod
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, ieau17, ieau18, ieaud, rsmow,
      &    neauiso
       USE isoatm_mod, ONLY: dlbmini, isolbm_restart
@@ -78,7 +78,7 @@
 #if ( DOWNSTS == 1 )
       INTEGER :: nb_down
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       REAL, DIMENSION(nlat,nlon,neauiso) :: rationsl
       INTEGER :: k
 #endif
@@ -156,7 +156,7 @@
 
 ! *** initialisation of evaporation, soil moisture, snow cover, & land temp
 
-#if ( ISOATM == 2 )
+#if ( WISOATM == 1 )
 ! dmr
 ! Initialization to fixed initial values for the version with "R" in MJ79
 ! 17O and deuterium are initialized with d-excess and 17Oexcess to zero
@@ -165,8 +165,6 @@
         DO k=ieau+1, neauiso
         rationsl(:,:,k) = ( dlbmini(k) + 1.0D0 ) * rsmow(k)
         ENDDO
-#elif ( ISOATM == 3 )
-        WRITE(*,*) "Option non implementee !!! , landmodel0.f"
 #endif
 
       if (irunlabel.eq.0) then
@@ -578,7 +576,7 @@
       use ecbilt_topography, only: rmount_virt
 #endif
 
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau
 #endif
 
@@ -1001,7 +999,7 @@
       use comatm, only: nlat, nlon, iwater,nwisos
       use comunit, only: iuo
 
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow, delta
       USE isoatm_mod, ONLY : ratio_evap_land, ratio_evap_snow
       USE iso_alphas, ONLY : alpha_lv, alpha_sv
@@ -1038,7 +1036,7 @@
       double precision, dimension(nlat,nlon,nwisos),intent(inout) :: dsnow !
 
       integer i,j,istep
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       REAL, DIMENSION(neauiso) :: dsnomel
       real*8  dsnovap
 #if ( ISOLBM == 0 )
@@ -1048,7 +1046,7 @@
       real*8  dsnomel,dsnovap
 #endif
       real*8  qsat
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       INTEGER :: k
       REAL, DIMENSION(neauiso) :: variso
       REAL, DIMENSION(nlat,nlon,neauiso) :: dsnowbef
@@ -1180,7 +1178,7 @@
       use comemic_mod, only:
       use comunit, only: iuo
 
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, neauiso, ieau18, delta
 #endif
 
@@ -1690,7 +1688,7 @@
       use newunit_mod, only: info_id
 
 
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau
 #endif
 
@@ -1921,7 +1919,7 @@
       use vertDownsc_mod, only: nethfxland_d, hfluxn_d, efluxn_d
 #endif
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, ieau18
 #endif
 
@@ -1961,7 +1959,7 @@
 ! *** communicate land data to coupler
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow
 #if ( ISOLBM == 0 )
       USE iso_param_mod, ONLY : rsmow
@@ -1983,7 +1981,7 @@
       implicit none
 
       integer i,j
-#if ( ISOATM >= 2 && ISOLBM == 0 )
+#if ( WISOATM == 1 && ISOLBM == 0 )
       INTEGER :: k
 #endif
 
@@ -2042,7 +2040,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! *** communicate land data to coupler
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau
 #endif
 
@@ -2098,7 +2096,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! *** output land for start new run
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau
 #endif
 

@@ -46,11 +46,11 @@ contains
       use atmphys_mod, only: ec_atmphyszero, ec_sensrad, ec_fortemp, ec_meantemp
       use atm_wbudget_mod, only: atm_wb_step_begin, atm_wb_step_end     ! dmr&clo wiso:1e:0003
 
-#if ( ISOATM == 0 )      
+#if ( WISOATM == 0 )      
       use ec_convec_mod, only: ec_convec_two
 #endif
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       use atmmois_mod, only: ec_moisture=>ec_moisture_r332, &
                             ec_convec=>ec_convec_r332
 #else
@@ -82,7 +82,7 @@ contains
 ! dmr&clo   wiso:1e:0003 water budget diagnostic brackets the moisture physics (no effect on the state)
         call atm_wb_step_begin
         success = ec_moisture()
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
         success=ec_convec()
 #else
         call ec_convec_two
@@ -302,7 +302,7 @@ contains
 #if ( CYCC >= 2 )
       use carbone_co2_mod, only: PA_C
 #endif
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       use write_isoatm_mod, only: write_isoatm
 #endif
 
@@ -325,10 +325,10 @@ contains
 #elif ( CYCC >= 2 )
       write(newunit_id) PA_C
 #endif
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       use write_isoatm_mod, only: write_isoatm
 #endif
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       call write_isoatm
 #endif
       return

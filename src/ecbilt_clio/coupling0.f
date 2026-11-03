@@ -24,7 +24,7 @@
       use init_emic_wrapper, only: mozaic_f
 #endif
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
        USE iso_param_mod, ONLY : ieau, ieau18,
      &                           rsmow, neauiso
        USE isoatm_mod, ONLY : datmini,isolbm_restart
@@ -167,7 +167,7 @@ c~ #endif
             cleflux(i,j) = 0.
 c~ #if (ISOATM >= 1 )
             clevap(i,j,:)  = 0.
-#if ( ISOOCN >= 1 && ISOATM >= 2 )
+#if ( ISOOCN >= 1 && WISOATM == 1 )
 
 !dmr ### Lignes suivantes fausses ... doivent être remplacées par une relecture propre des isotopes dans le coupler ...
 !dmr --- Initialisation barbare ...
@@ -208,8 +208,6 @@ c~ #if (ISOATM >= 1 )
           ENDDO
         ENDIF
 !dmr ---
-#elif ( ISOATM == 3 )
-              WRITE(*,*) "Option non impementee !! coupling0.f"
 #endif
 
 c~ #else
@@ -493,7 +491,7 @@ c~ #endif
       use comsurf_mod
       use comatm, only: iwater
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, neauiso, rsmow, ieau18, delta
 #endif
 
@@ -653,13 +651,13 @@ c~ #endif /* on  ISOATM >= 2 && ISOOCN >= 1 */
       use comcoup_mod
       use comsurf_mod
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, neauiso, ieau18, delta
 #endif
       implicit none
 
       integer ist,jst,i,j
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
       integer k
       real, dimension(neauiso) :: variso
       character*10 varisonm
@@ -1120,7 +1118,7 @@ c~ #endif
 !-----------------------------------------------------------------------
 ! *** output fluxes for start new run
 !-----------------------------------------------------------------------
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, neauiso
 #endif
 
@@ -1135,7 +1133,7 @@ c~ #endif
       integer i,j
       real*8  dum(nlat,nlon,12)
 
-#if ( ISOATM >= 2 && ISOOCN >= 1 )
+#if ( WISOATM == 1 && ISOOCN >= 1 )
       integer k
 #endif
 
@@ -1160,7 +1158,7 @@ c~ #endif
         enddo
       enddo
 
-#if ( ISOATM >= 2 && ISOOCN >= 1 )
+#if ( WISOATM == 1 && ISOOCN >= 1 )
 c~       write(newunit_id) sumohfx,sumoswr,sumihfx,sumiswr,sumofwf(:,:,ieau),
 c~      &sumisno(:,:,ieau),
 c~      &winstua,winstva,sumtx,sumty

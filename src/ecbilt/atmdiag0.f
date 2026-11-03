@@ -7,7 +7,7 @@
       USE comatm, only: 
       use comemic_mod, only: iatm
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau
 #endif
       implicit none
@@ -53,7 +53,7 @@
       use comoutlocal_mod
       use comsurf_mod
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, ieau18, ieau17, ieaud
 #endif
 #if ( CLM_INDICES >= 1 )
@@ -96,7 +96,7 @@
             psig(i,j,k) = psig(i,j,k)*psifac
           enddo
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 c~           dyrain1(i,j) = (dyrain(i,j,ieau)+dysnow(i,j,ieau))*pfac
 c~           corain1(i,j) = (corain(i,j,ieau)+cosnow(i,j,ieau))*pfac
 c~           torain1(i,j) = (torain(i,j,ieau)+tosnow(i,j,ieau))*pfac
@@ -255,7 +255,7 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
      &  , User_Assigned_T2            ! dumt2
      &  , User_Assigned_U1            ! dumu1
      &  , User_Assigned_U2            ! dumu2
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
      &  , Total_Precip18              ! iso18torain
      &  , Total_Precip17              ! iso17torain
      &  , Total_Precipd               ! isodtorain
@@ -266,7 +266,7 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
      &  , Spec_Hum_d17                ! rmoisg, ieau17
      &  , Spec_Hum_dd                 ! rmoisg, ieaud
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
      &  , Land_Snow_D18               ! adsnow, ieau18
      &  , Land_Snow_D17               ! adsnow, ieau17
      &  , Land_Snow_Dd                ! adsnow, ieaud
@@ -296,7 +296,7 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 
       use comatm, only: nlat, nlon, iwater
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, ONLY : ieau, ieau18, ieau17, ieaud
       USE comoutlocal_mod, only: iso18torain, iso18tosnow, iso17torain
      &                   , iso17tosnow, isodtorain, isodtosnow
@@ -589,7 +589,7 @@ c~ #endif
          CALL write(User_Assigned_U2,mean(1:nlat,1:nlon,1:3))
       END IF
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 
       IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
          mean(1:nlat,1:nlon,1)=iso18torain(1:nlat,1:nlon)
@@ -639,7 +639,7 @@ c~ #endif
 #endif
 
 
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
 
       IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
          mean(1:nlat,1:nlon,1)=adsnow(1:nlat,1:nlon,ieau18)
@@ -713,7 +713,7 @@ c~      &                 , sxvhforg1, sxvhforg2, sxvhforg3
       use comoutlocal_mod
       use comsurf_mod
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
        USE iso_param_mod, ONLY : ieau, ieau18, ieau17, ieaud
 #endif
 
@@ -1403,7 +1403,7 @@ c~ #endif
       END IF
 
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
          CALL ec_totstat(iso18torain(1:nlat,1:nlon),
      &        sxtorain18(1:nlat,1:nlon,1:12),sytorain18(1:nlat,1:nlon,1:12),
@@ -1495,7 +1495,7 @@ c~ #endif
       END IF
 
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
          CALL ec_totstat(adsnow(1:nlat,1:nlon,ieau18),
      &        sxdsnow18(1:nlat,1:nlon,1:12),sydsnow18(1:nlat,1:nlon,1:12),
@@ -1639,7 +1639,7 @@ c~ #endif
       use comoutlocal_mod
       use comsurf_mod
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
        USE iso_param_mod, ONLY : ieau, ieau17, ieau18, ieaud
 #endif
 
@@ -2319,7 +2319,7 @@ c~ #endif
          END IF
       END IF
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
          CALL ec_stat(iso18torain(1:nlat,1:nlon),
      &      s1torain18(1:nlat,1:nlon),  s2torain18(1:nlat,1:nlon),
@@ -2411,7 +2411,7 @@ c~ #endif
       END IF
 
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
          CALL ec_stat(adsnow(1:nlat,1:nlon,ieau18),
      &        s1dsnow18(1:nlat,1:nlon),s2dsnow18(1:nlat,1:nlon),
@@ -2536,7 +2536,7 @@ c~ #endif
       use comunit
       use newunit_mod, only: ocbasin_id
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       USE iso_param_mod, only: ieau
 #endif
 
@@ -2759,7 +2759,7 @@ c~ #endif
      &                     , new_year_atm, current_int_atm
 
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
        USE iso_param_mod, ONLY : ieau,ieau17,ieau18,ieaud
 #endif
 
@@ -2800,7 +2800,7 @@ c~ #endif
      &     dt22s2, dt23s, dt23s2, du11s, du11s2, du12s,
      &     du12s2, du13s, du13s2, du21s, du21s2, du22s,
      &     du22s2, du23s, du23s2
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
      &    ,torains18, torains218
      &    ,torains17, torains217
      &    ,torainsd, torains2d
@@ -2811,7 +2811,7 @@ c~ #endif
      &    ,rmoisg17s, rmoisg17s2
      &    ,rmoisgds,  rmoisgds2
 #endif
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
      &    ,dsnows18, dsnows218
      &    ,dsnows17, dsnows217
      &    ,dsnowsd, dsnows2d
@@ -3497,7 +3497,7 @@ c~ #endif
          END IF
       END IF
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
          CALL ec_yrlstat(iso18torain(1:nlat,1:nlon),
      &      torains18(1:nlat,1:nlon),torains218(1:nlat,1:nlon),
@@ -3589,7 +3589,7 @@ c~ #endif
       END IF
 
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
          CALL ec_yrlstat(adsnow(1:nlat,1:nlon,ieau18),
      &        dsnows18(1:nlat,1:nlon),dsnows218(1:nlat,1:nlon),

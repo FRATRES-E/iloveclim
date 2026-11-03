@@ -89,6 +89,17 @@
       REAL(dblp)                  :: alogtl12,alogtl1pl2,alogpl2tl2
       REAL(dblp), DIMENSION(nlat) :: darea,dareas
       
+! dmr&clo   wiso:2a:0001 compile-time checks of the water-isotope switches
+#ifdef ISOATM
+#error "ISOATM was removed in wiso:2a:0001: use WISOATM = 0/1 (physics options are runtime settings)"
+#endif
+#if ( ISOLBM != 0 || ISOOCN != 0 )
+#error "ISOLBM / ISOOCN: the legacy land and ocean isotope coupling is not migrated yet (ROADMAP step 3)"
+#endif
+#if ( WISOATM == 1 && ( DOWNSTS != 0 || DOWNSCALING != 0 ) )
+#error "WISOATM = 1 is not available with downscaling (DOWNSTS, DOWNSCALING), ROADMAP step 2"
+#endif
+
 #if ( WISOATM == 0 )
       INTEGER(ip), parameter      :: nwisos = 1
       INTEGER(ip), parameter      :: iwater = 1

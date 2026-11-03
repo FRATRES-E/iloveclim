@@ -63,7 +63,7 @@
 #endif
 #endif
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
         use iso_param_mod
 #endif
 

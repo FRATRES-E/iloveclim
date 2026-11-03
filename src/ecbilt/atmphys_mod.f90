@@ -26,7 +26,7 @@ module atmphys_mod
             ec_dyntemp, ec_vortfor, ec_pvf1, ec_pvf2, ec_pvf3,           &
             ec_pvf4, ec_pvf5, ec_lwaverad2, ec_swaverad2, ec_tempprofile,&
             ec_ptmoisgp
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
   public :: ec_moisbalance_globiso
 #endif
 #if ( CLAQUIN == 1 )
@@ -1680,7 +1680,7 @@ contains
       if (nn.ne.nld) then
 #endif
 !dmr --- Cas où l on est un ocean ou de la banquise ...
-#if ( ISOATM == 2 )
+#if ( WISOATM == 1 )
 
 !dmr --- dummy variables to compute debugging diagnostics
 
@@ -1842,22 +1842,7 @@ contains
                   evapn(i,j,nld,iwater)=esnow/(rowat*rlatsub)+ &
                                                 emois/(rowat*rlatvap)
 !~ #endif
-#if ( ISOATM == 1 )
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!      Computation of evaporation for the water isotopes
-!        == Version without isotopic fractionnation ==
-!      (Evaporation from the land / snow surface)
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!dmr Compute the evaporative ratio
-         do k=ieau+1,neauiso
-           ratio_evap(i,j,k) = (datmini(k)+1.0e0_dblp) * rsmow(k)
-         enddo
-
-         do k=ieau+1, neauiso
-!dmr apply the evaporative ratios to the evaporative flux
-           evapn(i,j,nld,k) = evapn(i,j,nld,ieau) * ratio_evap(i,j,k)
-         enddo
-#elif ( ISOATM == 2 )
+#if   ( WISOATM == 1 )
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of sublimation for the water isotopes
 !     == Version with isotopic fractionnation as in MJ79==
@@ -1909,8 +1894,6 @@ contains
 
        ENDDO ! on isotopes
 
-#elif ( ISOATM == 3 )
-        WRITE(*,*) "Option non implementee !!! , atmphys0.f"
 #endif
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !       Case where there is some snow left after sublimation
@@ -1925,19 +1908,7 @@ contains
                   evapn(i,j,nld,iwater)=esubf/(rowat*rlatsub)
 !~ #endif
 
-#if ( ISOATM == 1 )
-
-!dmr Compute the evaporative ratio
-       DO k=ieau+1,neauiso
-         ratio_evap(i,j,k) = (datmini(k)+1.0e0_dblp) * rsmow(k)
-       ENDDO
-
-       DO k=ieau+1, neauiso
-!dmr Apply the evaporative ratios to the evaporative flux
-         evapn(i,j,nld,k) = evapn(i,j,nld,ieau) * ratio_evap(i,j,k)
-       ENDDO
-
-#elif ( ISOATM == 2 )
+#if   ( WISOATM == 1 )
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of sublimation for the water isotopes
 !     == Version with isotopic fractionnation as in MJ79==
@@ -1971,8 +1942,6 @@ contains
 
        ENDDO
 
-#elif ( ISOATM == 3 )
-        WRITE(*,*) "Option non implementee !!! , atmphys0.f"
 #endif
                 endif
 
@@ -2042,19 +2011,7 @@ contains
             evapn(i,j,nld,iwater)=efluxn(i,j,nld)/(rowat*rlatvap)
 !~ #endif
 
-#if ( ISOATM == 1 )
-
-!dmr Compute the evaporative ratio
-       DO k=ieau+1, neauiso
-         ratio_evap(i,j,k) = (datmini(k)+1.0e0_dblp) * rsmow(k)
-       ENDDO
-
-       DO k=ieau+1, neauiso
-!dmr Apply the evaporative ratios to the evaporative flux
-         evapn(i,j,nld,k) = evapn(i,j,nld,ieau) * ratio_evap(i,j,k)
-       ENDDO
-
-#elif ( ISOATM == 2 )
+#if   ( WISOATM == 1 )
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of evaporation for the water isotopes
 !       ... case where all water is evaporated from "land water"
@@ -2085,8 +2042,6 @@ contains
            evapn(i,j,nld,k) = emoisiso
            ENDDO
 
-#elif ( ISOATM == 3 )
-        WRITE(*,*) "Option non implementee !!! , atmphys0.f"
 #endif
               endif
 
@@ -2938,7 +2893,7 @@ contains
       return
       end SUBROUTINE ec_moisbalance
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_moisbalance_globiso
 !-----------------------------------------------------------------------

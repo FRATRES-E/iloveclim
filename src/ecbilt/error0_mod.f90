@@ -44,7 +44,7 @@ contains
     use comcoup_mod                ! external coupler — only: not available
     use newunit_mod,     only: error_id
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
     use iso_param_mod,   only: ieau
 #endif
 

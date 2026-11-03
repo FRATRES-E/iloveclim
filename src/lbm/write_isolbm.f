@@ -17,7 +17,7 @@
 !       Variables d'entree  : ~
 !       Variables de sortie : ~
 !-----|--1--------2---------3---------4---------5---------6---------7-|
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
 
        USE iso_param_mod, ONLY : ieau, neauiso
 

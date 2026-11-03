@@ -23,7 +23,7 @@ contains
   subroutine write_isoatm
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 
     use iso_param_mod, only: ieau, neauiso
     use comphys,       only: rmoisg, torain, tosnow

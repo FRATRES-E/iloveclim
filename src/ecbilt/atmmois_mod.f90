@@ -100,7 +100,7 @@
       use atmphys_d,        only: ec_ptmoisgp_d
 #endif
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
       use iso_param_mod, ONLY : ieau, ieau18
 #endif
 
@@ -141,7 +141,7 @@
 !       Main code of the function starts here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
 
 ! dmr   STD concistency check
 
@@ -296,7 +296,7 @@
 ! dmr   STD concistency check
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
       do j=1,nlon
         do i=1,nlat
           if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
@@ -353,14 +353,14 @@
                       , cpair, dp1, ihavm, ivavm, imsink
 
        use comsurf_mod, only: tsurf, evap
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
       use comphys,only: corain, cosnow, temp4g
-#endif /* ISOATM */
+#endif /* WISOATM */
 
 ! apparently nothing depends on comemic
 !~ ###       use comemic_mod, only:
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
        use iso_param_mod,only: neauiso, ieau, ieau18, rsmow
        use iso_alphas,   only: alpha_lv, alpha_sv
        use iso_funcs,    only: rayleigh_dist, mois2ratiosMJ
@@ -370,7 +370,7 @@
        use iso_alphas,   only: alpha_sve
 #endif /* FRAC_KINETIC */
 
-#endif /* ISOATM */
+#endif /* WISOATM */
 
 
 ! TODO => add properly the following section for downscaling
@@ -437,7 +437,7 @@
 ! dmr  0.1  Water isotopes
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Following section contains variable that are different in iso/non-iso
@@ -459,7 +459,7 @@
       real(kind=dblp)                    :: alpha_rayl, fract, rmoisg_semistep, ratio_av, ratio_ap
 
 !~ #else /* ISOATM == 0 */
-#endif /* on ISOATM >= 1 */
+#endif /* on WISOATM == 1 */
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  non-iso local variables ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -478,7 +478,7 @@
       integer(kind=ip)                      :: ind_low
       integer(kind=ip)                      :: n_point
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       real(kind=dblp), dimension(nlat,nlon) :: fract_rain
 #endif
 
@@ -506,7 +506,7 @@
 ! dmr   STD concistency check
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
       do j=1,nlon
         do i=1,nlat
           if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
@@ -620,7 +620,7 @@
 !           This section is identical to previous, save the outer loop on isotopes
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
 
       do k=ieau+2, neauiso ! skipping useless O16 ...
 
@@ -659,7 +659,7 @@
 
 !       CALL mois2ratiosMJ(rmoisg(:,:,:),ration_qatm(:,:,:))
 
-#endif /* On ISOATM >= 1 */
+#endif /* On WISOATM == 1 */
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  2.0) Vertical advection of moisture
@@ -779,7 +779,7 @@
 
          dyrain_grisli = dyrain_grisli / area_sg_onecb(i,j)
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
          dyrain(i,j,ieau) = dyrain(i,j,ieau) + dyrain_grisli
 #else
          dyrain(i,j,iwater) = dyrain(i,j,iwater) + dyrain_grisli
@@ -789,7 +789,7 @@
 
          dysnow_grisli = dysnow_grisli / area_sg_onecb(i,j)
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
         dysnow(i,j,ieau) = dysnow(i,j,ieau) + dysnow_grisli
 #else
          dysnow(i,j,iwater) = dysnow(i,j,iwater) + dysnow_grisli
@@ -886,7 +886,7 @@
 ! dmr  3.1) Horizontal diffusion of moisture for isotopes ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 
       do k=ieau+2, neauiso ! skipping useless O16 ...
 ! *** horizontal diffusion of moisture
@@ -908,7 +908,7 @@
       do j=1,nlon
         do i=1,nlat
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 
 !        Saving before-advection moisture content & isotopes
 
@@ -967,14 +967,8 @@
 !       is removed.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (ISOATM == 1 || ISOATM == 3 )
-      WRITE(*,*)"This version of the code no longer supports isoatm = 1"
-      WRITE(*,*)"And never supported isoatm = 3"
-      WRITE(*,*)"<STOP>"
-      STOP
-#endif
 
-#if (ISOATM >= 1)
+#if (WISOATM == 1)
 
       do j=1,nlon
         do i=1,nlat
@@ -1171,7 +1165,7 @@
         enddo ! end of spatial loop
       enddo   ! end of spatial loop
 
-#endif /* on ISOATM >= 1 */
+#endif /* on WISOATM == 1 */
 
 !~ #if ( ISOATM >= 1 )
 
@@ -1215,7 +1209,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 
-#if (ISOATM >= 1 )
+#if (WISOATM == 1 )
 
       subroutine longitudo_medius(humidae,humidae_media)
       

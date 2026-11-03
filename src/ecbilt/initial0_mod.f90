@@ -755,12 +755,12 @@ contains
                          newgh, newcdragw, newcdragv, newqgpv, newtcc, &
                          newdumt1, newdumt2, newdumu1, newdumu2, &
                          newomega, newhic, newswrs, newlwrs
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       use comdiag, only: newpp17, newpp18, newppd, &
                          newrmoisg17, newrmoisg18, newrmoisgd, &
                          newsn17, newsn18, newsnd
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       use comdiag, only: newbmoisg17, newbmoisg18, newbmoisgd, &
                          newsdl17, newsdl18, newsdld
 #endif
@@ -779,7 +779,7 @@ contains
               vstress(20),cdragw(20), cdragv(20),bm(20),sdl(20), &
               runoffo(20), runoffl(20),dumt1(20),dumt2(20),dumu1(20), &
               dumu2(20),snow(20),t2m(20),hic(20),swrs(20), lwrs(20) !mohr
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
              ,pp18(20) &
              ,sn18(20) &
              ,pp17(20) &
@@ -790,7 +790,7 @@ contains
              ,q17(20) &
              ,qd(20)
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
              ,bm18(20) &
              ,sdl18(20) &
              ,bm17(20) &
@@ -811,11 +811,11 @@ contains
       hforc,vforc,ssr,tsr,ttr,str,swrs,lwrs,albs,albp,ustress,vstress,cdragw, &
       cdragv,bm,sdl,runoffo, runoffl,hic,dumt1,dumt2,dumu1,dumu2
 !~ TODO: NAMELIST with #if ISOATM — continuation not valid in free-form
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       ,pp18 ,sn18 ,pp17 ,sn17 ,ppd ,snd, q18, q17, qd
 #endif
 !~ TODO: NAMELIST with #if ISOATM — continuation not valid in free-form
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
       ,bm18 ,sdl18 ,bm17 ,sdl17 ,bmd ,sdld
 #endif
       NAMELIST /flgout/irad
@@ -936,7 +936,7 @@ contains
         dumu2(i)   = 0
         swrs(i)    = 0 !mohr
         lwrs(i)    = 0 !mohr
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
         pp18(i)    = 0
         sn18(i)    = 0
         pp17(i)    = 0
@@ -947,7 +947,7 @@ contains
         q17(i)     = 0
         qd(i)      = 0
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
         bm18(i)= 0
         sdl18(i)   = 0
         bm17(i)= 0
@@ -1013,7 +1013,7 @@ contains
         newswrs(i)   = swrs(i)     !mohr
         newlwrs(i)   = lwrs(i)     !mohr
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
         newpp18(i)   = pp18(i)
         newsn18(i)   = sn18(i)
         newpp17(i)   = pp17(i)
@@ -1024,7 +1024,7 @@ contains
         newrmoisg17(i) = q17(i)
         newrmoisgd(i)  = qd(i)
 #endif
-#if ( ISOATM >= 2 )
+#if ( WISOATM == 1 )
         newbmoisg18(i) = bm18(i)
         newsdl18(i)  = sdl18(i)
         newbmoisg17(i) = bm17(i)

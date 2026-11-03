@@ -92,7 +92,7 @@
       PUBLIC :: Surface_Shortwave_Radiation !mohr
       PUBLIC :: Surface_Longwave_Radiation  !mohr
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       PUBLIC :: Total_Precip18
       PUBLIC :: Total_Snow18
       PUBLIC :: Total_Precip17
@@ -237,7 +237,7 @@
       INTEGER, PARAMETER :: Surface_Shortwave_Radiation = 32
       INTEGER, PARAMETER :: Surface_Longwave_Radiation  = 33 !mohr
       INTEGER, PARAMETER :: num_noiso_var               = 33
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       INTEGER, PARAMETER :: Total_Precip18          = 34
       INTEGER, PARAMETER :: Total_Snow18            = 35
       INTEGER, PARAMETER :: Total_Precip17          = 36
@@ -255,7 +255,7 @@
       INTEGER, PARAMETER :: Spec_Hum_dd             = 48
 #endif
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
       INTEGER, PARAMETER :: Number_of_2D_Fields     = 48
 #else
       INTEGER, PARAMETER :: Number_of_2D_Fields     = 33
@@ -263,7 +263,7 @@
 
 !dmr ###     INTEGER, PARAMETER :: Number_of_2D_Fields       = 31
 
-#if ( ISOATM >= 1 )
+#if ( WISOATM == 1 )
 !     Three dimensional fields
       INTEGER, PARAMETER :: Temperature                 =  49
       INTEGER, PARAMETER :: Wind_U                      =  50

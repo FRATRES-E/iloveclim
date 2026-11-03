@@ -32,7 +32,7 @@
 !nb parameter added for input output
       integer, parameter :: nsmax_TS = 2
 
-#if ( OCYCC == 1 && ISOOCN == 0 && ISOATM == 0 && OOISO== 0)
+#if ( OCYCC == 1 && ISOOCN == 0 && OOISO == 0)
       integer, parameter :: NISOO2 = 1 !nb
 
 #if ( PATH == 0 && NEOD == 0)
@@ -47,7 +47,7 @@
       integer, parameter :: nsmax = 19   
 #endif
 
-#elif ( OCYCC == 0 && ISOOCN >= 1 && ISOATM >= 2 )
+#elif ( OCYCC == 0 && ISOOCN >= 1 && WISOATM == 1 )
 !nb case with no carbon cycle, but with water isotopes, no O2 isotopes (implicit)
 !dmr --- Added only three items for the ocean: h217O, h218O, hdo, in that order
 !dmr --- Beware for future use: I assume implicitly that these are items 3,4,5 in the arrays
@@ -74,7 +74,7 @@
 !dmr ---        the placement of the water isotopes in the atmosphere
 !dmr ---        indexes to be used are the atmospheric ones ... confusing!
 
-#elif ( OCYCC == 1 && ISOOCN >= 1 && ISOATM >= 2 && OOISO == 0 ) /* I assume that if ISOOCN & OCYCC then, PATH is automatically in */
+#elif ( OCYCC == 1 && ISOOCN >= 1 && WISOATM == 1 && OOISO == 0 ) /* I assume that if ISOOCN & OCYCC then, PATH is automatically in */
 !nb case with carbon cycle and PaTh and water isotopes and O2 isotopes
 !dmr --- we are in a case where we have: 17 + 3 = 20 tracers
       integer, parameter :: nsmax = 20
@@ -89,7 +89,7 @@
       integer, parameter :: NISOO2 = 1 !nb
 
 
-#elif ( OCYCC == 1 && ISOOCN == 0 && ISOATM == 0 && OOISO == 1 )
+#elif ( OCYCC == 1 && ISOOCN == 0 && OOISO == 1 )
 !nb with carbon cycle (no PaTH implicit), no water isotopes, with oxygen isotopes in ocean
 !nb   2 basic tracers (T and S) + 11 tracers for carbon cycle + 3
 !     tracers for oxygen isotopes in ocean = 16
@@ -102,7 +102,7 @@
 
       integer, parameter ::  NISOO2=4 !test with 1, should be set to 4
 
-#elif ( OCYCC == 1 && PATH == 1 && ISOOCN >= 1 && ISOATM >= 2 && OOISO == 1 ) 
+#elif ( OCYCC == 1 && PATH == 1 && ISOOCN >= 1 && WISOATM == 1 && OOISO == 1 ) 
 !nb with carbon cycle and PaTh and water isotopes and oxygen isotopes in ocean
 !nb   2 basic tracers (T and S) + 11 tracers for carbon cycle + 4 for
 !PaTh + 2 for water isotopes + 3 tracers for oxygen isotopes in ocean = 23
@@ -115,7 +115,7 @@
 
       integer, parameter :: owatert=5
 
-#elif ( OCYCC == 1 && ISOOCN == 0 && ISOATM == 0 && OOISO == 1 )
+#elif ( OCYCC == 1 && ISOOCN == 0 && OOISO == 1 )
 !nb with carbon cycle, water isotopes with oxygen isotopes in ocean
 !     tracers for oxygen isotopes in ocean = 17 or 16
 #if ( ARGON == 1 )
