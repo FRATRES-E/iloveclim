@@ -43,10 +43,12 @@
 #if ( ROUTEAU == 1 )
       USE routageEAU_mod
 #endif
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, ieau17, ieau18, ieaud, rsmow,
-     &    neauiso
-      USE isoatm_mod, ONLY: dlbmini, isolbm_restart
+! dmr&clo   wiso:2a:0002 the land isotope state is parked under ISOLBM >= 1 (ROADMAP step 3, D31):
+!           with WISOATM = 1 and fixed surface ratios (D10) the LBM carries water only
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater, iwat17, iwat18, iwat2h, nwisos
+      use iso_param_mod, only: rsmow
+      USE iso_param_mod, ONLY: dlbmini, isolbm_restart
 #endif
 
       use comland_mod, only: fractl, dareas, dsnow, bmoisg, runofo, tland, albsnow, bmoismfix, dsnm, dtland, epsl, heatsnown &
@@ -78,8 +80,8 @@
 #if ( DOWNSTS == 1 )
       INTEGER :: nb_down
 #endif
-#if ( WISOATM == 1 )
-      REAL, DIMENSION(nlat,nlon,neauiso) :: rationsl
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      REAL, DIMENSION(nlat,nlon,nwisos) :: rationsl
       INTEGER :: k
 #endif
 
@@ -156,13 +158,13 @@
 
 ! *** initialisation of evaporation, soil moisture, snow cover, & land temp
 
-#if ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 )
 ! dmr
 ! Initialization to fixed initial values for the version with "R" in MJ79
 ! 17O and deuterium are initialized with d-excess and 17Oexcess to zero
 ! w.r.t. 18O
 ! dmr
-        DO k=ieau+1, neauiso
+        DO k=iwater+1, nwisos
         rationsl(:,:,k) = ( dlbmini(k) + 1.0D0 ) * rsmow(k)
         ENDDO
 #endif
@@ -222,14 +224,14 @@
 #if ( ISOLBM >= 1 )
         if ( isolbm_restart.NE.0 ) then !read restart from file
            OPEN(newunit=wisolbm_restart_dat_id,FILE='startdata/wisolbm_restart.dat',STATUS='old',FORM='unformatted')
-           READ(wisolbm_restart_dat_id) bmoisg(:,:,ieau+1:neauiso),runofo(:,:,ieau+1:neauiso), dsnow(:,:,ieau+1:neauiso)
+           READ(wisolbm_restart_dat_id) bmoisg(:,:,iwater+1:nwisos),runofo(:,:,iwater+1:nwisos), dsnow(:,:,iwater+1:nwisos)
            CLOSE(wisolbm_restart_dat_id)
         endif
 
 #if ( CARAIB > 0 )
        WHERE (bmoisg(:,:,iwater).le.1.0E-10)
             bmoisg(:,:,iwater)=bmoismfix
-            bmoisg(:,:,ieau18) = bmoisg(:,:,iwater)*rationsl(:,:,ieau18)
+            bmoisg(:,:,iwat18) = bmoisg(:,:,iwater)*rationsl(:,:,iwat18)
        ENDWHERE
 #endif
 
@@ -576,8 +578,8 @@
       use ecbilt_topography, only: rmount_virt
 #endif
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater
 #endif
 
       use comatm, only: nlat, nlon, iwater, nwisos
@@ -999,12 +1001,13 @@
       use comatm, only: nlat, nlon, iwater,nwisos
       use comunit, only: iuo
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow, delta
-      USE isoatm_mod, ONLY : ratio_evap_land, ratio_evap_snow
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater, nwisos, iwat18
+      use iso_param_mod, only: rsmow, delta
+      USE iso_param_mod, ONLY : ratio_evap_land, ratio_evap_snow
       USE iso_alphas, ONLY : alpha_lv, alpha_sv
 #if ( ISOLBM == 0 )
-      USE isoatm_mod, ONLY: datmini
+      USE iso_param_mod, ONLY: datmini
 #endif
 #endif
       use comland_mod, only:  dsnm, betam, dtland, epsl, heatsnown, heatsnows, rlatfus, rowat
@@ -1036,20 +1039,20 @@
       double precision, dimension(nlat,nlon,nwisos),intent(inout) :: dsnow !
 
       integer i,j,istep
-#if ( WISOATM == 1 )
-      REAL, DIMENSION(neauiso) :: dsnomel
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      REAL, DIMENSION(nwisos) :: dsnomel
       real*8  dsnovap
 #if ( ISOLBM == 0 )
-      REAL, DIMENSION(nlat,nlon,neauiso) :: rationsl
+      REAL, DIMENSION(nlat,nlon,nwisos) :: rationsl
 #endif
 #else
       real*8  dsnomel,dsnovap
 #endif
       real*8  qsat
-#if ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 )
       INTEGER :: k
-      REAL, DIMENSION(neauiso) :: variso
-      REAL, DIMENSION(nlat,nlon,neauiso) :: dsnowbef
+      REAL, DIMENSION(nwisos) :: variso
+      REAL, DIMENSION(nlat,nlon,nwisos) :: dsnowbef
       REAL :: rien0, rien1, rien2, rien3, rien4, rien5, rien6
       character*10 varisonm
       common /isofix/ dsnowbef
@@ -1178,8 +1181,9 @@
       use comemic_mod, only:
       use comunit, only: iuo
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, neauiso, ieau18, delta
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater, nwisos, iwat18
+      use iso_param_mod, only: delta
 #endif
 
       use comland_mod, only: runofl, bmoisg, runofo, dtland, epsl, nbasins, fractl, bmoism, ilabas, dareas, iocbas, rlatfus &
@@ -1688,8 +1692,8 @@
       use newunit_mod, only: info_id
 
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater
 #endif
 
       use comland_mod, only: dtland, epsl, lhcap, tareas, fractl, evapl, snowf, runofl, rainf, dsnow, dareas, bmoisg, runofo, tland
@@ -1919,8 +1923,8 @@
       use vertDownsc_mod, only: nethfxland_d, hfluxn_d, efluxn_d
 #endif
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, ieau18
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater, iwat18
 #endif
 
       use comland_mod, only: evapoc, nethfxland, evapl, rainf, snowf, rlatfus, rowat
@@ -1959,11 +1963,12 @@
 ! *** communicate land data to coupler
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater, nwisos, iwat18
+      use iso_param_mod, only: rsmow
 #if ( ISOLBM == 0 )
       USE iso_param_mod, ONLY : rsmow
-      USE isoatm_mod, ONLY: datmini
+      USE iso_param_mod, ONLY: datmini
 #endif
 #endif
 
@@ -1981,9 +1986,6 @@
       implicit none
 
       integer i,j
-#if ( WISOATM == 1 && ISOLBM == 0 )
-      INTEGER :: k
-#endif
 
       do j=1,nlon
         do i=1,nlat
@@ -2040,8 +2042,8 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! *** communicate land data to coupler
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater
 #endif
 
       use comcoup_mod
@@ -2096,8 +2098,8 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! *** output land for start new run
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      use comatm, only: iwater
 #endif
 
       use comland_mod, only: bmoisg, dsnow, runofo, tland

@@ -46,16 +46,8 @@ contains
       use atmphys_mod, only: ec_atmphyszero, ec_sensrad, ec_fortemp, ec_meantemp
       use atm_wbudget_mod, only: atm_wb_step_begin, atm_wb_step_end     ! dmr&clo wiso:1e:0003
 
-#if ( WISOATM == 0 )      
       use ec_convec_mod, only: ec_convec_two
-#endif
-
-#if ( WISOATM == 1 )
-      use atmmois_mod, only: ec_moisture=>ec_moisture_r332, &
-                            ec_convec=>ec_convec_r332
-#else
       use atmmois_mod, only: ec_moisture
-#endif
 
       implicit none
 
@@ -82,11 +74,7 @@ contains
 ! dmr&clo   wiso:1e:0003 water budget diagnostic brackets the moisture physics (no effect on the state)
         call atm_wb_step_begin
         success = ec_moisture()
-#if ( WISOATM == 1 )
-        success=ec_convec()
-#else
         call ec_convec_two
-#endif
         call atm_wb_step_end
         call ec_fortemp
         call ec_meantemp
@@ -302,9 +290,6 @@ contains
 #if ( CYCC >= 2 )
       use carbone_co2_mod, only: PA_C
 #endif
-#if ( WISOATM == 1 )
-      use write_isoatm_mod, only: write_isoatm
-#endif
 
       implicit none
 
@@ -325,12 +310,7 @@ contains
 #elif ( CYCC >= 2 )
       write(newunit_id) PA_C
 #endif
-#if ( WISOATM == 1 )
-      use write_isoatm_mod, only: write_isoatm
-#endif
-#if ( WISOATM == 1 )
-      call write_isoatm
-#endif
+! dmr&clo   wiso:2a:0002 [wiso:2c] isotope restart (netCDF, D34) is written here; binary write_isoatm removed
       return
       end subroutine ec_wrendphy
 

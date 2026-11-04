@@ -25,9 +25,9 @@
 #endif
 
 #if (WISOATM == 1 )
-       USE iso_param_mod, ONLY : ieau, ieau18,
-     &                           rsmow, neauiso
-       USE isoatm_mod, ONLY : datmini,isolbm_restart
+       use comatm, only: iwater, iwat18, nwisos
+       use iso_param_mod, only: rsmow
+       USE iso_param_mod, ONLY : datmini,isolbm_restart
 #endif
 
 #if ( BATHY >= 2 )
@@ -182,13 +182,13 @@ c~ #if (ISOATM >= 1 )
 
         open(newunit=incoup_dat_id,file='startdata/wisocpl_restart.dat'
      >              ,form='unformatted')
-        do k=ieau+1,neauiso
+        do k=iwater+1,nwisos
           read(incoup_dat_id) coevap(:,:,k)
         enddo
-        do k=ieau+1,neauiso
+        do k=iwater+1,nwisos
           read(incoup_dat_id) sumofwf(:,:,k)
         enddo
-        do k=ieau+1,neauiso
+        do k=iwater+1,nwisos
           read(incoup_dat_id) sumisno(:,:,k)
         enddo
         close(incoup_dat_id)
@@ -197,8 +197,8 @@ c~ #if (ISOATM >= 1 )
         ELSE
 
 !dmr --- Initialisation barbare ...
-          DO k=ieau+1,neauiso
-            coevap(:,:,k) = coevap(:,:,ieau) * ( datmini(k) + 1.0d0 )
+          DO k=iwater+1,nwisos
+            coevap(:,:,k) = coevap(:,:,iwater) * ( datmini(k) + 1.0d0 )
      &                          * rsmow(k)
             sumofwf(:,:,k) = sumofwf(:,:,k) * ( datmini(k) + 1.0d0 )
      &                          * rsmow(k)
@@ -491,9 +491,6 @@ c~ #endif
       use comsurf_mod
       use comatm, only: iwater
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, neauiso, rsmow, ieau18, delta
-#endif
 
 
       implicit none
@@ -651,17 +648,9 @@ c~ #endif /* on  ISOATM >= 2 && ISOOCN >= 1 */
       use comcoup_mod
       use comsurf_mod
 
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, neauiso, ieau18, delta
-#endif
       implicit none
 
       integer ist,jst,i,j
-#if (WISOATM == 1 )
-      integer k
-      real, dimension(neauiso) :: variso
-      character*10 varisonm
-#endif
       real*8  ratm,facstr,rndws,dwsm1,facsnow
 
       facsnow=rowat*rlatfus
@@ -1118,10 +1107,6 @@ c~ #endif
 !-----------------------------------------------------------------------
 ! *** output fluxes for start new run
 !-----------------------------------------------------------------------
-#if ( WISOATM == 1 )
-      USE iso_param_mod, ONLY : ieau, neauiso
-#endif
-
       use comcoup_mod
       use comatm, only: nlat, nlon, iwater
       use comunit
@@ -1163,13 +1148,13 @@ c~       write(newunit_id) sumohfx,sumoswr,sumihfx,sumiswr,sumofwf(:,:,ieau),
 c~      &sumisno(:,:,ieau),
 c~      &winstua,winstva,sumtx,sumty
 
-      do k=ieau+1,neauiso
+      do k=iwater+1,nwisos
         write(wisocpl_restart_id) coevap(:,:,k)
       enddo
-      do k=ieau+1,neauiso
+      do k=iwater+1,nwisos
         write(wisocpl_restart_id) sumofwf(:,:,k)
       enddo
-      do k=ieau+1,neauiso
+      do k=iwater+1,nwisos
         write(wisocpl_restart_id) sumisno(:,:,k)
       enddo
 #endif

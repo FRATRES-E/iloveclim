@@ -16,7 +16,6 @@
 
       contains
       
-#if ( WISOATM == 0 )
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! ***   Moist convective adjustment
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -947,8 +946,8 @@
 
 
 !
+! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologues in convective rain and snow go here (ratio-consistent, D7, D36)
       return
       end subroutine ec_convec_two
-#endif
    
       end module ec_convec_mod

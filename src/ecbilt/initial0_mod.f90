@@ -760,7 +760,7 @@ contains
                          newrmoisg17, newrmoisg18, newrmoisgd, &
                          newsn17, newsn18, newsnd
 #endif
-#if ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 )
       use comdiag, only: newbmoisg17, newbmoisg18, newbmoisgd, &
                          newsdl17, newsdl18, newsdld
 #endif
@@ -779,24 +779,12 @@ contains
               vstress(20),cdragw(20), cdragv(20),bm(20),sdl(20), &
               runoffo(20), runoffl(20),dumt1(20),dumt2(20),dumu1(20), &
               dumu2(20),snow(20),t2m(20),hic(20),swrs(20), lwrs(20) !mohr
+! dmr&clo   wiso:2a:0002 isotope output selections as separate declarations (a #if cannot split a continued statement)
 #if ( WISOATM == 1 )
-             ,pp18(20) &
-             ,sn18(20) &
-             ,pp17(20) &
-             ,sn17(20) &
-             ,ppd(20) &
-             ,snd(20) &
-             ,q18(20) &
-             ,q17(20) &
-             ,qd(20)
+      integer pp18(20), sn18(20), pp17(20), sn17(20), ppd(20), snd(20), q18(20), q17(20), qd(20)
 #endif
-#if ( WISOATM == 1 )
-             ,bm18(20) &
-             ,sdl18(20) &
-             ,bm17(20) &
-             ,sdl17(20) &
-             ,bmd(20) &
-             ,sdld(20)
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      integer bm18(20), sdl18(20), bm17(20), sdl17(20), bmd(20), sdld(20)
 #endif
       integer i
 
@@ -810,13 +798,12 @@ contains
       r,tcc,u,v,uv10,ageu,agev,omega,psi,qgpv,gh,chi,sp,shf,lhf, &
       hforc,vforc,ssr,tsr,ttr,str,swrs,lwrs,albs,albp,ustress,vstress,cdragw, &
       cdragv,bm,sdl,runoffo, runoffl,hic,dumt1,dumt2,dumu1,dumu2
-!~ TODO: NAMELIST with #if ISOATM — continuation not valid in free-form
+! dmr&clo   wiso:2a:0002 a second NAMELIST statement extends the group wratpar
 #if ( WISOATM == 1 )
-      ,pp18 ,sn18 ,pp17 ,sn17 ,ppd ,snd, q18, q17, qd
+      NAMELIST /wratpar/ pp18, sn18, pp17, sn17, ppd, snd, q18, q17, qd
 #endif
-!~ TODO: NAMELIST with #if ISOATM — continuation not valid in free-form
-#if ( WISOATM == 1 )
-      ,bm18 ,sdl18 ,bm17 ,sdl17 ,bmd ,sdld
+#if ( WISOATM == 1 && ISOLBM >= 1 )
+      NAMELIST /wratpar/ bm18, sdl18, bm17, sdl17, bmd, sdld
 #endif
       NAMELIST /flgout/irad
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -947,7 +934,7 @@ contains
         q17(i)     = 0
         qd(i)      = 0
 #endif
-#if ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 )
         bm18(i)= 0
         sdl18(i)   = 0
         bm17(i)= 0
@@ -1024,7 +1011,7 @@ contains
         newrmoisg17(i) = q17(i)
         newrmoisgd(i)  = qd(i)
 #endif
-#if ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 )
         newbmoisg18(i) = bm18(i)
         newsdl18(i)  = sdl18(i)
         newbmoisg17(i) = bm17(i)

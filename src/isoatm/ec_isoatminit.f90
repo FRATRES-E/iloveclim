@@ -48,6 +48,10 @@
        character(len=44), parameter:: pathtofile = "inputdata/isoatm/calculated_d18O_v1_1-T21.nc"
        INTEGER :: i,j
 
+! dmr&clo   wiso:2a:0002 until wiso:2c the isotopologues are initialised but never evolved (no transport, sources or
+!           sinks): water and climate must be bit-identical to WISOATM = 0 (D4), the isotope fields are meaningless
+       write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues initialised but NOT evolved yet (ROADMAP wiso:2c)"
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      Let's read the input file containing surface water d18O
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -208,8 +212,8 @@
           IF(nb_moy.NE.0) THEN
             data_out(i,j,z) = val_moy / nb_moy
           ELSE
-            WRITE(*,*) "I can't fix location: ", i, j
-            READ(*,*)
+            WRITE(*,*) "ec_isoatminit: I can't fix location: ", i, j
+            stop 1
           ENDIF
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|

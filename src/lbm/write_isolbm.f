@@ -17,9 +17,9 @@
 !       Variables d'entree  : ~
 !       Variables de sortie : ~
 !-----|--1--------2---------3---------4---------5---------6---------7-|
-#if ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 )
 
-       USE iso_param_mod, ONLY : ieau, neauiso
+       use comatm, only: iwater, nwisos
 
        use comland_mod, only: bmoisg, runofo, dsnow
 
@@ -38,9 +38,9 @@
       OPEN(newunit=wisolbm_restartdat_id,FILE='wisolbm_restart.dat'
      >    ,STATUS='unknown',FORM='unformatted')
 
-        WRITE(wisolbm_restartdat_id) bmoisg(:,:,ieau+1:neauiso),
-     >              runofo(:,:,ieau+1:neauiso),
-     >              dsnow(:,:,ieau+1:neauiso)
+        WRITE(wisolbm_restartdat_id) bmoisg(:,:,iwater+1:nwisos),
+     >              runofo(:,:,iwater+1:nwisos),
+     >              dsnow(:,:,iwater+1:nwisos)
 
          CLOSE(wisolbm_restartdat_id)
 #endif

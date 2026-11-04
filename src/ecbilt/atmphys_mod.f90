@@ -26,9 +26,6 @@ module atmphys_mod
             ec_dyntemp, ec_vortfor, ec_pvf1, ec_pvf2, ec_pvf3,           &
             ec_pvf4, ec_pvf5, ec_lwaverad2, ec_swaverad2, ec_tempprofile,&
             ec_ptmoisgp
-#if ( WISOATM == 1 )
-  public :: ec_moisbalance_globiso
-#endif
 #if ( CLAQUIN == 1 )
   public :: rad_forc_add
 #endif
@@ -71,7 +68,7 @@ contains
 #endif
 
 #if (WISOATM == 1 )
-       USE comatm, ONLY : iwater, nwisos, iwat18, iwat17, iwat2h
+       USE comatm, ONLY : iwater, iwat16, iwat17, iwat2h
        USE iso_param_mod, only: datmini, delta_inv, isoatm_restart
 #endif
 
@@ -245,30 +242,21 @@ contains
      
 
 #if ( WISOATM == 1 )
-        if (isoatm_restart.EQ.0) then
-
-        do i=iwat17,iwat2h
-          rmoisg(:,:,i) = &
-            delta_inv(rmoisg(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
-          torain(:,:,i) = &
-            delta_inv(torain(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
-          tosnow(:,:,i) = &
-            delta_inv(tosnow(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)     
-        enddo
-
-        else ! let's read the restart file
-
-      OPEN(newunit=wisoatm_restart_dat_id, &
-      FILE='startdata/wisoatm_restart.dat',STATUS='old', &
-      FORM='unformatted')
-
-           READ(wisoatm_restart_dat_id)  rmoisg(:,:,iwater+1:nwisos) &
-                   ,torain(:,:,iwater+1:nwisos)
-                   ,tosnow(:,:,iwater+1:nwisos)
-
-         CLOSE(wisoatm_restart_dat_id)
+! dmr&clo   wiso:2a:0002 initial isotopologues from the fixed initial deltas (datmini; namelist in wiso:2b);
+!           iwat16 starts equal to water (rsmow = 1). The binary wisoatm_restart.dat is gone: netCDF restart in wiso:2c (D34).
+        if (isoatm_restart /= 0) then
+          write(*,*) "ec_iatmphys: WISOATM_RESTART = 1 is not available until wiso:2c (netCDF isotope restart, D34)"
+          stop 1
         endif
 
+        rmoisg(:,:,iwat16) = rmoisg(:,:,iwater)
+        torain(:,:,iwat16) = torain(:,:,iwater)
+        tosnow(:,:,iwat16) = tosnow(:,:,iwater)
+        do i=iwat17,iwat2h
+          rmoisg(:,:,i) = delta_inv(rmoisg(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
+          torain(:,:,i) = delta_inv(torain(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
+          tosnow(:,:,i) = delta_inv(tosnow(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
+        enddo
 #endif
 ! Fin de l'initialisation des isotopes sans/avec relecture de fichier
 
@@ -1579,13 +1567,6 @@ contains
       use ecbilt_topography,only: nb_levls
 #endif
 
-#if ( WISOATM == 1 ) 
-      use comatm, only: iwat17, iwat18, iwat2h
-      use iso_param_mod,    only: ratio_oceanatm, ratio_evap_ocean, deltaR &
-                               , dexcess
-      use iso_alphas,       only: alpha_lv17, alpha_lv18, alpha_lv2h
-      use comsurf_mod, only: fractoc, tsurfn
-#endif
 
 !~ #if (ISOATM >= 1 )
 !~       USE iso_param_mod, ONLY: ieau, neauiso, ieau18,ieau17,ieaud,
@@ -1615,9 +1596,6 @@ contains
 #endif
 
 
-#if ( WISOATM == 1 )
-      integer                            :: quick_fix
-#endif
 
 !~ #if ( ISOATM >= 1 )
 !~       integer                            :: k, quick_fix
@@ -1680,14 +1658,6 @@ contains
       if (nn.ne.nld) then
 #endif
 !dmr --- Cas où l on est un ocean ou de la banquise ...
-#if ( WISOATM == 1 )
-
-!dmr --- dummy variables to compute debugging diagnostics
-
-       mean_evapiso = 0.0e0_dblp
-       mean_evap = 0.0e0_dblp
-       nb_cazes = 0.0e0_dblp
-#endif
         do j=1,nlon
           do i=1,nlat
             evfacan(i,j,nn)=evfac
@@ -1703,45 +1673,8 @@ contains
           enddo
         enddo
 
-#if ( WISOATM == 1 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
-!      Computation of evaporation for the water isotopes over oceans
-!     == Version without isotopic fractionnation for now: only equilibrium 
-!          with surface oceanic values ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
-       do j=1, nlon
-        do i=1, nlat
-
-!dmr --- Quick and dirty fix to have consistency between fractoc and
-!dmr ---   nse/noc
-         quick_fix = CEILING(fractoc(i,j))
-
-         ratio_evap_ocean(i,j,iwat17) = ratio_oceanatm(i,j,iwat17) &
-                                     / alpha_lv17(tsurfn(i,j,nn))
-
-         ratio_evap_ocean(i,j,iwat18) = ratio_oceanatm(i,j,iwat18) &
-                                     / alpha_lv18(tsurfn(i,j,nn))
-         ratio_evap_ocean(i,j,iwat2h) = ratio_oceanatm(i,j,iwat2h) &
-                                     / alpha_lv2h(tsurfn(i,j,nn))         
-         evapn(i,j,nn,iwat17:iwat2h) = evapn(i,j,nn,iwater) &
-                         *ratio_evap_ocean(i,j,iwat17:iwat2h)*quick_fix
-
-
-         if (( quick_fix.gt.0 ) .and.( tsurfn(i,j,nn).gt.280.0e0_dblp )) then
-         WRITE(*,*) "Test iso evap_ocean", &
-           deltaR(ratio_evap_ocean(i,j,iwat18),iwat18), &
-           deltaR(ratio_evap_ocean(i,j,iwat2h),iwat2h), &
-           deltaR(ratio_oceanatm(i,j,iwat18),iwat18), &
-           deltaR(ratio_oceanatm(i,j,iwat2h),iwat2h), &
-           dexcess(ratio_evap_ocean(i,j,iwat2h),ratio_evap_ocean(i,j,iwat18)), &
-           dexcess(ratio_oceanatm(i,j,iwat2h),ratio_oceanatm(i,j,iwat18)), &
-           tsurfn(i,j,nn)
-         endif
-
-        enddo ! on spatial loop - nlon
-       enddo ! on spatial loop - nlat
-
-#endif
+! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue evaporation over the ocean goes here: fixed ratio (frac_mode = 0),
+!           then MJ79 (2d, O4). The legacy equilibrium-only version (with per-cell prints) was removed.
 
       else
 
@@ -1842,7 +1775,8 @@ contains
                   evapn(i,j,nld,iwater)=esnow/(rowat*rlatsub)+ &
                                                 emois/(rowat*rlatvap)
 !~ #endif
-#if   ( WISOATM == 1 )
+! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue evaporation over land and snow goes here: fixed surface ratios (D10).
+#if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of sublimation for the water isotopes
 !     == Version with isotopic fractionnation as in MJ79==
@@ -1851,7 +1785,7 @@ contains
 !      And possibly part of the land moisture evaporated
 !-----|--1--------2---------3---------4---------5---------6---------7-|
        ! beware: in ISOATM==2, alpha_lv is undefined for ieau16
-       DO k=ieau+2, neauiso
+       DO k=iwater+2, nwisos
 
 !dmr --- Here all snow is evaporated, no complicated scheme for the
 !         ratio of isotopes in snow: take all isotopes!
@@ -1868,7 +1802,7 @@ contains
 !           WRITE(*,*) "WARN @@@ : ", abmoisg(i,j,k), i,j,k
          else
          if (emois.GT.0.e0_dblp) then
-          ratio_evap_land(i,j,k) = abmoisg(i,j,k)/abmoisg(i,j,ieau)
+          ratio_evap_land(i,j,k) = abmoisg(i,j,k)/abmoisg(i,j,iwater)
 ! temporarily no knietic fractionnation for moisture evap from land
 !     &           /alpha_lv(tsurfn(i,j,nld),k)
 
@@ -1908,7 +1842,7 @@ contains
                   evapn(i,j,nld,iwater)=esubf/(rowat*rlatsub)
 !~ #endif
 
-#if   ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of sublimation for the water isotopes
 !     == Version with isotopic fractionnation as in MJ79==
@@ -1916,25 +1850,25 @@ contains
 !      This is the case where there is some snow left after sublimation
 !-----|--1--------2---------3---------4---------5---------6---------7-|
         ! beware: in ISOATM==2, alpha_lv is undefined for ieau16
-       DO k=ieau+2, neauiso
-         ratio_evap_snow(i,j,k) = adsnow(i,j,k)/adsnow(i,j,ieau)
+       DO k=iwater+2, nwisos
+         ratio_evap_snow(i,j,k) = adsnow(i,j,k)/adsnow(i,j,iwater)
 ! temporarily no knietic fractionnation for snow evap from land
 ! should it be some
 !     &           /alpha_sv(tsurfn(i,j,nld),k)
 
-        if ((evapn(i,j,nld,ieau) * ratio_evap_snow(i,j,k)).GT. &
+        if ((evapn(i,j,nld,iwater) * ratio_evap_snow(i,j,k)).GT. &
       (adsnow(i,j,k)/dtime)) then
           WRITE(*,*) 'Error: non conservative issue in evapn from dsnow'
           WRITE(*,*) 'atmphys0.f, line 2095'
           WRITE(*,*) '(1)', i,j,k
-          WRITE(*,*) '(2)', evapn(i,j,nld,ieau), adsnow(i,j,ieau)/dtime
+          WRITE(*,*) '(2)', evapn(i,j,nld,iwater), adsnow(i,j,iwater)/dtime
           WRITE(*,*) '(3)', adsnow(i,j,k)
 !          READ(*,*)
         endif
 
-        evapn(i,j,nld,k) = evapn(i,j,nld,ieau) * ratio_evap_snow(i,j,k)
+        evapn(i,j,nld,k) = evapn(i,j,nld,iwater) * ratio_evap_snow(i,j,k)
 #if ( 0 )
-        if ((k.EQ.ieau18).and.(adsnow(i,j,ieau).GT.0.0e0_dblp)) THEN
+        if ((k.EQ.iwat18).and.(adsnow(i,j,iwater).GT.0.0e0_dblp)) THEN
           WRITE(*,*) "Test evap snow: some snow left!" &
          ,(ratio_evap_snow(i,j,k)/rsmow(k)-1.0e0_dblp)*1000.0e0_dblp
         ENDIF
@@ -2011,7 +1945,7 @@ contains
             evapn(i,j,nld,iwater)=efluxn(i,j,nld)/(rowat*rlatvap)
 !~ #endif
 
-#if   ( WISOATM == 1 )
+#if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of evaporation for the water isotopes
 !       ... case where all water is evaporated from "land water"
@@ -2019,14 +1953,14 @@ contains
 !       ... first version with equilibrium fractionnation, no kinetic
 !-----|--1--------2---------3---------4---------5---------6---------7-|
             ! beware: in ISOATM==2, alpha_lv is undefined for ieau16
-       DO k=ieau+2, neauiso
+       DO k=iwater+2, nwisos
 
 
             if (abmoisg(i,j,k).LT.0.0e0_dblp) then
               emoisiso = 0.0e0_dblp
             else
             if (efluxn(i,j,nld).GT.0.e0_dblp) then
-            ratio_evap_land(i,j,k) = abmoisg(i,j,k)/abmoisg(i,j,ieau)
+            ratio_evap_land(i,j,k) = abmoisg(i,j,k)/abmoisg(i,j,iwater)
 ! temporarily no kinetic fractionnation for moisture evap from land
 !     &           /alpha_lv(tsurfn(i,j,nld),k)
 
@@ -2893,91 +2827,6 @@ contains
       return
       end SUBROUTINE ec_moisbalance
 
-#if ( WISOATM == 1 )
-!23456789012345678901234567890123456789012345678901234567890123456789012
-      SUBROUTINE ec_moisbalance_globiso
-!-----------------------------------------------------------------------
-! *** fix moisture balance in the atmosphere: due to advection and
-! *** spectral truncation, the moisture at a specific point can become
-! *** negative. All moisture additions to reset the moisture at zero
-! *** have been accumulated in cormois. In this routine these additions
-! *** are subtracted from rmoisg. This is done for each latitude
-! *** separately to prevent an artificial meridional transport of
-! *** moisture. If at a given latitude not enough moisture is available
-! *** to accomodate the subtraction, the moisture balance is fixed at
-! *** the neighbouring equatorward latitude. The weights pw(nlat,1) are
-! *** used to correct for changes in the gridsize with latitude.
-!-----------------------------------------------------------------------
-
-
-      USE comatm,  only: nlon, nlat
-      USE comdyn,  only: pw
-      USE comphys, only: rmoisg, cormois
-      use comrunlabel_mod, only: irunlabelf
-
-      USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow
-
-      implicit none
-
-!~ [DEPRECATED]
-!~ [DEPRECATED]
-
-      INTEGER :: i,j,k
-      INTEGER, PARAMETER :: trops = 8, tropn = 25 ! only tropics 10 , 23
-!      real(kind=dblp), EXTERNAL :: ec_globalmean
-      real(kind=dblp) :: gmc,gmm
-      real(kind=dblp), PARAMETER :: globfac=1e0_dblp/sqrt(real(nlon, kind=dblp))
-      real(kind=dblp), DIMENSION(neauiso) :: gfac
-
-      gfac(:)=0e0_dblp
-
-!      WRITE(*,*) "Mean d18O avt ::",((
-!     &ec_globalmean(rmoisg(:,:,ieau18))/ec_globalmean(rmoisg(:,:,ieau))
-!     & )/rsmow(ieau18) - 1d0 ) *1000d0
-
-      DO k=ieau,neauiso
-
-!      WRITE(*,*) 'globmeancor avt', ec_globalmean(cormois(:,:,k)), k
-!      WRITE(*,*) 'globmeanwat avt', ec_globalmean(rmoisg(:,:,k)), k
-
-      gmc = ec_globalmean(cormois(:,:,k))/globfac ! global mean of correction
-      gmm = 0e0_dblp
-
-      do i=trops, tropn
-      do j=1, nlon
-        gmm=gmm+rmoisg(i,j,k)*pw(i,1)
-      enddo
-      enddo
-
-      IF (gmm.NE.0e0_dblp) THEN
-
-        gfac(k) = (ec_globalmean(cormois(:,:,k))/globfac) / gmm
-!        WRITE(*,*) "gfac ::", 1d0 - gfac(k)
-        do i=trops, tropn
-        do j=1, nlon
-          rmoisg(i,j,k) = rmoisg(i,j,k) * (1e0_dblp - gfac(k))
-        enddo
-        enddo
-
-        cormois(:,:,k) = 0.0_dblp
-      ENDIF
-
-!      WRITE(*,*) 'globmeancor apr', ec_globalmean(cormois(:,:,k)), k
-!      WRITE(*,*) 'globmeanwat apr', ec_globalmean(rmoisg(:,:,k)), k
-
-      ENDDO ! on k, iso
-
-!      WRITE(*,*) "Mean d18O apr ::",((
-!     &ec_globalmean(rmoisg(:,:,ieau18))/ec_globalmean(rmoisg(:,:,ieau))
-!     & )/rsmow(ieau18) - 1d0 ) *1000d0
-
-!      WRITE(*,*) "in ec_moisbalance_globiso <return>"
-!      READ(*,*)
-
-      return
-
-      END SUBROUTINE ec_moisbalance_globiso
-#endif
 
 
 

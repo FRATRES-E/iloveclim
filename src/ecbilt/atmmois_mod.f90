@@ -100,9 +100,6 @@
       use atmphys_d,        only: ec_ptmoisgp_d
 #endif
 
-#if (WISOATM == 1 )
-      use iso_param_mod, ONLY : ieau, ieau18
-#endif
 
 #if ( DOWNSTS == 1 )
       use comdyn, only: geopg
@@ -141,21 +138,6 @@
 !       Main code of the function starts here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (WISOATM == 1 )
-
-! dmr   STD concistency check
-
-      do j=1,nlon
-        do i=1,nlat
-          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
-           write(*,*) "PB RMOISG ec_moisfields0 !! ", rmoisg(i,j,ieau), rmoisg(i,j,ieau18),i,j
-           write(*,*) "valeur ieau18, iconvn = ", ieau18
-           read(*,*)
-          endif
-
-        enddo
-      enddo
-#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -296,17 +278,6 @@
 ! dmr   STD concistency check
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (WISOATM == 1 )
-      do j=1,nlon
-        do i=1,nlat
-          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
-           write(*,*) "PB RMOISG ec_moisfields9 !! ", rmoisg(i,j,ieau),rmoisg(i,j,ieau18),i,j
-           write(*,*) "valeur ieau18, iconvn = ", ieau18
-           read(*,*)
-          endif
-        enddo
-      enddo
-#endif
 
 
         returnValue = .true.
@@ -353,24 +324,10 @@
                       , cpair, dp1, ihavm, ivavm, imsink
 
        use comsurf_mod, only: tsurf, evap
-#if (WISOATM == 1 )
-      use comphys,only: corain, cosnow, temp4g
-#endif /* WISOATM */
 
 ! apparently nothing depends on comemic
 !~ ###       use comemic_mod, only:
 
-#if (WISOATM == 1 )
-       use iso_param_mod,only: neauiso, ieau, ieau18, rsmow
-       use iso_alphas,   only: alpha_lv, alpha_sv
-       use iso_funcs,    only: rayleigh_dist, mois2ratiosMJ
-       use isoatm_mod,   only: datmini
-
-#if ( FRAC_KINETIK == 1 )
-       use iso_alphas,   only: alpha_sve
-#endif /* FRAC_KINETIC */
-
-#endif /* WISOATM */
 
 
 ! TODO => add properly the following section for downscaling
@@ -437,29 +394,6 @@
 ! dmr  0.1  Water isotopes
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( WISOATM == 1 )
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   Following section contains variable that are different in iso/non-iso
-!        versions.
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!~       real(kind=dblp), dimension(nlat,nlon,neauiso) :: hdmoisg, hdivmg, vemoisg
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   Now variables specific to the isotopic enabled version
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      integer(kind=ip) :: k
-      real(kind=dblp), dimension(nlat,nlon,neauiso) :: rmoiseauav
-
-      real(kind=dblp), dimension(neauiso):: rmoisg_startstep
-      real(kind=dblp), dimension(neauiso):: variso, variso2
-      real(kind=dblp), dimension(neauiso):: isofluxiso
-      real(kind=dblp)                    :: alpha_rayl, fract, rmoisg_semistep, ratio_av, ratio_ap
-
-!~ #else /* ISOATM == 0 */
-#endif /* on WISOATM == 1 */
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  non-iso local variables ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -478,9 +412,6 @@
       integer(kind=ip)                      :: ind_low
       integer(kind=ip)                      :: n_point
 
-#if ( WISOATM == 1 )
-      real(kind=dblp), dimension(nlat,nlon) :: fract_rain
-#endif
 
 #endif
 #if ( DOWNSCALING == 2 )
@@ -506,19 +437,6 @@
 ! dmr   STD concistency check
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if (WISOATM == 1 )
-      do j=1,nlon
-        do i=1,nlat
-          if ((rmoisg(i,j,ieau).GT.EPSILON(rmoisg(i,j,ieau))).and.(rmoisg(i,j,ieau18).EQ.0.e0_dblp))then
-           write(*,*) "PB RMOISG ec_moisture0 !! ", rmoisg(i,j,ieau),dysnow(i,j,ieau18),i,j
-           write(*,*) "snow_sum", dysnow(i,j,ieau)+cosnow(i,j,ieau)
-           write(*,*) "rain_sum", dyrain(i,j,ieau)+corain(i,j,ieau)
-           write(*,*) "valeur ieau18, iconvn = ", ieau18
-           read(*,*)
-          endif
-        enddo
-      enddo
-#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  1.0) Initialization of spectral moisture arrays, horizontal div. of moisture
@@ -615,51 +533,8 @@
       endif
 !~ #endif /* On ISOATM >= 1 */
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr  1.1) Initialization of spectral moisture arrays, horizontal div. of moisture
-!           This section is identical to previous, save the outer loop on isotopes
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#if (WISOATM == 1 )
-
-      do k=ieau+2, neauiso ! skipping useless O16 ...
-
-       call ec_rggtosp(rmoisg(:,:,k),rmoiss(:,k))
-       call ec_sptogg(rmoiss(:,k),rmoisg(:,:,k),pp)
-
-
-!~ !$OMP PARALLEL DO
-      do j=1,nlon
-        do i=1,nlat
-
-!       Moisture correction from the grid interpolation process ...
-!       Due to the fact that the moisture in any of the components
-!       (except 16O so far?) may be zero, then to avoid fractionation,
-!       we set everybody to zero for each that is negative
-
-          cormois(i,j,k) = 0.e0_dblp
-          if (rmoisg(i,j,k).lt.0e0_dblp) then
-            cormois(i,j,ieau+2:neauiso)=cormois(i,j,ieau+2:neauiso)-rmoisg(i,j,ieau+2:neauiso)
-            rmoisg(i,j,ieau+2:neauiso)= rmoisg(i,j,1)*(datmini(ieau+2:neauiso)+1.0e0_dblp)*rsmow(ieau+2:neauiso)
-          endif
-
-        enddo
-      enddo
-!~ !$OMP END PARALLEL DO
-
-! *** horizontal divergence of moisture
-        call ec_trafluxdiv(hdivmg(:,:,k),rmoiss(:,k),rmoisg(:,:,k))
-
-      enddo ! on isotopes, neauiso
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!dmr   1.2) Isotopic ratios for the atmosphere are computed here
-!dmr       (out of any loop)
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!       CALL mois2ratiosMJ(rmoisg(:,:,:),ration_qatm(:,:,:))
-
-#endif /* On WISOATM == 1 */
+! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue transport goes here: FV ratio mode on the water fluxes (D30),
+!           iwat16 in density mode (D32). The legacy per-isotope spectral loop was removed (D3, D29).
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  2.0) Vertical advection of moisture
@@ -779,21 +654,13 @@
 
          dyrain_grisli = dyrain_grisli / area_sg_onecb(i,j)
 
-#if ( WISOATM == 1 )
-         dyrain(i,j,ieau) = dyrain(i,j,ieau) + dyrain_grisli
-#else
          dyrain(i,j,iwater) = dyrain(i,j,iwater) + dyrain_grisli
-#endif
          thforg1(i,j)=thforg1(i,j) + factemv*dyrain_grisli/dp1
          vhforg1(i,j)=vhforg1(i,j) + factemv*dyrain_grisli/dp1
 
          dysnow_grisli = dysnow_grisli / area_sg_onecb(i,j)
 
-#if ( WISOATM == 1 )
-        dysnow(i,j,ieau) = dysnow(i,j,ieau) + dysnow_grisli
-#else
          dysnow(i,j,iwater) = dysnow(i,j,iwater) + dysnow_grisli
-#endif
          thforg1(i,j)=thforg1(i,j) + factems*dysnow_grisli/dp1
          vhforg1(i,j)=vhforg1(i,j) + factems*dysnow_grisli/dp1
 
@@ -886,14 +753,6 @@
 ! dmr  3.1) Horizontal diffusion of moisture for isotopes ...
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( WISOATM == 1 )
-
-      do k=ieau+2, neauiso ! skipping useless O16 ...
-! *** horizontal diffusion of moisture
-        call ec_hdiff(rmoiss(:,k),hdmoisg(:,:,k))
-      enddo
-
-#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  4.0) Forward time stepping for plain water
@@ -908,13 +767,6 @@
       do j=1,nlon
         do i=1,nlat
 
-#if ( WISOATM == 1 )
-
-!        Saving before-advection moisture content & isotopes
-
-        rmoiseauav(i,j,:) = rmoisg(i,j,:)
-        
-#endif /* on water isotopes */
 !~ !       Step in plain water content only
 
 !~         rmoisg(i,j,ieau)=rmoisg(i,j,ieau)+ dtime*(-ihavm*hdivmg(i,j,ieau) - ivavm*vemoisg(i,j,ieau) + hdmoisg(i,j,ieau)     &
@@ -950,222 +802,10 @@
       call atm_wb_transport(hdivmg(:,:,iwater), hdmoisg(:,:,iwater))
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!                 RAYLEIGH TYPE CALCULATIONS FOR ISOTOPES
-!
-!                         (dmr, 2016.04.05)
-!
-!       In the previous section, we have defined the amount of water
-!        change in the cell due to rain/snow.
-!       Here we compute the evolution of the isotopic content using
-!        a Rayleigh distillation process
-!
-!      New version for the water isotopes ...
-!       using the Rayleigh distillation formula
-!      This is equivalent to the previous version
-!       if the fraction of moisture removed is small,
-!       and avoid problems in case a large portion
-!       is removed.
+! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue sources and sinks go here: evaporation, then large-scale condensation
+!           in the before/after (Rayleigh) form of ROADMAP 3.2, order D36; limiters ratio-consistent (D7).
+!           The legacy Rayleigh code (dmr, 2016) was removed: reference in git history (a3c0881) and the legacy zip.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-
-#if (WISOATM == 1)
-
-      do j=1,nlon
-        do i=1,nlat
-
-         if (vemoisg(i,j,ieau).gt.0.0e0_dblp) then ! there is snow or rain (or both in Downscaling)
-
-#if ( DOWNSCALING == 2 )
-         if ( sub_grid_notflat(i,j) > 0.0e0_dblp ) then ! sub-grid is rough ...
-
-           rmoisg_startstep(:) = rmoiseauav(i,j,:)
-
-         ! two semi-steps: one for rain, one for snow
-         if (fract_rain(i,j).gt.0.0e0_dblp) then ! there is rain ...
-
-!       Compute fraction of remaining water in the cell after the partial snow/rain step
-!        used by all water isotopes
-
-          rmoisg_semistep = rmoisg_startstep(ieau)-ivavm*dtime*vemoisg(i,j,ieau)*fract_rain(i,j)
-          fract = rmoisg_semistep / rmoisg_startstep(ieau)
-
-!dmr --- Pathetic case: fract < 0 !
-          if (fract.LT.0.0) then
-           fract = 0
-          endif
-
-          do k=ieau+2, neauiso ! skipping useless O16 ...
-
-!       Store what the ratio of water isotopes in vapor before was
-           ratio_av = rmoisg_startstep(k)/rmoisg_startstep(ieau)
-
-!        Determine fractionnation factor type == rain here ...
-           alpha_rayl = alpha_lv(temp4g(i,j),k)
-
-!       Compute what the ration should be after step following Rayleigh
-!        distillation in the atmospheric vapor
-           ratio_ap = rayleigh_dist(fract,ratio_av,alpha_rayl)
-
-!       Compute the new partial step isotopic content of the cell
-           rmoisg(i,j,k) = rmoisg_semistep * ratio_ap
-
-!       Compute the dyrain value for the water isotopes
-           dyrain(i,j,k) = (rmoisg_startstep(k)-rmoisg(i,j,k)) / (ivavm*dtime)
-
-          enddo ! on isotopes types
-
-          rmoisg_startstep(:)    = rmoisg(i,j,:)
-          rmoisg_startstep(ieau) = rmoisg_semistep
-
-         endif! on fract_rain
-
-         if (1.0e0_dblp-fract_rain(i,j).gt.0.0e0_dblp) then ! there is snow (also or not ...)
-
-!       Compute fraction of remaining water in the cell after the partial snow/rain step
-!        used by all water isotopes
-          rmoisg_semistep = rmoisg_startstep(ieau)-ivavm*dtime*vemoisg(i,j,ieau)*(1.0e0_dblp-fract_rain(i,j))
-          fract = rmoisg_semistep / rmoisg_startstep(ieau)
-
-!dmr --- Pathetic case: fract < 0 !
-          if (fract.LT.0.0) then
-           fract = 0.0e0_dblp
-          endif
-
-          do k=ieau+2, neauiso ! skipping useless O16 ...
-
-!       Store what the ratio of water isotopes in vapor before was
-           ratio_av = rmoisg_startstep(k)/rmoisg_startstep(ieau)
-
-!        Determine fractionnation factor type == rain here ...
-#if ( FRAC_KINETIK == 0 )
-            alpha_rayl = alpha_sv(temp4g(i,j),k)
-#elif ( FRAC_KINETIK == 1 )
-            alpha_rayl = alpha_sve(temp4g(i,j),k)
-#endif /* FRAC_KINETIC */
-
-!       Compute what the ration should be after step following Rayleigh
-!        distillation in the atmospheric vapor
-           ratio_ap = rayleigh_dist(fract,ratio_av,alpha_rayl)
-
-!       Compute the new partial step isotopic content of the cell
-           rmoisg(i,j,k) = rmoisg_semistep * ratio_ap
-
-!       Compute the dyrain value for the water isotopes
-           dysnow(i,j,k) = (rmoisg_startstep(k)-rmoisg(i,j,k)) / (ivavm*dtime)
-
-          enddo ! on isotopes types
-
-         endif ! on fract_rain
-
-         else ! subgrid is flat ...
-
-#endif /* on DOWNSCALING == 2 */
-
-!       Compute fraction of remaining water in the cell after the partial snow/rain step
-!        used by all water isotopes
-          rmoisg_semistep = rmoiseauav(i,j,ieau)-ivavm*dtime*vemoisg(i,j,ieau)
-          fract = rmoisg_semistep / rmoiseauav(i,j,ieau)
-
-!dmr --- Pathetic case: fract < 0 !
-          if (fract.LT.0.0) then
-           fract = 0
-          endif
-
-          do k=ieau+2, neauiso ! skipping useless O16 ...
-
-!       Store what the ratio of water isotopes in vapor before was
-           ratio_av = rmoiseauav(i,j,k)/rmoiseauav(i,j,ieau)
-
-!        Determine fractionnation factor type
-
-           if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then ! rain, use alpha_lv
-            alpha_rayl = alpha_lv(temp4g(i,j),k)
-           else ! snow, use alpha_sv or alpha_sve
-#if ( FRAC_KINETIK == 0 )
-            alpha_rayl = alpha_sv(temp4g(i,j),k)
-#elif ( FRAC_KINETIK == 1 )
-            alpha_rayl = alpha_sve(temp4g(i,j),k)
-#endif /* FRAC_KINETIC */
-           endif
-
-!       Compute what the ration should be after step following Rayleigh
-!        distillation in the atmospheric vapor
-           ratio_ap = rayleigh_dist(fract,ratio_av,alpha_rayl)
-
-!       Compute the new partial step isotopic content of the cell
-           rmoisg(i,j,k) = rmoisg_semistep * ratio_ap
-
-!       Compute the dyrain and dysnow values for the water isotopes
-           if (tsurf(i,j).ge.tzero + 0.1e0_dblp ) then ! rain, use alpha_lv
-             dyrain(i,j,k) = (rmoiseauav(i,j,k)-rmoisg(i,j,k)) / (ivavm*dtime)
-           else
-             dysnow(i,j,k) = (rmoiseauav(i,j,k)-rmoisg(i,j,k)) / (ivavm*dtime)
-           endif
-
-          enddo ! on isotopes types
-
-#if ( DOWNSCALING == 2 )
-        endif ! on sub_grid_notflat(i,j) > 0.0d0
-#endif
-
-         endif   ! there is rain / snow
-
-
-         do k=ieau+2, neauiso ! skipping useless O16 ...
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!        Finalize the step with the other isotopic fluxes ...
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-! to suppress advection over Antarctica ...
-!         if (i.LE.4) hdivmg(i,j,k) = 0.0
-! to suppress advection over Antarctica ...
-
-         isofluxiso(k) = dtime*( -ihavm*hdivmg(i,j,k) + hdmoisg(i,j,k) + imsink*evap(i,j,k) )
-
-         rmoisg(i,j,k) = rmoisg(i,j,k) + isofluxiso(k)
-
-!       Moisture correction for everyone after time-stepping
-!       Due to the fact that the moisture in any of the components
-!       (except 16O so far?) may be zero, then to avoid fractionation,
-!       we set everybody to zero for each that is negative
-
-
-          if (rmoisg(i,j,k).lt.0e0_dblp) then
-            cormois(i,j,ieau+2:neauiso)=cormois(i,j,ieau+2:neauiso)-rmoisg(i,j,ieau+2:neauiso)
-            rmoisg(i,j,ieau+2:neauiso)= rmoisg(i,j,1)*(datmini(ieau+2:neauiso)+1.0e0_dblp)*rsmow(ieau+2:neauiso)
-          endif
-
-          enddo ! on isotopes types
-
-
-#if ( DOWNSCALING == 2 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   STD concistency check
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-          if ((dysnow(i,j,ieau).GT.EPSILON(dysnow(i,j,ieau))).and.(dysnow(i,j,ieau18).EQ.0.e0_dblp))then
-           write(*,*) "PB dysnow ec_moisture9 !! ", rmoisg(i,j,ieau),dysnow(i,j,ieau18),i,j
-           write(*,*) "snow_sum", dysnow(i,j,ieau)
-           write(*,*) "rain_sum", dyrain(i,j,ieau)
-           write(*,*) "valeur down = ", sub_grid_notflat(i,j)
-           read(*,*)
-          endif
-          if ((dyrain(i,j,ieau).GT.EPSILON(dyrain(i,j,ieau))).and.(dyrain(i,j,ieau18).EQ.0.e0_dblp))then
-           write(*,*) "PB dyrain ec_moisture9 !! ", rmoisg(i,j,ieau),dyrain(i,j,ieau18),i,j
-           write(*,*) "snow_sum", dysnow(i,j,ieau)
-           write(*,*) "rain_sum", dyrain(i,j,ieau)
-           write(*,*) "valeur down = ", sub_grid_notflat(i,j)
-           read(*,*)
-          endif
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#endif
-
-
-        enddo ! end of spatial loop
-      enddo   ! end of spatial loop
-
-#endif /* on WISOATM == 1 */
 
 !~ #if ( ISOATM >= 1 )
 
@@ -1208,106 +848,6 @@
 !      End of the function here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-
-#if (WISOATM == 1 )
-
-      subroutine longitudo_medius(humidae,humidae_media)
-      
-      use global_constants_mod, only: dblp=>dp, ip
-      use iso_param_mod,only: neauiso, ieau, ieau18, rsmow
-      use comphys, only: temp4g
-      use iso_funcs, only: rayleigh_dist
-      use iso_alphas, only: alpha_lv
-      
-      real(kind=dblp), dimension(:,:,:), intent(in) :: humidae         ! nlat, nlon, neauiso
-      real(kind=dblp),   dimension(:,:), intent(out):: humidae_media
-      integer(kind=ip), dimension(:)  , allocatable :: calculare       ! nlon
-      logical,          dimension(:,:), allocatable :: personae        ! nlat, nlon
-      real(kind=dblp),  dimension(:)  , allocatable :: calor_media     ! nlat
-      
-      integer :: i, j, k
-      
-      
-!~       allocate(humidae_media(size(humidae,dim=2),size(humidae,dim=3)))
-      allocate(  calculare(size(humidae,dim=1)))
-      allocate(   personae(size(humidae,dim=1),size(humidae,dim=2)))
-      allocate(calor_media(size(humidae,dim=1)))
-      
-      DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)
-        DO j=LBOUND(humidae,dim=2), UBOUND(humidae,dim=2)
-           personae(i,j) = humidae(i,j,ieau).ge.epsilon(0.0e0_dblp)        !this is where the water is zero
-        ENDDO
-      ENDDO
-      
-!~       write(*,*) personae
-
-      humidae_media(:,:) = 0.0_dblp
-      calor_media(:) = 0.0_dblp
-      
-      calculare(:) = COUNT(personae(:,:),dim=2)
- 
-!~       DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)           
-!~         write(*,*) i, calculare(i)
-!~       ENDDO
-      
-      DO k=LBOUND(humidae,dim=3), UBOUND(humidae,dim=3)
-        DO j=LBOUND(humidae,dim=2), UBOUND(humidae,dim=2)
-          DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)
-          
-            if (personae(i,j)) then
-              humidae_media(i,k) = humidae_media(i,k) + humidae(i,j,k)
-            endif
-
-          ENDDO
-        ENDDO
-      ENDDO
-      DO j=LBOUND(humidae,dim=2), UBOUND(humidae,dim=2)
-        DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)
-         
-!~           if (personae(i,j)) then
-            calor_media(i) = calor_media(i) + temp4g(i,j)/size(temp4g,dim=2)
-!~           endif
-
-        ENDDO
-      ENDDO
-      
-      DO k=LBOUND(humidae,dim=3), UBOUND(humidae,dim=3)      
-        DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)       
-           if (calculare(i).gt.epsilon(0.0_dblp)) then
-             humidae_media(i,k) = humidae_media(i,k) / calculare(i)
-           endif
-        ENDDO
-      ENDDO
-           
-
-      DO i=LBOUND(humidae,dim=1), UBOUND(humidae,dim=1)-1
-        if (humidae_media(i,ieau).gt.epsilon(0.0_dblp)) then
-!~           write(*,*) i, (humidae_media(i,ieau18)/humidae_media(i,ieau)/rsmow(ieau18)-1.0)*1000.0
-        else
-          humidae_media(i,ieau) = 2*epsilon(0.0_dblp) ! I create some water content, but this is *not* used in the water cycle, so no modification of water content ...
-          DO k=ieau+1, UBOUND(humidae,dim=3) 
-            humidae_media(i,k) = rayleigh_dist(0.1,humidae_media(i+1,ieau18)/humidae_media(i+1,ieau),alpha_lv(calor_media(i+1),k))*humidae_media(i,ieau)
-          ENDDO            
-!~           write(*,*) "longitudo_media" 
-!~           write(*,*) "No water in longitude ...", i, humidae_media(i,ieau), humidae_media(i+1,ieau), humidae_media(i+1,ieau18) &
-!~                                                    , calor_media(i), calor_media(i+1)
-!~           write(*,*) "RAYLEIGH: alpha", alpha_lv(calor_media(i),ieau18),alpha_lv(calor_media(i+1),ieau18)
-!~           write(*,*) "RAYLEIGH: frac ", humidae_media(i,ieau)/humidae_media(i+1,ieau), & 
-!~       rayleigh_dist(0.1,humidae_media(i+1,ieau18)/humidae_media(i+1,ieau),alpha_lv(calor_media(i+1),ieau18))
-!~           write(*,*) "=========="
-!~           READ(*,*)
-        endif
-      ENDDO
-
-      deallocate(calculare)
-      deallocate(personae)
-      
-!~       READ(*,*)
-
-      return
-      end subroutine longitudo_medius
-#endif     
- 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      End of the module here
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

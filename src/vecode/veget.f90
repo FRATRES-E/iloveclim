@@ -63,9 +63,6 @@
 #endif
 #endif
 
-#if ( WISOATM == 1 )
-        use iso_param_mod
-#endif
 
         use comland_mod,           only: bmoisg, bmoism, albland, forestfr
         use comatm,                only: nlat, nlon, iwater
