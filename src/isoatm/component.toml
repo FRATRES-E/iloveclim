@@ -1,0 +1,22 @@
+# =============================================================================
+# Descripteur de composante : ISOATM (composante isotopique de l'atmosphere ECBILT)
+# =============================================================================
+# Composante optionnelle, activée par le drapeau WISOATM de choixcomposantes.h
+# (wiso:2a:0003, ROADMAP step 2.1). Purement déclarative, sur le modèle d'icebergs :
+# sources + une donnée. Aucun hook.
+# Les sources de src/isoatm ne servent qu'avec WISOATM = 1 ; tout leur code est
+# déjà sous #if ( WISOATM == 1 ).
+# =============================================================================
+
+[isoatm]
+description  = "Water isotopes for the ECBILT atmosphere"
+activated_by = "WISOATM"        # flag de choixcomposantes.h
+
+# Sources : raccourci répertoire => toutes les sources Fortran usuelles de src/isoatm
+sources = ["src/isoatm"]
+
+# --- Données strictes -------------------------------------------------------
+[[isoatm.data]]
+from  = "${emic_dir}/inputs/isoatm"
+to    = "inputdata"
+files = ["calculated_d18O_v1_1-T21.nc"]
