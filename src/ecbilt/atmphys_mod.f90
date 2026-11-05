@@ -68,8 +68,8 @@ contains
 #endif
 
 #if (WISOATM == 1 )
-       USE comatm, ONLY : iwater, iwat16, iwat17, iwat2h
-       USE iso_param_mod, only: datmini, delta_inv, isoatm_restart
+       USE comatm, ONLY : iwater, iwat16, iwat2h
+       USE iso_nml_mod, only: r_vap_init                          ! dmr&clo wiso:2b:0001
 #endif
 
 #if ( DOWNSTS == 1 )
@@ -124,7 +124,6 @@ contains
 #if (WISOATM == 1 )
 !~       REAL, DIMENSION(nlat,nlon,neauiso) :: rations
 !~       REAL, DIMENSION(nlat,nlon,neauiso) :: ration_qatm
-      real(kind=dblp), dimension(nlat,nlon), parameter :: Ones_Ecbilt = 1.0
 
 #endif
 
@@ -242,20 +241,13 @@ contains
      
 
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:2a:0002 initial isotopologues from the fixed initial deltas (datmini; namelist in wiso:2b);
-!           iwat16 starts equal to water (rsmow = 1). The binary wisoatm_restart.dat is gone: netCDF restart in wiso:2c (D34).
-        if (isoatm_restart /= 0) then
-          write(*,*) "ec_iatmphys: WISOATM_RESTART = 1 is not available until wiso:2c (netCDF isotope restart, D34)"
-          stop 1
-        endif
-
-        rmoisg(:,:,iwat16) = rmoisg(:,:,iwater)
-        torain(:,:,iwat16) = torain(:,:,iwater)
-        tosnow(:,:,iwat16) = tosnow(:,:,iwater)
-        do i=iwat17,iwat2h
-          rmoisg(:,:,i) = delta_inv(rmoisg(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
-          torain(:,:,i) = delta_inv(torain(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
-          tosnow(:,:,i) = delta_inv(tosnow(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
+! dmr&clo   wiso:2b:0001 initial isotopologues from the initial vapour deltas of wisoatm.nml (ratios r_vap_init, rsmow = 1;
+!           iwat16 = water). Fixes 2a:0002, where datmini (fractions) went into delta_inv (permil): delta18O was -0.012
+!           permil instead of -12. Restart of the isotopologues: netCDF in wiso:2c (D34, restart_read in wisoatm.nml).
+        do i=iwat16,iwat2h
+          rmoisg(:,:,i) = rmoisg(:,:,iwater) * r_vap_init(i)
+          torain(:,:,i) = torain(:,:,iwater) * r_vap_init(i)
+          tosnow(:,:,i) = tosnow(:,:,iwater) * r_vap_init(i)
         enddo
 #endif
 ! Fin de l'initialisation des isotopes sans/avec relecture de fichier

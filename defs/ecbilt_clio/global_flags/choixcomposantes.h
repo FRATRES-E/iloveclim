@@ -113,12 +113,7 @@
 !   (replaces the legacy ISOATM = 0/1/2/3, removed in wiso:2a:0001; physics options become runtime settings)
 !
 #define WISOATM 0
-#define WISOATM_RESTART 0
-!
-! 0 use equilibrium solid vapor fractionnation
-! 1 use Jouzel & Merlivat (1984) formulation for effective kinetic SV fractionnation
-!   requires WISOATM == 1
-#define FRAC_KINETIK 0
+!   (WISOATM_RESTART and FRAC_KINETIK removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml)
 
 !
 ! 0 do not link surface isotopic content of land to atmosphere (fixed values for rmoisg)

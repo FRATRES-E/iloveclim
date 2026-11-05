@@ -12,11 +12,23 @@
 description  = "Water isotopes for the ECBILT atmosphere"
 activated_by = "WISOATM"        # flag de choixcomposantes.h
 
+# Répertoires créés par setup_directory ; redéclarés ici pour l'autonomie du
+# descripteur (idempotent : mkdir -p ne nuit pas s'ils existent déjà).
+run_dirs = [
+  "inputdata/isoatm",
+]
+
 # Sources : raccourci répertoire => toutes les sources Fortran usuelles de src/isoatm
 sources = ["src/isoatm"]
+
+# Namelist des isotopes (wiso:2b:0001) : copie simple vers run_dir, lue par iso_nml_mod (fichier wisoatm.nml).
+[[isoatm.data]]
+from  = "${emic_dir}/defs/isoatm"
+to    = ""                       # "" = run_dir directement
+files = ["wisoatm.nml"]
 
 # --- Données strictes -------------------------------------------------------
 [[isoatm.data]]
 from  = "${emic_dir}/inputs/isoatm"
-to    = "inputdata"
+to    = "inputdata/isoatm"
 files = ["calculated_d18O_v1_1-T21.nc"]

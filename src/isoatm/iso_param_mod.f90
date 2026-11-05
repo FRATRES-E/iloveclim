@@ -132,15 +132,13 @@
        REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_oceanatm
        REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_evap_ocean, ratio_evap_land, ratio_evap_snow
 
-       REAL(kind=dblp), PARAMETER                     :: fac_17Oexc = 0.528_dblp
 
-       REAL(kind=dblp), PARAMETER :: d18atmini = -12.E-3_dblp,                                            &
-                        datmini(nwisos) = [0._dblp,0._dblp,(d18atmini+1._dblp)**fac_17Oexc-1.0_dblp, d18atmini,d18atmini*8._dblp]
-
+! dmr&clo   wiso:2b:0001 the initial vapour deltas (datmini) are in wisoatm.nml (iso_nml_mod, r_vap_init)
+! dmr&clo   dlbmini: initial land isotopes, used only by the legacy land code parked under ISOLBM >= 1 (step 3)
        REAL(kind=dblp), PARAMETER :: d18lbmini = -30.E-3_dblp,                                            &
                         dlbmini(nwisos) = [0.d0,0.d0,(d18lbmini+1.0d0)**0.528d0-1.0, d18lbmini,d18lbmini*8._dblp]
 
-       INTEGER(kind=ip),PARAMETER :: isoatm_restart = WISOATM_RESTART
+! dmr&clo   wiso:2b:0001 isoatm_restart (cpp WISOATM_RESTART) replaced by restart_read in wisoatm.nml (D34)
        
 ! dmr --- [TODO] isolbm_restart should be moved in an other, more logical place!       
        INTEGER(kind=ip),PARAMETER :: isolbm_restart = WISOLND_RESTART

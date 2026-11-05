@@ -27,6 +27,8 @@
 #if (WISOATM == 1 )
        use comatm, only: iwater, iwat18, nwisos
        use iso_param_mod, only: rsmow
+#endif
+#if ( WISOATM == 1 && ISOOCN >= 1 )
        USE iso_param_mod, ONLY : datmini,isolbm_restart
 #endif
 

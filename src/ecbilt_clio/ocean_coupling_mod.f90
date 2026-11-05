@@ -121,7 +121,7 @@
 #if ( VEGGIE != 0 || FAST_OUTPUT != 0 || CLM_INDICES != 0 || BIOM_GEN != 0 || FROG_EXP != 0 || CARAIB != 0 || \
       CARAIB_FORC_W != 0 || HOURLY_RAD != 0 || OXYISO != 0 || D17ISO != 0 || WAXISO != 0 || VEG_LUH != 0 || \
       IMSK != 1 || COMATM != 1 || ROUTEAU != 1 || EVAPTRS != 1 || EVAPSI != 1 || CLAQUIN != 0 || F_PALAEO != 0 || \
-      ICEBERG != 0 || WISOATM_RESTART != 0 || FRAC_KINETIK != 0 || ISOLBM != 0 || \
+      ICEBERG != 0 || ISOLBM != 0 || \
       WISOLND != 0 || WISOLND_RESTART != 0 || ISOOCN != 0 || WISOOCN != 0 || ISOBERG != 0 || ISM != 0 || \
       SMB_TYP != 0 || CPLTYP != 0 || REFREEZING != 0 || DOWNSTS != 0 || DOWNSCALING != 0 || SHELFMELT != 0 || \
       CALVFLUX != 0 || HEATFWF != 0 || CONSEAU != 0 || HEATCALV != 0 || CYCC != 0 || OCYCC != 0 || \

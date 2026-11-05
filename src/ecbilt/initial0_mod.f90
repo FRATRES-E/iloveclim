@@ -398,6 +398,9 @@ contains
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: albocef, emisn, nld, noc, nse
       use atm_fvmois_mod, only: adv_mode, atm_fvmois_check_mode     ! dmr&clo wiso:1e:0001
+#if ( WISOATM == 1 )
+      use iso_nml_mod, only: iso_nml_read, iso_nml_write             ! dmr&clo wiso:2b:0001
+#endif
 
 
       use newunit_mod, only: namelistecbilt_id, parameterschk_id
@@ -630,6 +633,10 @@ contains
       read(namelistecbilt_id, NML = dfmpar)
       read(namelistecbilt_id, NML = moipar)
       call atm_fvmois_check_mode
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2b:0001 isotope settings (wisoatm.nml), read before the isotope fields are initialised (ec_iatmphys)
+      call iso_nml_read(adv_mode)
+#endif
       read(namelistecbilt_id, NML = cloudpar)
       read(namelistecbilt_id, NML = forpar)
       read(namelistecbilt_id, NML = radpar)
@@ -700,6 +707,9 @@ contains
       write(parameterschk_id, 910) 'umoisr   =', umoisr
       write(parameterschk_id, 910) 'rainmax  =', rainmax
       write(parameterschk_id, '(a,a)') 'adv_mode =', trim(adv_mode)
+#if ( WISOATM == 1 )
+      call iso_nml_write(parameterschk_id)
+#endif
 
 
       write(parameterschk_id, 900) 'iartif   =', iartif

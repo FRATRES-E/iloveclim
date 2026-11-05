@@ -93,6 +93,9 @@
 #ifdef ISOATM
 #error "ISOATM was removed in wiso:2a:0001: use WISOATM = 0/1 (physics options are runtime settings)"
 #endif
+#if defined(WISOATM_RESTART) || defined(FRAC_KINETIK)
+#error "WISOATM_RESTART and FRAC_KINETIK were removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml"
+#endif
 #if ( ISOLBM != 0 || ISOOCN != 0 )
 #error "ISOLBM / ISOOCN: the legacy land and ocean isotope coupling is not migrated yet (ROADMAP step 3)"
 #endif

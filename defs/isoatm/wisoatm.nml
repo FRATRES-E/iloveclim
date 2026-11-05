@@ -1,0 +1,27 @@
+! Water isotopes in the ECBilt atmosphere (WISOATM = 1): runtime settings, read by iso_nml_mod (ROADMAP D6, step 2b).
+! Deltas: d18o_* and dexc_* in permil (dD = 8 d18O + dexc), o17exc_* in per meg
+!         (ln(d17O + 1) = 0.528 ln(d18O + 1) + o17exc).
+! Requires adv_mode = 'fv' in namelist group moipar (namelistecbilt).
+&wisoatm_nml
+  frac_mode        = 0                      ! 0 none (passive); 1 equilibrium, 2 + kinetic: from ROADMAP 2d
+
+  d18o_vap_init    = -12.0                  ! initial vapour
+  dexc_vap_init    =   0.0
+  o17exc_vap_init  =   0.0
+
+  d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (until step 3)
+  dexc_land_evap   =   0.0
+  o17exc_land_evap =   0.0
+  d18o_snow_evap   = -12.0                  ! idem over snow
+  dexc_snow_evap   =   0.0
+  o17exc_snow_evap =   0.0
+
+  ocean_ratio_mode = 'file'                 ! 'file' (d18O map below) or 'fixed' (d18o_ocean everywhere)
+  ocean_d18o_file  = 'inputdata/isoatm/calculated_d18O_v1_1-T21.nc'
+  d18o_ocean       =   0.0                  ! 'fixed' only
+  dexc_ocean       =   0.0                  ! both modes
+  o17exc_ocean     =   0.0                  ! both modes
+
+  restart_read     = .false.                ! netCDF isotope restart: from ROADMAP 2c
+  restart_file     = 'startdata/wisoatm_restart.nc'
+/
