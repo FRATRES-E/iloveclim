@@ -31,7 +31,8 @@
 !>     Reads, checks and reports the isotope settings, and turns the delta values given in the namelist into the
 !!     isotopic ratios used by the model (rsmow = 1 for every species: a ratio is the isotopologue mass per water mass).
 !!
-!!     Delta conventions in the namelist:
+!!     Delta conventions: inside the code deltas are plain fractions (order 1e-3, never multiplied by 1000); permil and
+!!     per meg appear only in the namelist, converted once in iso_nml_read:
 !!       d18o_*    delta 18O in permil (VSMOW)
 !!       dexc_*    deuterium excess in permil:   dD = 8 d18O + dexc
 !!       o17exc_*  17O excess in per meg:        ln(d17O + 1) = 0.528 ln(d18O + 1) + o17exc
@@ -41,7 +42,7 @@
 !!       - iso_nml_read(adv_mode) once at initialisation, before the isotope fields are initialised; stops on a missing
 !!         file, an unknown or not yet available setting, and unless adv_mode = 'fv' (O31).
 !!       - iso_nml_write(unit) writes the settings to parameters.chk.
-!!       - iso_ratios(d18o, dexc, o17exc) gives the ratios of all species for one set of delta values.
+!!       - iso_ratios(d18o, dexc, o17exc) gives the ratios of all species for one set of deltas, as fractions.
 !!       - After iso_nml_read: r_vap_init, r_land_evap, r_snow_evap and (ocean_ratio_mode = 'fixed') r_ocean_fixed hold
 !!         the ratios of all species; iwater and iwat16 are 1.
 !
@@ -64,7 +65,7 @@
 
         public :: ISO_NML_FILE, iso_nml_read, iso_nml_write, iso_ratios
         public :: frac_mode, ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
-        public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean, o17exc_ocean
+        public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -74,8 +75,8 @@
         character(len=*), parameter :: ISO_NML_FILE  = 'wisoatm.nml'   !< namelist file, in the run directory
         real(dblp),       parameter :: ISO_SLOPE_DEX = 8.0_dblp        !< dD = 8 d18O + d-excess
         real(dblp),       parameter :: ISO_SLOPE_17  = 0.528_dblp      !< reference slope of the 17O-excess definition
-        real(dblp),       parameter :: ISO_PERMIL    = 1.0e-3_dblp     !< permil to fraction
-        real(dblp),       parameter :: ISO_PERMEG    = 1.0e-6_dblp     !< per meg to fraction
+        real(dblp),       parameter :: ISO_PERMIL    = 1.0e-3_dblp     !< permil to fraction (namelist input only)
+        real(dblp),       parameter :: ISO_PERMEG    = 1.0e-6_dblp     !< per meg to fraction (namelist input only)
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Namelist variables (defaults)
@@ -109,7 +110,7 @@
         character(len=str_len) :: restart_file     = 'startdata/wisoatm_restart.nc'
 
 ! dmr&clo   Fractionation factors (D35, iso_alphas): formulations by name, 17O exponents, snow supersaturation
-        character(len=ISO_FORM_LEN) :: alpha_lv_form = 'majoube71'      !< liquid-vapour: majoube71 (horita94 planned)
+        character(len=ISO_FORM_LEN) :: alpha_lv_form = 'majoube71'      !< liquid-vapour: majoube71 | horita94
         character(len=ISO_FORM_LEN) :: alpha_sv_form = 'majoube70_mn67' !< ice-vapour: majoube70_mn67 | ellehoj13
         character(len=ISO_FORM_LEN) :: diff_form     = 'merlivat78'     !< diffusivities: merlivat78 | cappa03
         real(dblp)             :: theta_lv17       = 0.529_dblp      !< alpha17 = alpha18**theta, liquid-vapour
@@ -134,6 +135,8 @@
         real(dblp), dimension(nwisos) :: r_land_evap   = 1.0_dblp     !< evaporation flux over land
         real(dblp), dimension(nwisos) :: r_snow_evap   = 1.0_dblp     !< evaporation (sublimation) flux over snow
         real(dblp), dimension(nwisos) :: r_ocean_fixed = 1.0_dblp     !< surface ocean, ocean_ratio_mode = 'fixed'
+        real(dblp)                    :: dexc_ocean_frac   = 0.0_dblp  !< dexc_ocean as a fraction ('file' mode)
+        real(dblp)                    :: o17exc_ocean_frac = 0.0_dblp  !< o17exc_ocean as a fraction ('file' mode)
 
 
       contains
@@ -144,16 +147,16 @@
 
         pure function iso_ratios(d18o, dexc, o17exc) result(ratios)
 
-          real(dblp), intent(in)        :: d18o                         !< permil
-          real(dblp), intent(in)        :: dexc                         !< permil
-          real(dblp), intent(in)        :: o17exc                       !< per meg
+          real(dblp), intent(in)        :: d18o                         !< delta 18O, fraction
+          real(dblp), intent(in)        :: dexc                         !< deuterium excess, fraction
+          real(dblp), intent(in)        :: o17exc                       !< 17O excess, fraction
           real(dblp), dimension(nwisos) :: ratios
 
           ratios(iwater) = 1.0_dblp
           ratios(iwat16) = 1.0_dblp
-          ratios(iwat18) = 1.0_dblp + d18o * ISO_PERMIL
-          ratios(iwat2h) = 1.0_dblp + (ISO_SLOPE_DEX * d18o + dexc) * ISO_PERMIL
-          ratios(iwat17) = exp(ISO_SLOPE_17 * log(ratios(iwat18)) + o17exc * ISO_PERMEG)
+          ratios(iwat18) = 1.0_dblp + d18o
+          ratios(iwat2h) = 1.0_dblp + ISO_SLOPE_DEX * d18o + dexc
+          ratios(iwat17) = exp(ISO_SLOPE_17 * log(ratios(iwat18)) + o17exc)
 
         end function iso_ratios
 
@@ -218,10 +221,13 @@
             stop 1
           endif
 
-          r_vap_init    = iso_ratios(d18o_vap_init,  dexc_vap_init,  o17exc_vap_init)
-          r_land_evap   = iso_ratios(d18o_land_evap, dexc_land_evap, o17exc_land_evap)
-          r_snow_evap   = iso_ratios(d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap)
-          r_ocean_fixed = iso_ratios(d18o_ocean,     dexc_ocean,     o17exc_ocean)
+          ! dmr&clo   namelist permil / per meg -> fractions, the only place where these units are converted
+          r_vap_init    = iso_ratios(d18o_vap_init  * ISO_PERMIL, dexc_vap_init  * ISO_PERMIL, o17exc_vap_init  * ISO_PERMEG)
+          r_land_evap   = iso_ratios(d18o_land_evap * ISO_PERMIL, dexc_land_evap * ISO_PERMIL, o17exc_land_evap * ISO_PERMEG)
+          r_snow_evap   = iso_ratios(d18o_snow_evap * ISO_PERMIL, dexc_snow_evap * ISO_PERMIL, o17exc_snow_evap * ISO_PERMEG)
+          r_ocean_fixed = iso_ratios(d18o_ocean     * ISO_PERMIL, dexc_ocean     * ISO_PERMIL, o17exc_ocean     * ISO_PERMEG)
+          dexc_ocean_frac   = dexc_ocean   * ISO_PERMIL
+          o17exc_ocean_frac = o17exc_ocean * ISO_PERMEG
 
           write(*,*) "iso_nml_read: water isotopes, frac_mode = ", frac_mode, ", ocean_ratio_mode = ",                    &
                      trim(ocean_ratio_mode)

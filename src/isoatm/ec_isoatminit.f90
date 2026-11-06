@@ -32,7 +32,8 @@
 
        use comsurf_mod, only: fractoc
        use iso_param_mod, only: ratio_oceanatm
-       use iso_nml_mod, only: ocean_ratio_mode, ocean_d18o_file, r_ocean_fixed, dexc_ocean, o17exc_ocean, iso_ratios
+       use iso_nml_mod, only: ocean_ratio_mode, ocean_d18o_file, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac,       &
+                              iso_ratios
        USE lectNC, only: lect_2D_NC
        use comatm, only: nlat, nlon, iwat18
 
@@ -52,8 +53,8 @@
 !           sinks): water and climate must be bit-identical to WISOATM = 0 (D4), the isotope fields are meaningless
        write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues initialised but NOT evolved yet (ROADMAP wiso:2c)"
 
-! dmr&clo   wiso:2b:0001 surface ocean ratios from wisoatm.nml: 'fixed' (uniform) or 'file' (d18O map in permil, dD and
-!           17O from dexc_ocean and o17exc_ocean, as in iso_ratios)
+! dmr&clo   wiso:2b:0001 surface ocean ratios from wisoatm.nml: 'fixed' (uniform) or 'file' (d18O map in permil, converted
+!           to a fraction on reading; dD and 17O from dexc_ocean and o17exc_ocean, as in iso_ratios)
        if (trim(ocean_ratio_mode) == 'fixed') then
          do j=1,nlon
            do i=1,nlat
@@ -92,7 +93,7 @@
 
        do j=1,nlon
          do i=1,nlat
-           ratio_oceanatm(i,j,:) = iso_ratios((ratio_oceanatm(i,j,iwat18) - 1.0_dblp) * 1.0e3_dblp, dexc_ocean, o17exc_ocean)
+           ratio_oceanatm(i,j,:) = iso_ratios(ratio_oceanatm(i,j,iwat18) - 1.0_dblp, dexc_ocean_frac, o17exc_ocean_frac)
          enddo
        enddo
 

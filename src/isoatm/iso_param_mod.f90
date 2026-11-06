@@ -118,6 +118,8 @@
 
           CONTAINS
 
+! dmr&clo   wiso:2b:0001 convention: deltas and excesses below are plain fractions (order 1e-3), never multiplied by 1000;
+!           permil and per meg appear only at the input/output boundary (namelist, input files, outputs).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       Routine pour le calcul du deuterium-excess
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -139,7 +141,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-          h2excess=(d/rsmow(iwat2h)-1.0_dblp)*1000._dblp-8.0_dblp*(o/rsmow(iwat18)-1.0_dblp)*1000._dblp
+          h2excess=(d/rsmow(iwat2h)-1.0_dblp)-8.0_dblp*(o/rsmow(iwat18)-1.0_dblp)   ! dmr&clo wiso:2b:0001 fraction, not permil
 
         end function dexcess
 
@@ -169,7 +171,7 @@
        delta_val = 0._dblp
 
        if (rwat.gt.epsilon(rwat)) then
-         delta_val = (riso/rwat/rsmow(n) - 1._dblp) * 1000._dblp
+         delta_val = (riso/rwat/rsmow(n) - 1._dblp)   ! dmr&clo wiso:2b:0001 fraction, not permil
        endif
 
        end function delta
@@ -198,7 +200,7 @@
 !      Variables locales
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
-       riso_val = rwat * rsmow(n) * (diso/1000._dblp + 1._dblp) 
+       riso_val = rwat * rsmow(n) * (diso + 1._dblp)   ! dmr&clo wiso:2b:0001 diso is a fraction, not permil
 
        end function delta_inv
        
@@ -228,7 +230,7 @@
        delta_val = 0._dblp
 
 !~        if (rwat.gt.epsilon(rwat)) then
-         delta_val = (riso/rsmow(n) - 1._dblp) * 1000._dblp
+         delta_val = (riso/rsmow(n) - 1._dblp)   ! dmr&clo wiso:2b:0001 fraction, not permil
 !~        endif
 
        end function deltaR

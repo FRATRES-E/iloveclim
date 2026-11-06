@@ -34,7 +34,8 @@
 !!
 !!     Formulations (names as given in wisoatm.nml):
 !!       liquid-vapour  alpha_lv_form = 'majoube71'      Majoube (1971), 18O and D
-!!                                      'horita94'       planned: Horita and Wesolowski (1994), coefficients to verify
+!!                                      'horita94'       Horita and Wesolowski (1994), fitted 0-374.1 degC (both
+!!                                                       formulations are extrapolated below 0 degC)
 !!       ice-vapour     alpha_sv_form = 'majoube70_mn67' Majoube (1970) for 18O, Merlivat and Nief (1967) for D
 !!                                      'ellehoj13'      Ellehoj et al. (2013), coefficients from the abstract, to verify
 !!       diffusivities  diff_form     = 'merlivat78'     Merlivat (1978)
@@ -79,6 +80,7 @@
         integer(ip), parameter :: ISO_FORM_LEN = 32                     !< length of a formulation name
 
         integer(ip), parameter :: LV_MAJOUBE71      = 1
+        integer(ip), parameter :: LV_HORITA94       = 2
         integer(ip), parameter :: SV_MAJOUBE70_MN67 = 1
         integer(ip), parameter :: SV_ELLEHOJ13      = 2
         integer(ip), parameter :: DIFF_MERLIVAT78   = 1
@@ -126,12 +128,10 @@
           case ('majoube71')
             lv_code = LV_MAJOUBE71
           case ('horita94')
-            ok = .false.
-            msg = "alpha_lv_form = 'horita94' is planned, not available yet (coefficients to verify, O37)"
-            return
+            lv_code = LV_HORITA94
           case default
             ok = .false.
-            msg = "unknown alpha_lv_form = '" // trim(lv_form) // "' (majoube71)"
+            msg = "unknown alpha_lv_form = '" // trim(lv_form) // "' (majoube71 | horita94)"
             return
           end select
 
@@ -215,8 +215,16 @@
           real(dblp), intent(in) :: temp
           real(dblp)             :: alpha
 
-          ! dmr   Majoube (1971): ln alpha = 1137/T**2 - 0.4156/T - 2.0667e-3 (lv_code = LV_MAJOUBE71, the only one so far)
-          alpha = exp(1137.0_dblp / temp**2 - 0.4156_dblp / temp - 2.0667e-3_dblp)
+          select case (lv_code)
+          case (LV_HORITA94)
+            ! dmr&clo   Horita and Wesolowski (1994):
+            !           1e3 ln alpha = -7.685 + 6.7123 (1e3/T) - 1.6664 (1e6/T**2) + 0.35041 (1e9/T**3)
+            alpha = exp(1.0e-3_dblp * (-7.685_dblp + 6.7123e3_dblp / temp - 1.6664e6_dblp / temp**2                 &
+                                       + 0.35041e9_dblp / temp**3))
+          case default
+            ! dmr   Majoube (1971): ln alpha = 1137/T**2 - 0.4156/T - 2.0667e-3
+            alpha = exp(1137.0_dblp / temp**2 - 0.4156_dblp / temp - 2.0667e-3_dblp)
+          end select
 
         end function lv18
 
@@ -225,8 +233,16 @@
           real(dblp), intent(in) :: temp
           real(dblp)             :: alpha
 
-          ! dmr&clo   Majoube (1971): ln alpha = 24844/T**2 - 76.248/T + 52.612e-3 (v21 code had +56.612e-3)
-          alpha = exp(24844.0_dblp / temp**2 - 76.248_dblp / temp + 52.612e-3_dblp)
+          select case (lv_code)
+          case (LV_HORITA94)
+            ! dmr&clo   Horita and Wesolowski (1994):
+            !           1e3 ln alpha = 1158.8 (T**3/1e9) - 1620.1 (T**2/1e6) + 794.84 (T/1e3) - 161.04 + 2.9992 (1e9/T**3)
+            alpha = exp(1.0e-3_dblp * (1158.8e-9_dblp * temp**3 - 1620.1e-6_dblp * temp**2 + 794.84e-3_dblp * temp      &
+                                       - 161.04_dblp + 2.9992e9_dblp / temp**3))
+          case default
+            ! dmr&clo   Majoube (1971): ln alpha = 24844/T**2 - 76.248/T + 52.612e-3 (v21 code had +56.612e-3)
+            alpha = exp(24844.0_dblp / temp**2 - 76.248_dblp / temp + 52.612e-3_dblp)
+          end select
 
         end function lv2h
 

@@ -26,7 +26,8 @@
 !      DESCRIPTION:
 !
 !>     Reference values computed independently (python, from the published formulas) at -20, 0 and 20 degC, to 1e-12;
-!!     textbook anchors at 20 degC (Majoube 1971: alpha18_lv ~ 1.0098, alphaD_lv ~ 1.085); structural checks:
+!!     textbook anchors (Majoube 1971 at 20 degC: 1.0098, 1.085; Horita and Wesolowski 1994 at 25 degC: 1.00935, 1.0787);
+!!     structural checks:
 !!     17O exponents, iwater and iwat16 give 1, S = 1 gives no kinetic effect, unknown names are refused.
 !!     One line per check, exit code 1 on any failure.
 !
@@ -51,6 +52,8 @@
         real(dblp), parameter :: SV2H(3) = [1.174406305367668_dblp, 1.133041759168199_dblp, 1.100906976960226_dblp]
         real(dblp), parameter :: EL18(3) = [1.018663143654563_dblp, 1.014524243447619_dblp, 1.012095612027103_dblp]
         real(dblp), parameter :: EL2H(3) = [1.189902790288559_dblp, 1.133139028646432_dblp, 1.093477508536286_dblp]
+        real(dblp), parameter :: HW18(3) = [1.014531128651067_dblp, 1.011817264406082_dblp, 1.009778029267193_dblp]
+        real(dblp), parameter :: HW2H(3) = [1.150298298678216_dblp, 1.111792726458965_dblp, 1.084355321858450_dblp]
         real(dblp), parameter :: AK18_M20 = 0.996476307155023_dblp    !< alpha_k 18O at -20 degC, S = 1.08, merlivat78
 
         integer(ip)        :: nfail, i
@@ -96,10 +99,18 @@
         call check_close('cappa03 D18/D',         diff_ratio(iwat18), 0.9691_dblp, 0.0_dblp)
         call check_close('cappa03 DD/D',          diff_ratio(iwat2h), 0.9839_dblp, 0.0_dblp)
 
+        call init('horita94', 'majoube70_mn67', 'merlivat78')
+        do i = 1, 3
+          call check_close('horita94 lv 18O',     alpha_lv(TT(i), iwat18), HW18(i), TOL)
+          call check_close('horita94 lv D',       alpha_lv(TT(i), iwat2h), HW2H(i), TOL)
+        enddo
+        ! dmr&clo   anchors at 25 degC (values tabulated for Horita and Wesolowski 1994: 1.00935, 1.0787)
+        call check_close('anchor horita94 18O 25 degC', alpha_lv(tK_zero_C + 25.0_dblp, iwat18), 1.00935_dblp, 1.0e-5_dblp)
+        call check_close('anchor horita94 D 25 degC',   alpha_lv(tK_zero_C + 25.0_dblp, iwat2h), 1.0787_dblp, 1.0e-4_dblp)
+        call check_close('horita94 vs majoube71 18O at 20 degC within 0.1 permil',                                   &
+                         alpha_lv(tK_zero_C + 20.0_dblp, iwat18), LV18(3), 1.0e-4_dblp)
+
         ! dmr&clo   refused settings
-        call iso_alphas_init('horita94', 'majoube70_mn67', 'merlivat78', 0.529_dblp, 0.528_dblp, 0.518_dblp,           &
-                             1.0_dblp, 0.004_dblp, ok, msg)
-        call check_true('horita94 refused (planned)', .not. ok)
         call iso_alphas_init('majoube71', 'nonsense', 'merlivat78', 0.529_dblp, 0.528_dblp, 0.518_dblp,                &
                              1.0_dblp, 0.004_dblp, ok, msg)
         call check_true('unknown alpha_sv_form refused', .not. ok)

@@ -25,7 +25,7 @@
   restart_read     = .false.                ! netCDF isotope restart: from ROADMAP 2c
   restart_file     = 'startdata/wisoatm_restart.nc'
 
-  alpha_lv_form    = 'majoube71'            ! liquid-vapour equilibrium (horita94: planned)
+  alpha_lv_form    = 'majoube71'            ! liquid-vapour equilibrium: majoube71 | horita94
   alpha_sv_form    = 'majoube70_mn67'       ! ice-vapour equilibrium: majoube70_mn67 | ellehoj13
   diff_form        = 'merlivat78'           ! diffusivity ratios: merlivat78 | cappa03
   theta_lv17       = 0.529                  ! alpha17 = alpha18**theta, liquid-vapour
