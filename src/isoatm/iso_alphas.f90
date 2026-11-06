@@ -1,8 +1,6 @@
-!dmr -- Adding the choice of components through the pre-processing options
-#include "choixcomposantes.h"
-!dmr -- Adding the choice of components through the pre-processing options
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!   Copyright 2021 Didier M. Roche (a.k.a. dmr)
+
+!   Copyright 2021, 2026 Didier M. Roche (a.k.a. dmr) | iLOVECLIM / FRATRES coding group
 
 !   Licensed under the Apache License, Version 2.0 (the "License");
 !   you may not use this file except in compliance with the License.
@@ -16,438 +14,324 @@
 !   See the License for the specific language governing permissions and
 !   limitations under the License.
 
+!   Style sheet: v1.0.0
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
+#include "choixcomposantes.h"
 
-      MODULE ISO_ALPHAS
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      MODULE: [iso_alphas]
+!
+!>     @brief Fractionation factors of the water isotopologues, with selectable formulations (ROADMAP D35, step 2b).
+!
+!      DESCRIPTION:
+!
+!>     Equilibrium factors are condensed phase over vapour (alpha > 1 for the heavy species), temperature in K.
+!!     Species index k as in comatm (iwater, iwat16, iwat17, iwat18, iwat2h); iwater and iwat16 always give 1.
+!!     17O is derived from 18O with the exponents theta: alpha17 = alpha18**theta (equilibrium) and
+!!     D17/D = (D18/D)**theta_diff (diffusivities).
+!!
+!!     Formulations (names as given in wisoatm.nml):
+!!       liquid-vapour  alpha_lv_form = 'majoube71'      Majoube (1971), 18O and D
+!!                                      'horita94'       planned: Horita and Wesolowski (1994), coefficients to verify
+!!       ice-vapour     alpha_sv_form = 'majoube70_mn67' Majoube (1970) for 18O, Merlivat and Nief (1967) for D
+!!                                      'ellehoj13'      Ellehoj et al. (2013), coefficients from the abstract, to verify
+!!       diffusivities  diff_form     = 'merlivat78'     Merlivat (1978)
+!!                                      'cappa03'        Cappa et al. (2003)
+!!       kinetic effect at snow formation (Jouzel and Merlivat 1984): supersaturation S = ss_s0 - ss_s1 * T(degC)
+!!
+!!     Corrections relative to the v21 code (wiso:2b:0002, sources checked with dmr, Nov 2026):
+!!       - Majoube (1971) D liquid-vapour constant +52.612e-3 (the code had +56.612e-3: alpha_D 4 permil too large);
+!!       - Majoube (1970) 18O ice-vapour constant 28.224e-3 (the code had 28.244e-3);
+!!       - ice-vapour attributions: 18O Majoube (1970), D Merlivat and Nief (1967) (the code cited Majoube 1971a).
+!!
+!!     Contract
+!!       - iso_alphas_init(...) once, before any use; returns ok = .false. and a message for an unknown or not yet
+!!         available formulation or an invalid parameter (the caller stops).
+!!       - alpha_lv, alpha_sv, alpha_k_snow, supersat are pure elemental; diff_ratio is pure elemental.
+!!       - alpha_sv(T,k) * alpha_k_snow(T,k) is the effective ice-vapour factor of Jouzel and Merlivat (1984).
+!
+!      REFERENCES: ROADMAP D35, O37, O42; references in ROADMAP §8.
+!
+!      AUTHORS: dmr (v21 formulations), dmr&clo (dispatch layer, 2026)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      module iso_alphas
 
 #if ( WISOATM == 1 )
 
-       use global_constants_mod, only: ip, dblp=>dp, tK_zero_C
-       use comatm, only: nlat, nlon, nwisos, iwat18, iwat2h, iwat17, iwater
-       use iso_param_mod, only: Diff
+        use global_constants_mod, only: ip, dblp=>dp, tK_zero_C
+        use comatm,               only: iwat17, iwat18, iwat2h
+
+        implicit none
+
+        private
+
+        public :: ISO_FORM_LEN, iso_alphas_init, iso_alphas_report
+        public :: alpha_lv, alpha_sv, alpha_k_snow, supersat, diff_ratio
+
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   Constants
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        integer(ip), parameter :: ISO_FORM_LEN = 32                     !< length of a formulation name
 
-       implicit none
+        integer(ip), parameter :: LV_MAJOUBE71      = 1
+        integer(ip), parameter :: SV_MAJOUBE70_MN67 = 1
+        integer(ip), parameter :: SV_ELLEHOJ13      = 2
+        integer(ip), parameter :: DIFF_MERLIVAT78   = 1
+        integer(ip), parameter :: DIFF_CAPPA03      = 2
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   Module state (set by iso_alphas_init)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        integer(ip), save :: lv_code     = LV_MAJOUBE71
+        integer(ip), save :: sv_code     = SV_MAJOUBE70_MN67
+        integer(ip), save :: diff_code   = DIFF_MERLIVAT78
+        real(dblp),  save :: theta_lv    = 0.529_dblp                   !< alpha17_lv = alpha18_lv**theta_lv
+        real(dblp),  save :: theta_sv    = 0.528_dblp                   !< alpha17_sv = alpha18_sv**theta_sv
+        real(dblp),  save :: theta_diff  = 0.518_dblp                   !< D17/D = (D18/D)**theta_diff
+        real(dblp),  save :: ss_s0       = 1.0_dblp                     !< supersaturation S = s0 - s1 T(degC)
+        real(dblp),  save :: ss_s1       = 0.004_dblp
+        real(dblp),  save :: d18_ratio   = 0.9723_dblp                  !< D(H2 18O)/D(H2O)
+        real(dblp),  save :: d2h_ratio   = 0.9755_dblp                  !< D(HDO)/D(H2O)
 
-       private nlat, nlon, nwisos, iwat18, iwat2h, ip, dblp
 
+      contains
 
-          CONTAINS
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Ce fichier contient les routines de fractionnement pour les 
-!       isotopes de l'eau : liquide-vapeur et solide-vapeur
-!       (dans l'environnement logiciel LUDUS)
-!
-!      Auteur : Didier M. Roche 
-!      Date   : 10 décembre 2010
-!      Derniere modification : 14 décembre 2010, 23 juin 2021 (version 21)
+! dmr&clo   Set-up and report
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       pure elemental function alpha_lv18(temp) result(alph_lv)
+        subroutine iso_alphas_init(lv_form, sv_form, diff_form, th_lv, th_sv, th_diff, s0, s1, ok, msg)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alpha_lv : coefficient de fractionnement liquide-vapeur for H218O
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp), intent(in) :: temp ! attention, temp doit être en Kelvins
-       REAL(kind=dblp) :: alph_lv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp) :: a, b, c
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Fractionnement de Majoube, 1971b, Journal de Chimie Physique,
-!         Volume 10, pp. 1423-1436
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-                 
-        a = 1137.0d0 / temp**2
-        b = 0.4156d0 / temp
-        c = 2.0667d-3
-        alph_lv = EXP(a-b-c)
-    
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      END FUNCTION alpha_lv18
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-
-       pure elemental function alpha_lv2h(temp) result(alph_lv)
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alpha_lv : coefficient de fractionnement liquide-vapeur for H218O
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp), intent(in) :: temp ! attention, temp doit être en Kelvins
-       REAL(kind=dblp) :: alph_lv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp) :: a, b, c
-
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!       Fractionnement de Majoube, 1971b, Journal de Chimie Physique,
-!         Volume 10, pp. 1423-1436
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-                 
-        a = 24844.0d0 / temp**2
-        b = 76.248d0 / temp
-        c = 56.612d-3
-        alph_lv = EXP(a-b+c)
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      END FUNCTION alpha_lv2h
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-
-       pure elemental function alpha_lv17(temp) result(alph_lv)
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alpha_lv : coefficient de fractionnement liquide-vapeur for H218O
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp), intent(in) :: temp ! attention, temp doit être en Kelvins
-       REAL(kind=dblp) :: alph_lv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp) :: a, b, c
-
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!       Fractionnement de Majoube, 1971b, Journal de Chimie Physique,
-!         Volume 10, pp. 1423-1436
-!       Et ajout de Barkan & Luz, 2005 et Barkan & Luz, 2007 pour 17O
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-
-        a = 1137.0d0 / temp**2
-        b = 0.4156d0 / temp
-        c = 2.0667d-3
-        alph_lv = (EXP(a-b-c))**0.529d0 ! Amaelle dixit : 0.529 pour lv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      END FUNCTION alpha_lv17
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-
-        pure elemental function alpha_sv18(temp)  result(alph_sv)
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alph_sv : coefficient de fractionnement solide-vapeur
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp), intent(in) :: temp ! attention, temp doit être en Kelvins
-       REAL :: alph_sv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp) :: a, b
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Fractionnement de Majoube, 1971a, Journal de Chimie Physique,
-!         Volume 68, pp. 625-636
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-                 
-        a = 11.839d0 / temp
-        b = 0.028244
-        alph_sv = EXP(a-b)
-    
-      END FUNCTION alpha_sv18
-
-
-       pure elemental function alpha_sv2h(temp)  result(alph_sv)
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alph_sv : coefficient de fractionnement solide-vapeur
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp), intent(in) :: temp ! attention, temp doit être en Kelvins
-       REAL :: alph_sv
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp) :: a, b
-       
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Fractionnement de Majoube, 1971a, Journal de Chimie Physique,
-!         Volume 68, pp. 625-636
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-                 
-        a = 16288.0d0 / temp**2
-        b = 0.0934
-        alph_sv = EXP(a-b)
-
-      END FUNCTION alpha_sv2h
+          character(len=*), intent(in)  :: lv_form                     !< liquid-vapour formulation
+          character(len=*), intent(in)  :: sv_form                     !< ice-vapour formulation
+          character(len=*), intent(in)  :: diff_form                   !< diffusivity ratios
+          real(dblp),       intent(in)  :: th_lv                       !< 17O exponent, liquid-vapour
+          real(dblp),       intent(in)  :: th_sv                       !< 17O exponent, ice-vapour
+          real(dblp),       intent(in)  :: th_diff                     !< 17O exponent, diffusivities
+          real(dblp),       intent(in)  :: s0                          !< supersaturation at 0 degC
+          real(dblp),       intent(in)  :: s1                          !< supersaturation slope, per degC
+          logical,          intent(out) :: ok
+          character(len=*), intent(out) :: msg
 
+          ok  = .true.
+          msg = ''
 
-        pure elemental function alpha_sv17(temp)  result(alph_sv)
+          select case (trim(lv_form))
+          case ('majoube71')
+            lv_code = LV_MAJOUBE71
+          case ('horita94')
+            ok = .false.
+            msg = "alpha_lv_form = 'horita94' is planned, not available yet (coefficients to verify, O37)"
+            return
+          case default
+            ok = .false.
+            msg = "unknown alpha_lv_form = '" // trim(lv_form) // "' (majoube71)"
+            return
+          end select
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alph_sv : coefficient de fractionnement solide-vapeur
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          select case (trim(sv_form))
+          case ('majoube70_mn67')
+            sv_code = SV_MAJOUBE70_MN67
+          case ('ellehoj13')
+            sv_code = SV_ELLEHOJ13
+          case default
+            ok = .false.
+            msg = "unknown alpha_sv_form = '" // trim(sv_form) // "' (majoube70_mn67 | ellehoj13)"
+            return
+          end select
 
-       REAL(kind=dblp), intent(in) :: temp ! attention, temp doit être en Kelvins
-       REAL :: alph_sv
+          select case (trim(diff_form))
+          case ('merlivat78')
+            diff_code = DIFF_MERLIVAT78
+            d18_ratio = 0.9723_dblp
+            d2h_ratio = 0.9755_dblp
+          case ('cappa03')
+            diff_code = DIFF_CAPPA03
+            d18_ratio = 0.9691_dblp
+            d2h_ratio = 0.9839_dblp
+          case default
+            ok = .false.
+            msg = "unknown diff_form = '" // trim(diff_form) // "' (merlivat78 | cappa03)"
+            return
+          end select
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          if (th_lv <= 0.0_dblp .or. th_sv <= 0.0_dblp .or. th_diff <= 0.0_dblp .or. s0 <= 0.0_dblp) then
+            ok = .false.
+            msg = "theta_lv17, theta_sv17, theta_diff17 and ss_s0 must be positive"
+            return
+          endif
 
-       REAL(kind=dblp) :: a, b
+          theta_lv   = th_lv
+          theta_sv   = th_sv
+          theta_diff = th_diff
+          ss_s0      = s0
+          ss_s1      = s1
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Fractionnement de Majoube, 1971a, Journal de Chimie Physique,
-!         Volume 68, pp. 625-636
-!       Et ajout de Barkan & Luz, 2005 et Barkan & Luz, 2007 pour 17O
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        end subroutine iso_alphas_init
 
-        a = 11.839d0 / temp
-        b = 0.028244
-        alph_sv = (EXP(a-b))**0.528d0
+        subroutine iso_alphas_report(unit_out)
 
-      END FUNCTION alpha_sv17
+          integer(ip), intent(in) :: unit_out                          !< open formatted unit
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          write(unit_out, '(a,f8.4,a,f8.4)') 'alpha check, 20 degC: 18O lv = ', alpha_lv(tK_zero_C + 20.0_dblp, iwat18), &
+                                             ', D lv = ', alpha_lv(tK_zero_C + 20.0_dblp, iwat2h)
+          write(unit_out, '(a,f8.4,a,f8.4)') 'alpha check, -20 degC: 18O sv = ', alpha_sv(tK_zero_C - 20.0_dblp, iwat18), &
+                                             ', D sv = ', alpha_sv(tK_zero_C - 20.0_dblp, iwat2h)
+          write(unit_out, '(a,3f8.5)')       'D_i/D (17O, 18O, D) = ', diff_ratio(iwat17), diff_ratio(iwat18),            &
+                                             diff_ratio(iwat2h)
 
-       pure elemental function alpha_sve18(temp) result(alph_sve)
+        end subroutine iso_alphas_report
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alpha_lve : coefficient fractionnement solide-vapeur efficace
+! dmr&clo   Liquid-vapour equilibrium
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       REAL(kind=dblp), INTENT(IN) :: temp ! attention, temp doit être en Kelvins
-       REAL(kind=dblp) :: alph_sve
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        pure elemental function alpha_lv(temp, k) result(alpha)
 
-       REAL(kind=dblp) a, b, alpha_eq, esse
+          real(dblp),  intent(in) :: temp                              !< temperature, K
+          integer(ip), intent(in) :: k                                 !< species index (comatm)
+          real(dblp)              :: alpha
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       REAL(kind=dblp), PARAMETER :: lambda = 0.004 ! entre 2. et 4.E-03 cf. Risi
+          if (k == iwat18) then
+            alpha = lv18(temp)
+          else if (k == iwat17) then
+            alpha = lv18(temp)**theta_lv
+          else if (k == iwat2h) then
+            alpha = lv2h(temp)
+          else
+            alpha = 1.0_dblp                                           ! iwater, iwat16
+          endif
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       On récupère d'abord la version à l'équilibre
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       alpha_eq = alpha_sv18(temp)
+        end function alpha_lv
 
+        pure elemental function lv18(temp) result(alpha)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!     Le paramètre "S" est définit à partir de Jouzel & Merlivat, 1984
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          real(dblp), intent(in) :: temp
+          real(dblp)             :: alpha
 
-       esse = 1.0_dblp - lambda * (temp-tK_zero_C) ! here temp should be C not K
+          ! dmr   Majoube (1971): ln alpha = 1137/T**2 - 0.4156/T - 2.0667e-3 (lv_code = LV_MAJOUBE71, the only one so far)
+          alpha = exp(1137.0_dblp / temp**2 - 0.4156_dblp / temp - 2.0667e-3_dblp)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Formulation du fractionnement cinétique lors de la formation 
-!       des cristaux de glace, d'après Jouzel & Merlivat, 1984
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        end function lv18
 
-       alph_sve = (alpha_eq * esse)/(1.0_dblp+alpha_eq*(esse-1.0_dblp)*Diff(iwater)/Diff(iwat18))
+        pure elemental function lv2h(temp) result(alpha)
 
-       END FUNCTION alpha_sve18
+          real(dblp), intent(in) :: temp
+          real(dblp)             :: alpha
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!                                                                     |
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          ! dmr&clo   Majoube (1971): ln alpha = 24844/T**2 - 76.248/T + 52.612e-3 (v21 code had +56.612e-3)
+          alpha = exp(24844.0_dblp / temp**2 - 76.248_dblp / temp + 52.612e-3_dblp)
 
-       pure elemental function alpha_sve17(temp) result(alph_sve)
+        end function lv2h
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alpha_lve : coefficient fractionnement solide-vapeur efficace
+! dmr&clo   Ice-vapour equilibrium
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       REAL(kind=dblp), INTENT(IN) :: temp ! attention, temp doit être en Kelvins
-       REAL(kind=dblp) :: alph_sve
+        pure elemental function alpha_sv(temp, k) result(alpha)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          real(dblp),  intent(in) :: temp                              !< temperature, K
+          integer(ip), intent(in) :: k                                 !< species index (comatm)
+          real(dblp)              :: alpha
 
-       REAL(kind=dblp) a, b, alpha_eq, esse
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       REAL(kind=dblp), PARAMETER :: lambda = 0.004 ! entre 2. et 4.E-03 cf. Risi
+          if (k == iwat18) then
+            alpha = sv18(temp)
+          else if (k == iwat17) then
+            alpha = sv18(temp)**theta_sv
+          else if (k == iwat2h) then
+            alpha = sv2h(temp)
+          else
+            alpha = 1.0_dblp                                           ! iwater, iwat16
+          endif
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       On récupère d'abord la version à l'équilibre
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       alpha_eq = alpha_sv17(temp)
+        end function alpha_sv
 
+        pure elemental function sv18(temp) result(alpha)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!     Le paramètre "S" est définit à partir de Jouzel & Merlivat, 1984
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          real(dblp), intent(in) :: temp
+          real(dblp)             :: alpha
 
-       esse = 1.0_dblp - lambda * (temp-tK_zero_C) ! here temp should be C not K
+          select case (sv_code)
+          case (SV_ELLEHOJ13)
+            ! dmr&clo   Ellehoj et al. (2013): ln alpha = 0.0831 - 49.192/T + 8312.5/T**2 (to verify against the paper)
+            alpha = exp(0.0831_dblp - 49.192_dblp / temp + 8312.5_dblp / temp**2)
+          case default
+            ! dmr&clo   Majoube (1970): ln alpha = 11.839/T - 28.224e-3 (v21 code had 28.244e-3)
+            alpha = exp(11.839_dblp / temp - 28.224e-3_dblp)
+          end select
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Formulation du fractionnement cinétique lors de la formation 
-!       des cristaux de glace, d'après Jouzel & Merlivat, 1984
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        end function sv18
 
-       alph_sve = (alpha_eq * esse)/(1.0_dblp+alpha_eq*(esse-1.0_dblp)*Diff(iwater)/Diff(iwat17))
+        pure elemental function sv2h(temp) result(alpha)
 
-       END FUNCTION alpha_sve17
+          real(dblp), intent(in) :: temp
+          real(dblp)             :: alpha
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!                                                                     |
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          select case (sv_code)
+          case (SV_ELLEHOJ13)
+            ! dmr&clo   Ellehoj et al. (2013): ln alpha = 0.2133 - 203.10/T + 48888/T**2 (to verify against the paper)
+            alpha = exp(0.2133_dblp - 203.10_dblp / temp + 48888.0_dblp / temp**2)
+          case default
+            ! dmr&clo   Merlivat and Nief (1967): ln alpha = 16288/T**2 - 0.0934 (constant to check, O42)
+            alpha = exp(16288.0_dblp / temp**2 - 0.0934_dblp)
+          end select
 
-       pure elemental function alpha_sve2h(temp) result(alph_sve)
+        end function sv2h
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Variables d'entree  : 
-!        temp : temperature de fractionnement
-!
-!       Variables de sortie : 
-!        alpha_lve : coefficient fractionnement solide-vapeur efficace
+! dmr&clo   Kinetic effect at snow formation (Jouzel and Merlivat 1984) and diffusivities
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       REAL(kind=dblp), INTENT(IN) :: temp ! attention, temp doit être en Kelvins
-       REAL(kind=dblp) :: alph_sve
+        pure elemental function supersat(temp) result(s)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Variables locales
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          real(dblp), intent(in) :: temp                               !< temperature, K
+          real(dblp)             :: s
 
-       REAL(kind=dblp) a, b, alpha_eq, esse
+          s = ss_s0 - ss_s1 * (temp - tK_zero_C)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       REAL(kind=dblp), PARAMETER :: lambda = 0.004 ! entre 2. et 4.E-03 cf. Risi
+        end function supersat
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       On récupère d'abord la version à l'équilibre
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       alpha_eq = alpha_sv2h(temp)
+        pure elemental function alpha_k_snow(temp, k) result(alpha)
 
+          real(dblp),  intent(in) :: temp                              !< temperature, K
+          integer(ip), intent(in) :: k                                 !< species index (comatm)
+          real(dblp)              :: alpha
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!     Le paramètre "S" est définit à partir de Jouzel & Merlivat, 1984
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          real(dblp) :: s
 
-       esse = 1.0_dblp - lambda * (temp-tK_zero_C) ! here temp should be C not K
+          ! dmr   alpha_k = S / (1 + alpha_sv (S - 1) D/D_i); the effective factor is alpha_sv * alpha_k
+          s = supersat(temp)
+          alpha = s / (1.0_dblp + alpha_sv(temp, k) * (s - 1.0_dblp) / diff_ratio(k))
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      Formulation du fractionnement cinétique lors de la formation 
-!       des cristaux de glace, d'après Jouzel & Merlivat, 1984
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        end function alpha_k_snow
 
-       alph_sve = (alpha_eq * esse)/(1.0_dblp+alpha_eq*(esse-1.0_dblp)*Diff(iwater)/Diff(iwat2h))
+        pure elemental function diff_ratio(k) result(ratio)
 
-       END FUNCTION alpha_sve2h
+          integer(ip), intent(in) :: k                                 !< species index (comatm)
+          real(dblp)              :: ratio                             !< D_i / D(H2O)
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   [TODO] rewrite the functions below as elemental and check the use in different realms                                      |
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+          if (k == iwat18) then
+            ratio = d18_ratio
+          else if (k == iwat17) then
+            ratio = d18_ratio**theta_diff
+          else if (k == iwat2h) then
+            ratio = d2h_ratio
+          else
+            ratio = 1.0_dblp                                           ! iwater, iwat16
+          endif
 
-!~       FUNCTION alpha_ka(surf_type,iso_nb)
-
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !       Variables d'entree  : 
-!~ !        surf_typ : le type de surface
-!~ !        iso_nb : l'isotope considéré
-!~ !
-!~ !       Variables de sortie : 
-!~ !        alpha_ka : le fractionnement cinétique de l'isotope considéré
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-
-!~        USE iso_param_mod, ONLY : ieau, Diff, ieaud, ieau17, ieau18,     &
-!~            iso_nld, iso_noc, iso_nse
-
-!~        IMPLICIT NONE
-
-!~        INTEGER :: surf_type, iso_nb
-!~        REAL :: alpha_ka
-
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !      Variables locales
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-
-!~        REAL :: n_ka
-
-
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !      Calcul sur les surfaces terrestres
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~        IF (surf_type.EQ.iso_nld) THEN ! evaporation au dessus de la Terre
-!~ !         n_ka => calcul à faire à partir de Mathieu & Bariac, 1996
-!~          alpha_ka = ( Diff(ieau) / Diff(iso_nb) ) ** n_ka
-
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !      Calcul sur les surfaces océaniques
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~        ELSE IF (surf_type.EQ.iso_noc) THEN
-
-!~ !       Ici la détermination est à faire avec Amaëlle Landais
-!~ !       Dans le cas de l'18O, 1+epsilon_ka = 6.0 pour mille
-!~ !        => alpha_ka(ieau18) = 1 + 6.0D-3
-!~ !       En attendant ...
-!~          alpha_ka = 1.0
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !      Calcul sur les surfaces banquises
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~        ELSE IF (surf_type.EQ.iso_nse) THEN
-!~ !       Comme dans atmphys0.f, on dirait que evapn(noc) = evapn(nse)
-!~ !       En attendant ...
-!~          alpha_ka = 1.0
-
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !      Calcul sur les surfaces inconnues !!
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~        ELSE
-!~         WRITE(*,*) "Le type de surface demandé n'est pas codé !! "
-!~         WRITE(*,*) "   >>> STOP <<<   "
-!~         STOP
-!~        ENDIF
-
-!~       END FUNCTION alpha_ka
+        end function diff_ratio
 
 #endif
 
-      END MODULE ISO_ALPHAS
+      end module iso_alphas
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+!      The End of All Things (op. cit.)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

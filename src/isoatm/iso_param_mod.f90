@@ -90,40 +90,9 @@
                                       , M19 = MH + M2H + MO16, M32 = MO16 + MO16, M33 = MO16 + MO17, M34 = MO16 + MO18
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      For kinetic fractionation, use diffusivity coefficient as defined
-!      in reference document. Please note that the coefficient is in the
-!      form [Di/D]^n, the coefficients given here are the Di/D
-!      Given the formulation used (cf. ref. document), there is no such
-!      coefficient for ieau or ieau16. Thus, they are set to 1.0
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!      Values are coming from Merlivat, 1978 & Barkan and Luz, 2007
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER :: Diff = [1.0d0, 1.0d0, 0.9855d0, 0.9723d0, 0.9755d0]
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      For the special case of the ocean, we want the formulation to be
-!      still in the type of [Di/D], though it is fixed in Merlivat and
-!      Jouzel, 1979 that epsilon_k = alpha_k + 1 = 6 per mil for 18O.
-!      Thus, n_ka_oc is fixed to ca. 0.214
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!      However, it is also fixed in Merlivat and Jouzel, 1979 that
-!      epsilon_k = alpha_k + 1 = 6 *0.88 per mil for D. 
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER, PRIVATE ::                                                                 &
-         n_ka_oc = [1.0_dblp,1.0_dblp,LOG(1.0_dblp-6.0E-3_dblp)/LOG(Diff(iwat18)),  LOG(1.0_dblp-6.0E-3_dblp)/LOG(Diff(iwat18)), &
-                                      LOG(1.0_dblp-6.0E-3_dblp)/LOG(Diff(iwat18))]
-
-!      From these considerations, it naturally folows that the kinetic
-!      fractionation coefficients are, for the ocean:
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER :: alpha_diff_oc = Diff**n_ka_oc
-
-!      Kinetic fractionnation coefficient for the land surface
-!      evaporation
-
-!      First guess
-       REAL(kind=dblp), PARAMETER, PRIVATE           :: n_ka_lnd = 0.57_dblp
-
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER :: alpha_diff_lnd = Diff**n_ka_lnd
+! dmr&clo   wiso:2b:0002 the diffusivity ratios (Diff) moved to iso_alphas (diff_ratio, selectable, D35). The kinetic
+!           evaporation coefficients alpha_diff_oc (MJ79, epsilon_k = 6 permil for 18O, n_ka_oc applied to all species)
+!           and alpha_diff_lnd (n_ka_lnd = 0.57) were unused and are removed: they come back with MJ79 in ROADMAP 2d (O4).
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Moved here the remnants of isoatm_mod ...

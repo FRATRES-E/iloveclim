@@ -56,6 +56,7 @@
 
         use global_constants_mod, only: str_len, ip, dblp=>dp
         use comatm,               only: nwisos, iwater, iwat16, iwat17, iwat18, iwat2h
+        use iso_alphas,           only: ISO_FORM_LEN, iso_alphas_init, iso_alphas_report
 
         implicit none
 
@@ -107,11 +108,23 @@
         logical                :: restart_read     = .false.
         character(len=str_len) :: restart_file     = 'startdata/wisoatm_restart.nc'
 
+! dmr&clo   Fractionation factors (D35, iso_alphas): formulations by name, 17O exponents, snow supersaturation
+        character(len=ISO_FORM_LEN) :: alpha_lv_form = 'majoube71'      !< liquid-vapour: majoube71 (horita94 planned)
+        character(len=ISO_FORM_LEN) :: alpha_sv_form = 'majoube70_mn67' !< ice-vapour: majoube70_mn67 | ellehoj13
+        character(len=ISO_FORM_LEN) :: diff_form     = 'merlivat78'     !< diffusivities: merlivat78 | cappa03
+        real(dblp)             :: theta_lv17       = 0.529_dblp      !< alpha17 = alpha18**theta, liquid-vapour
+        real(dblp)             :: theta_sv17       = 0.528_dblp      !< idem, ice-vapour
+        real(dblp)             :: theta_diff17     = 0.518_dblp      !< D17/D = (D18/D)**theta (Barkan and Luz 2007)
+        real(dblp)             :: ss_s0            = 1.0_dblp        !< supersaturation over ice S = ss_s0 - ss_s1 T(degC)
+        real(dblp)             :: ss_s1            = 0.004_dblp      !< (Jouzel and Merlivat 1984; 0.002 to 0.004)
+
         namelist /wisoatm_nml/ frac_mode, d18o_vap_init, dexc_vap_init, o17exc_vap_init,                              &
                                d18o_land_evap, dexc_land_evap, o17exc_land_evap,                                      &
                                d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap,                                      &
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
-                               restart_read, restart_file
+                               restart_read, restart_file,                                                            &
+                               alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
+                               ss_s0, ss_s1
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Derived ratios (set by iso_nml_read)
@@ -153,7 +166,7 @@
           character(len=*), intent(in) :: adv_mode                     !< water transport mode (moipar, D28)
 
           integer(ip)        :: unit_nml, ios
-          logical            :: exists
+          logical            :: exists, ok
           character(len=256) :: msg
 
           inquire(file=ISO_NML_FILE, exist=exists)
@@ -198,6 +211,13 @@
             stop 1
           endif
 
+          call iso_alphas_init(alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
+                               ss_s0, ss_s1, ok, msg)
+          if (.not. ok) then
+            write(*,*) "iso_nml_read: ", trim(msg)
+            stop 1
+          endif
+
           r_vap_init    = iso_ratios(d18o_vap_init,  dexc_vap_init,  o17exc_vap_init)
           r_land_evap   = iso_ratios(d18o_land_evap, dexc_land_evap, o17exc_land_evap)
           r_snow_evap   = iso_ratios(d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap)
@@ -230,6 +250,12 @@
                                          d18o_ocean, dexc_ocean, o17exc_ocean
           write(unit_chk, '(a,l1)')      'restart_read     = ', restart_read
           write(unit_chk, '(a,a)')       'restart_file     = ', trim(restart_file)
+          write(unit_chk, '(a,a)')       'alpha_lv_form    = ', trim(alpha_lv_form)
+          write(unit_chk, '(a,a)')       'alpha_sv_form    = ', trim(alpha_sv_form)
+          write(unit_chk, '(a,a)')       'diff_form        = ', trim(diff_form)
+          write(unit_chk, '(a,3f8.4)')   'theta17 lv, sv, diff = ', theta_lv17, theta_sv17, theta_diff17
+          write(unit_chk, '(a,2f8.4)')   'supersaturation s0, s1 (per degC) = ', ss_s0, ss_s1
+          call iso_alphas_report(unit_chk)
 
         end subroutine iso_nml_write
 
