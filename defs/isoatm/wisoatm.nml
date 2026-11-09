@@ -22,7 +22,7 @@
   dexc_ocean       =   0.0                  ! both modes
   o17exc_ocean     =   0.0                  ! both modes
 
-  restart_read     = .false.                ! netCDF isotope restart: from ROADMAP 2c
+  restart_read     = .false.                ! netCDF isotope restart, written as restartdata/resYYYYYY/wisoatm_restartYYYYYY.nc
   restart_file     = 'startdata/wisoatm_restart.nc'
 
   alpha_lv_form    = 'majoube71'            ! liquid-vapour equilibrium: majoube71 | horita94

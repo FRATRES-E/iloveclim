@@ -49,7 +49,8 @@
 !!       - wiso_vap_transport(rmois): FV mode, once per step, where ec_moisture transports the water; rmois is
 !!         rmoisg(nlat,nlon,nwisos), all species updated.
 !!       - wiso_vap_follow_water(rmois): rmois(:,:,iwat16:iwat2h) = wiso_rvap * rmois(:,:,iwater).
-!!       - The memory is set at the first call from the amounts, r_vap_init (wisoatm.nml) where the water is ~0.
+!!       - The memory is set at the first call from the amounts, r_vap_init (wisoatm.nml) where the water is ~0, or
+!!         from the isotope restart (wiso_vap_set_memory, wiso:2c:0002); wiso_vap_get_memory gives it for writing.
 !
 !      REFERENCES: ROADMAP D4, D30, D32, D43; fvt_ffsl_mod (ratio mode, Zalesak 1979 limiter).
 !
@@ -67,7 +68,7 @@
 
         private
 
-        public :: wiso_vap_transport, wiso_vap_follow_water
+        public :: wiso_vap_transport, wiso_vap_follow_water, wiso_vap_get_memory, wiso_vap_set_memory
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Module constants and state
@@ -128,6 +129,29 @@
           enddo
 
         end subroutine wiso_vap_follow_water
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   Ratio memory for the restart (wiso:2c:0002)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        subroutine wiso_vap_get_memory(rmois, r)
+
+          real(dblp), intent(in)  :: rmois(:,:,:)   !< (nlat,nlon,nwisos), to set the memory if not done yet
+          real(dblp), intent(out) :: r(:,:,:)       !< (nlat,nlon,iwat2h-iwat16+1)
+
+          if (.not. allocated(wiso_rvap)) call wiso_vap_ratios(rmois)
+          r = wiso_rvap
+
+        end subroutine wiso_vap_get_memory
+
+        subroutine wiso_vap_set_memory(r)
+
+          real(dblp), intent(in) :: r(:,:,:)        !< (nlat,nlon,iwat2h-iwat16+1)
+
+          if (.not. allocated(wiso_rvap)) allocate(wiso_rvap(nlat, nlon, iwat16:iwat2h))
+          wiso_rvap = r
+
+        end subroutine wiso_vap_set_memory
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Ratio memory from the amounts

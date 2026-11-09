@@ -209,10 +209,7 @@
             stop 1
           end select
 
-          if (restart_read) then
-            write(*,*) "iso_nml_read: restart_read = .true. is not available yet (netCDF isotope restart, ROADMAP 2c)"
-            stop 1
-          endif
+! dmr&clo   wiso:2c:0002 restart_read: read by wiso_restart_mod at the end of ec_iatmphys
 
           call iso_alphas_init(alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, ok, msg)

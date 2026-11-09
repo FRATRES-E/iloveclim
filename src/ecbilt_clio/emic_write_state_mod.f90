@@ -113,6 +113,9 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
       use ocean_coupling_mod, only: ocean_is_prescribed
       use landmodel_mod, only: ec_wrendland
       use ecbilt0_mod, only: ec_wrenddyn, ec_wrendphy
+#if ( WISOATM == 1 )
+      use wiso_restart_mod, only: wiso_restart_write   ! dmr&clo wiso:2c:0002
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   By reference variables ...
@@ -214,7 +217,11 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
              close(newunit_id)
 
 
-! dmr&clo   wiso:2a:0002 [wiso:2c] the isotope restart (netCDF, D34) is copied here; binary wisoatm_restart.dat removed
+! dmr&clo   wiso:2c:0002 isotopologue restart of the atmosphere (netCDF, D34); read back with restart_read = .true. and
+!           restart_file in wisoatm.nml
+#if ( WISOATM == 1 )
+            call wiso_restart_write(TRIM(REPERTOIRE)//'/wisoatm_restart'//chf//'.nc')
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  Write section: LAND MODEL LBM

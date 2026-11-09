@@ -310,7 +310,7 @@ contains
 #elif ( CYCC >= 2 )
       write(newunit_id) PA_C
 #endif
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotope restart (netCDF, D34) is written here; binary write_isoatm removed
+! dmr&clo   wiso:2c:0002 isotope restart (netCDF, D34): wiso_restart_write, called by emic_write_state
       return
       end subroutine ec_wrendphy
 

@@ -70,6 +70,8 @@ contains
 #if (WISOATM == 1 )
        USE comatm, ONLY : iwater, iwat16, iwat2h
        USE iso_nml_mod, only: r_vap_init                          ! dmr&clo wiso:2b:0001
+       USE iso_nml_mod, only: restart_read, restart_file          ! dmr&clo wiso:2c:0002
+       USE wiso_restart_mod, only: wiso_restart_read              ! dmr&clo wiso:2c:0002
 #endif
 
 #if ( DOWNSTS == 1 )
@@ -255,6 +257,11 @@ contains
 
         close(iuo+95)
       endif
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0002 isotopologue restart (netCDF, D34), after the atmospheric one (exact if paired with it)
+      if (restart_read) call wiso_restart_read(restart_file)
+#endif
 
 #if ( ISM == 2 )
 ! output of orography and land-fraction
