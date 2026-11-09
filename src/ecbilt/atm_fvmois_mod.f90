@@ -184,6 +184,7 @@
           ! face fluxes of the 800 hPa wind reduced by umoisr (D22), ec_trafluxdiv's wind
           call fvt_specflux_fluxes(fvm_sf, fvm_grid, reshape(psi(:,3), [nsh, 2]), reshape(chi(:,3), [nsh, 2]),      &
                                    umoisr*dtime*om, umoisr*dtime/radius**2, fvm_fx, fvm_fy)
+          fvm_have_flx = .true.                                    ! dmr&clo wiso:2c:0001
 
           fvm_q(:,:,1) = q(:,:)
           mass0 = sum(fvm_area*q)
