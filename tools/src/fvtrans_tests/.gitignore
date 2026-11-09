@@ -9,3 +9,5 @@ test_fvt_specflux
 test_fvt_specref
 fvt_realwinds
 realwinds_build/
+fvt_ratiocheck
+ratiocheck_build/

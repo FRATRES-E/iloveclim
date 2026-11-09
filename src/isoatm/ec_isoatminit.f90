@@ -49,9 +49,10 @@
        character(len=4), parameter :: varia="d18o"
        INTEGER :: i,j
 
-! dmr&clo   wiso:2a:0002 until wiso:2c the isotopologues are initialised but never evolved (no transport, sources or
-!           sinks): water and climate must be bit-identical to WISOATM = 0 (D4), the isotope fields are meaningless
-       write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues initialised but NOT evolved yet (ROADMAP wiso:2c)"
+! dmr&clo   wiso:2c:0001 the isotopologues are transported (wiso_vap_mod); until wiso:2c:0002 to 0004 every water source
+!           and sink acts on them at the local vapour ratio (alpha = 1, no source composition).
+       write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues transported; sources and sinks at the vapour ratio",      &
+                  " (alpha = 1, interim, ROADMAP wiso:2c)"
 
 ! dmr&clo   wiso:2b:0001 surface ocean ratios from wisoatm.nml: 'fixed' (uniform) or 'file' (d18O map in permil, converted
 !           to a fraction on reading; dD and 17O from dexc_ocean and o17exc_ocean, as in iso_ratios)

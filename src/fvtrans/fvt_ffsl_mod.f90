@@ -71,6 +71,13 @@
 !!     non-divergent flow; under their (strongly) divergent flow, ratios with monotone PPM in ratio mode show transient
 !!     excursions up to 3e-4 of the range, which vanish with out_max = 0.75 at the cost of more substeps (and more
 !!     numerical diffusion: substeps are not free for PPM, whose error is smallest near Courant number 1).
+!!     Ratio mode (wiso:2c:0001): that bound does not hold for ratios under the much more divergent ECBilt winds (one
+!!     year of dumped winds: per-step excursions up to 0.1 of the range, near cells emptied or filled within a step).
+!!     The tracer fluxes are therefore limited (Zalesak 1979 FCT) against low-order fluxes with the same inner / outer
+!!     structure and the ratio constant in the donor cell, then each new ratio is clipped to the range of the old
+!!     ratios that can reach it (non-conservative last resort for the rare cells where the low-order update is itself
+!!     unbounded, see ffsl_fct_ratio). Cells whose carrier falls below FFSL_RATIO_TINY of the field maximum keep their
+!!     ratio. The carrier is untouched: it is bitwise the density-mode result.
 !!
 !!     Contract (public entry points):
 !!       fvt_ffsl_density(grid,fx,fy,q,recon,limiter[,nsub][,out_max])
@@ -109,6 +116,10 @@
         real(dblp),  parameter :: FFSL_DIV_MAX = 0.5_dblp           !< max net volume loss of a cell per 1-D sweep
         real(dblp),  parameter :: FFSL_OUT_MAX = 1.0_dblp           !< default max outflow fraction of a cell per substep
         integer(ip), parameter :: FFSL_NSUB_MAX = 64                !< cap on the number of substeps
+        real(dblp),  parameter :: FFSL_RATIO_TINY = 1.0e-10_dblp    !< ratio mode: carrier below this fraction of the
+                                                                    !< field maximum keeps its ratio (wiso:2c:0001)
+        integer(ip), parameter :: FFSL_LIM_DONOR = -1               !< internal: ratio taken constant in the donor cell
+                                                                    !< (low-order fluxes of the ratio FCT, wiso:2c:0001)
         integer(ip), parameter :: FFSL_POS_PASSES = 5               !< max passes of the positivity fix
         integer(ip), parameter :: FFSL_NG      = 2                  !< ghost cells on each side of a 1-D sweep
 
@@ -325,9 +336,17 @@
           real(dblp)  :: qcx(g%nlat, g%nlon), qcy(g%nlat, g%nlon)         ! carrier after the inner updates
           real(dblp)  :: qca(g%nlat, g%nlon), qcb(g%nlat, g%nlon)         ! carrier fed to the outer x, y sweeps
           real(dblp)  :: rx(g%nlat, g%nlon), ry(g%nlat, g%nlon)
-          real(dblp)  :: qcn(g%nlat, g%nlon), tn
+          real(dblp)  :: qcn(g%nlat, g%nlon), tn, qtiny
           real(dblp)  :: rfx(g%nlat, g%nlon), rfy(0:g%nlat, g%nlon)               ! positivity factors of the faces
+          real(dblp)  :: plx(g%nlat, g%nlon), ply(0:g%nlat, g%nlon)               ! low-order tracer fluxes (FCT)
+          real(dblp)  :: rxl(g%nlat, g%nlon), ryl(g%nlat, g%nlon)                 ! low-order inner ratios (FCT)
+          real(dblp)  :: blo(g%nlat, g%nlon), bhi(g%nlat, g%nlon)                 ! local bounds of the new ratios
           integer(ip) :: i, j, jw, k
+
+          ! dmr&clo   wiso:2c:0001 where the carrier is at round-off level (e.g. the ~1e-21 left by the positivity fix
+          !           in a cell emptied of water), a ratio is noise over noise: such cells keep their ratio. The threshold
+          !           is relative to the largest carrier of the field; the carrier itself is not affected.
+          qtiny = FFSL_RATIO_TINY*maxval(abs(qc))
 
           ! carrier: exactly the density-mode substep, keeping the inner states and the outer fluxes
           call ffsl_yflux(g, fy, qc, qc, .false., recon, lim, lim, pcy)
@@ -369,28 +388,62 @@
               jw = modulo(j - 2, g%nlon) + 1
               do i = 1, g%nlat
                 ry(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k)*g%area(i) + pry(i-1, j) - pry(i, j),    &
-                                         qcy(i, j)*(g%area(i) + fy(i-1, j) - fy(i, j)), r(i, j, k))
+                                         qcy(i, j)*(g%area(i) + fy(i-1, j) - fy(i, j)), r(i, j, k), qtiny*g%area(i))
                 rx(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k)*g%area(i) + prx(i, jw) - prx(i, j),     &
-                                         qcx(i, j)*(g%area(i) + fx(i, jw) - fx(i, j)), r(i, j, k))
+                                         qcx(i, j)*(g%area(i) + fx(i, jw) - fx(i, j)), r(i, j, k), qtiny*g%area(i))
               enddo
             enddo
             ! ratios fed to the outer sweeps: carrier-weighted means of the old and inner-updated states,
             ! consistent with the carrier states qca, qcb fed to the same sweeps
             do j = 1, g%nlon
               do i = 1, g%nlat
-                ry(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k) + qcy(i, j)*ry(i, j), qc(i, j) + qcy(i, j), r(i, j, k))
-                rx(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k) + qcx(i, j)*rx(i, j), qc(i, j) + qcx(i, j), r(i, j, k))
+                ry(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k) + qcy(i, j)*ry(i, j), qc(i, j) + qcy(i, j), r(i, j, k), &
+                                         qtiny)
+                rx(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k) + qcx(i, j)*rx(i, j), qc(i, j) + qcx(i, j), r(i, j, k), &
+                                         qtiny)
               enddo
             enddo
             call ffsl_xflux(g, fx, qca, ry, .true., recon, lim, limr, prx)
             call ffsl_yflux(g, fy, qcb, rx, .true., recon, lim, limr, pry)
             prx = prx*rfx
             pry = pry*rfy
+            ! dmr&clo   wiso:2c:0001 bounded ratios (Zalesak 1979 flux-corrected transport): the high-order tracer fluxes
+            !           are blended with low-order ones so that no new ratio leaves the range of the old ratios around
+            !           it. Needed under the divergent ECBilt winds, where the ratio-mode fluxes alone are not bounded.
+            !           The low-order fluxes follow the same inner / outer structure on the same carrier fluxes, with
+            !           the ratio taken constant in the donor cell at each stage: the outer sweeps carry carrier that
+            !           has entered a cell during the inner update of the other direction (even into a cell empty at
+            !           the start of the substep), and that carrier must carry the ratio it came with.
+            call ffsl_yflux(g, fy, qc, r(:, :, k), .true., recon, lim, FFSL_LIM_DONOR, ply)
+            call ffsl_xflux(g, fx, qc, r(:, :, k), .true., recon, lim, FFSL_LIM_DONOR, plx)
+            do j = 1, g%nlon
+              jw = modulo(j - 2, g%nlon) + 1
+              do i = 1, g%nlat
+                ryl(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k)*g%area(i) + ply(i-1, j) - ply(i, j),    &
+                                          qcy(i, j)*(g%area(i) + fy(i-1, j) - fy(i, j)), r(i, j, k), qtiny*g%area(i))
+                rxl(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k)*g%area(i) + plx(i, jw) - plx(i, j),     &
+                                          qcx(i, j)*(g%area(i) + fx(i, jw) - fx(i, j)), r(i, j, k), qtiny*g%area(i))
+              enddo
+            enddo
+            do j = 1, g%nlon
+              do i = 1, g%nlat
+                ryl(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k) + qcy(i, j)*ryl(i, j), qc(i, j) + qcy(i, j), r(i, j, k), &
+                                          qtiny)
+                rxl(i, j) = ratio_or_keep(qc(i, j)*r(i, j, k) + qcx(i, j)*rxl(i, j), qc(i, j) + qcx(i, j), r(i, j, k), &
+                                          qtiny)
+              enddo
+            enddo
+            call ffsl_xflux(g, fx, qca, ryl, .true., recon, lim, FFSL_LIM_DONOR, plx)
+            call ffsl_yflux(g, fy, qcb, rxl, .true., recon, lim, FFSL_LIM_DONOR, ply)
+            plx = plx*rfx
+            ply = ply*rfy
+            call ffsl_fct_ratio(g, fx, qc, qcn, r(:, :, k), plx, ply, prx, pry, qtiny, blo, bhi)
             do j = 1, g%nlon
               jw = modulo(j - 2, g%nlon) + 1
               do i = 1, g%nlat
                 tn = qc(i, j)*r(i, j, k) + (prx(i, jw) - prx(i, j) + pry(i-1, j) - pry(i, j))/g%area(i)
-                r(i, j, k) = ratio_or_keep(tn, qcn(i, j), r(i, j, k))
+                ! dmr&clo   wiso:2c:0001 last resort, see ffsl_fct_ratio: clip to the local bounds (not conservative)
+                r(i, j, k) = min(max(ratio_or_keep(tn, qcn(i, j), r(i, j, k), qtiny), blo(i, j)), bhi(i, j))
               enddo
             enddo
           enddo
@@ -464,15 +517,107 @@
 
         end subroutine ffsl_outflow_factors
 
+        ! Zalesak (1979) limiter of the tracer fluxes of one ratio, in place: px, py (high order) become
+        ! pxl + c*(px - pxl), c in [0,1] per face, so that each new ratio stays within [rmin, rmax], the extrema of the
+        ! old ratios over the cells that can feed the cell in the substep (rows i-1..i+1, and as many columns as the
+        ! largest zonal Courant number of the row) and of its own low-order ratio. Fluxes stay face fluxes, so the
+        ! tracer is conserved exactly; where px = pxl (uniform ratio) nothing changes.
+        ! The low-order (split, donor-cell) update is itself not always bounded by the old ratios: on the real ECBilt
+        ! winds, ~150 cell-substeps a year, nearly all in the polar rows with |cx| > 1 (left out of the 2-D outflow
+        ! condition of fvt_ffsl_nsub) and in cells emptied to 1e-6..1e-8 of the field maximum within the substep. There
+        ! the limited result falls back to the low-order one, and the caller clips it to [blo, bhi], the bounds without
+        ! the low-order ratio. The clip is not conservative: at most ~1e-7 of the tracer mass over a year of
+        ! transport alone (fvt_ratiocheck), accepted and to be monitored by the isotope budget (wiso:2c:0005).
+        subroutine ffsl_fct_ratio(g, fx, qc, qcn, r, pxl, pyl, px, py, qtiny, blo, bhi)
+
+          type(fvt_grid_t), intent(in)    :: g
+          real(dblp),       intent(in)    :: fx(:,:)       !< substep zonal volume fluxes (for the stencil width)
+          real(dblp),       intent(in)    :: qc(:,:)       !< carrier at the start of the substep
+          real(dblp),       intent(in)    :: qcn(:,:)      !< carrier at the end of the substep
+          real(dblp),       intent(in)    :: r(:,:)        !< ratio at the start of the substep
+          real(dblp),       intent(in)    :: pxl(:,:)      !< low-order tracer fluxes, east faces
+          real(dblp),       intent(in)    :: pyl(0:,:)     !< low-order tracer fluxes, north faces
+          real(dblp),       intent(inout) :: px(:,:)       !< high-order tracer fluxes, east faces -> limited
+          real(dblp),       intent(inout) :: py(0:,:)      !< high-order tracer fluxes, north faces -> limited
+          real(dblp),       intent(in)    :: qtiny         !< carrier below which a cell keeps its ratio
+          real(dblp),       intent(out)   :: blo(:,:)      !< lower bound of the new ratio (old ratios only)
+          real(dblp),       intent(out)   :: bhi(:,:)      !< upper bound of the new ratio (old ratios only)
+
+          real(dblp)  :: ax(g%nlat, g%nlon), ay(0:g%nlat, g%nlon)
+          real(dblp)  :: rp(g%nlat, g%nlon), rm(g%nlat, g%nlon)
+          real(dblp)  :: tl, rmin, rmax, pp, pm, qp, qm, c
+          integer(ip) :: i, j, jw, je, n, hk, m, ii
+
+          n  = g%nlon
+          ax = px - pxl
+          ay = py - pyl
+          do i = 1, g%nlat
+            hk = max(1_ip, ceiling(maxval(abs(fx(i, :)))/g%area(i), ip))
+            do j = 1, n
+              jw = modulo(j - 2, n) + 1
+              rmin = r(i, j)
+              rmax = r(i, j)
+              do ii = max(1_ip, i - 1), min(g%nlat, i + 1)
+                do m = -hk, hk
+                  rmin = min(rmin, r(ii, modulo(j - 1 + m, n) + 1))
+                  rmax = max(rmax, r(ii, modulo(j - 1 + m, n) + 1))
+                enddo
+              enddo
+              blo(i, j) = rmin
+              bhi(i, j) = rmax
+              ! low-order tracer content (units of area * carrier * ratio)
+              tl = qc(i, j)*r(i, j)*g%area(i) + pxl(i, jw) - pxl(i, j) + pyl(i-1, j) - pyl(i, j)
+              if (qcn(i, j) > qtiny .and. qcn(i, j) > 0.0_dblp) then
+                rmin = min(rmin, tl/(qcn(i, j)*g%area(i)))
+                rmax = max(rmax, tl/(qcn(i, j)*g%area(i)))
+              endif
+              pp = max(ax(i, jw), 0.0_dblp) + max(-ax(i, j), 0.0_dblp) + max(ay(i-1, j), 0.0_dblp)                &
+                   + max(-ay(i, j), 0.0_dblp)
+              pm = max(-ax(i, jw), 0.0_dblp) + max(ax(i, j), 0.0_dblp) + max(-ay(i-1, j), 0.0_dblp)               &
+                   + max(ay(i, j), 0.0_dblp)
+              qp = max(rmax*qcn(i, j)*g%area(i) - tl, 0.0_dblp)
+              qm = max(tl - rmin*qcn(i, j)*g%area(i), 0.0_dblp)
+              rp(i, j) = 0.0_dblp
+              rm(i, j) = 0.0_dblp
+              if (pp > 0.0_dblp) rp(i, j) = min(1.0_dblp, qp/pp)
+              if (pm > 0.0_dblp) rm(i, j) = min(1.0_dblp, qm/pm)
+            enddo
+          enddo
+
+          do j = 1, n
+            je = modulo(j, n) + 1
+            do i = 1, g%nlat
+              ! east face of (i,j): positive antidiffusive flux leaves (i,j) and enters (i,je)
+              if (ax(i, j) >= 0.0_dblp) then
+                c = min(rm(i, j), rp(i, je))
+              else
+                c = min(rp(i, j), rm(i, je))
+              endif
+              px(i, j) = pxl(i, j) + c*ax(i, j)
+            enddo
+            do i = 1, g%nlat - 1
+              ! north face of (i,j): positive antidiffusive flux leaves (i,j) and enters (i+1,j)
+              if (ay(i, j) >= 0.0_dblp) then
+                c = min(rm(i, j), rp(i+1, j))
+              else
+                c = min(rp(i, j), rm(i+1, j))
+              endif
+              py(i, j) = pyl(i, j) + c*ay(i, j)
+            enddo
+          enddo
+
+        end subroutine ffsl_fct_ratio
+
         ! num/den, or the fallback value where the carrier has vanished
-        pure function ratio_or_keep(num, den, fallback) result(rat)
+        pure function ratio_or_keep(num, den, fallback, dmin) result(rat)
 
           real(dblp), intent(in) :: num
           real(dblp), intent(in) :: den
           real(dblp), intent(in) :: fallback
+          real(dblp), intent(in) :: dmin                               !< smallest denominator giving a ratio (>= 0)
           real(dblp)             :: rat
 
-          if (den > 0.0_dblp) then
+          if (den > dmin .and. den > 0.0_dblp) then
             rat = num/den
           else
             rat = fallback
@@ -496,7 +641,7 @@
           logical,          intent(in)  :: weighted
           integer(ip),      intent(in)  :: recon
           integer(ip),      intent(in)  :: lim       !< limiter of a
-          integer(ip),      intent(in)  :: limb      !< limiter of b (weighted only)
+          integer(ip),      intent(in)  :: limb      !< limiter of b (weighted only; FFSL_LIM_DONOR: b constant)
           real(dblp),       intent(out) :: px(:,:)
 
           integer(ip) :: n, i, j, k, m, jj, iu
@@ -510,7 +655,7 @@
           do i = 1, g%nlat
             call periodic_extend(n, a, i, qe)
             call fvt_recon_1d(n, qe, h, recon, lim, al_a, ar_a, a6_a)
-            if (weighted) then
+            if (weighted .and. limb /= FFSL_LIM_DONOR) then
               call periodic_extend(n, b, i, qe)
               call fvt_recon_1d(n, qe, h, recon, limb, al_b, ar_b, a6_b)
             endif
@@ -529,7 +674,7 @@
                 if (f > 0.0_dblp) then
                   ma = mean_right(al_a(iu), ar_a(iu), a6_a(iu), f)
                   mb = 1.0_dblp
-                  if (weighted) mb = mean_right(al_b(iu), ar_b(iu), a6_b(iu), f)
+                  if (weighted) mb = donor_or_mean_right(b(i, iu), al_b(iu), ar_b(iu), a6_b(iu), f, limb)
                   s = s + f*ma*mb
                 endif
                 px(i, j) = s*g%area(i)
@@ -546,7 +691,7 @@
                 if (f > 0.0_dblp) then
                   ma = mean_left(al_a(iu), ar_a(iu), a6_a(iu), f)
                   mb = 1.0_dblp
-                  if (weighted) mb = mean_left(al_b(iu), ar_b(iu), a6_b(iu), f)
+                  if (weighted) mb = donor_or_mean_left(b(i, iu), al_b(iu), ar_b(iu), a6_b(iu), f, limb)
                   s = s + f*ma*mb
                 endif
                 px(i, j) = -s*g%area(i)
@@ -566,7 +711,7 @@
           logical,          intent(in)  :: weighted
           integer(ip),      intent(in)  :: recon
           integer(ip),      intent(in)  :: lim       !< limiter of a
-          integer(ip),      intent(in)  :: limb      !< limiter of b (weighted only)
+          integer(ip),      intent(in)  :: limb      !< limiter of b (weighted only; FFSL_LIM_DONOR: b constant)
           real(dblp),       intent(out) :: py(0:,:)
 
           integer(ip) :: n, i, j
@@ -583,7 +728,7 @@
           do j = 1, g%nlon
             call pole_extend(g, a, j, qe)
             call fvt_recon_1d(n, qe, h, recon, lim, al_a, ar_a, a6_a)
-            if (weighted) then
+            if (weighted .and. limb /= FFSL_LIM_DONOR) then
               call pole_extend(g, b, j, qe)
               call fvt_recon_1d(n, qe, h, recon, limb, al_b, ar_b, a6_b)
             endif
@@ -593,13 +738,13 @@
                 f  = fy(i, j)/g%area(i)
                 ma = mean_right(al_a(i), ar_a(i), a6_a(i), f)
                 mb = 1.0_dblp
-                if (weighted) mb = mean_right(al_b(i), ar_b(i), a6_b(i), f)
+                if (weighted) mb = donor_or_mean_right(b(i, j), al_b(i), ar_b(i), a6_b(i), f, limb)
               else
                 ! southward: southern part of cell i+1
                 f  = -fy(i, j)/g%area(i+1)
                 ma = mean_left(al_a(i+1), ar_a(i+1), a6_a(i+1), f)
                 mb = 1.0_dblp
-                if (weighted) mb = mean_left(al_b(i+1), ar_b(i+1), a6_b(i+1), f)
+                if (weighted) mb = donor_or_mean_left(b(i+1, j), al_b(i+1), ar_b(i+1), a6_b(i+1), f, limb)
               endif
               py(i, j) = fy(i, j)*ma*mb
             enddo
@@ -621,6 +766,35 @@
           endif
 
         end function cell_content
+
+        ! Mean of b over the swept piece: from its reconstruction, or the donor-cell value (FFSL_LIM_DONOR)
+        pure function donor_or_mean_right(bc, al, ar, a6, f, limb) result(m)
+
+          real(dblp),  intent(in) :: bc, al, ar, a6, f
+          integer(ip), intent(in) :: limb
+          real(dblp)              :: m
+
+          if (limb == FFSL_LIM_DONOR) then
+            m = bc
+          else
+            m = mean_right(al, ar, a6, f)
+          endif
+
+        end function donor_or_mean_right
+
+        pure function donor_or_mean_left(bc, al, ar, a6, f, limb) result(m)
+
+          real(dblp),  intent(in) :: bc, al, ar, a6, f
+          integer(ip), intent(in) :: limb
+          real(dblp)              :: m
+
+          if (limb == FFSL_LIM_DONOR) then
+            m = bc
+          else
+            m = mean_left(al, ar, a6, f)
+          endif
+
+        end function donor_or_mean_left
 
         ! Row i with FFSL_NG periodic ghost cells on each side
         subroutine periodic_extend(n, q, i, qe)

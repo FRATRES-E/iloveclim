@@ -46,6 +46,12 @@
 !!       atm_fvmois_init()        : FV mode only: build and check the FV grid and flux tables (needs coef.dat read).
 !!       atm_fvmois_is_on()       : .true. in FV mode.
 !!       atm_fvmois_step(q)       : FV mode only: transport q(nlat,nlon) over one dtime (column amount, density mode).
+!!       atm_fvmois_ratio(qc, r)  : FV mode only, after atm_fvmois_step of the same step and with its fluxes: transport
+!!                                  the ratios r(nlat,nlon,nr) on the carrier qc(nlat,nlon) (ratio mode, D30; monotone
+!!                                  ratios, bounded by fvt_ffsl_mod). qc is a copy of the carrier before
+!!                                  atm_fvmois_step and is overwritten; the carrier transported by atm_fvmois_step is
+!!                                  the one the model keeps (D4 by construction, wiso:2c:0001).
+!!       atm_fvmois_density(q)    : FV mode only, same fluxes: one more tracer in density mode (iwat16, D32).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module atm_fvmois_mod
@@ -53,13 +59,14 @@
         use global_constants_mod, only: ip, dblp=>dp
         use fvt_grid_mod,         only: fvt_grid_t, fvt_grid_init
         use fvt_specflux_mod,     only: fvt_specflux_t, fvt_specflux_init, fvt_specflux_fluxes
-        use fvt_ffsl_mod,         only: fvt_ffsl_density, FVT_RECON_PPM, FVT_LIM_POSDEF
+        use fvt_ffsl_mod,         only: fvt_ffsl_density, fvt_ffsl_ratio, FVT_RECON_PPM, FVT_LIM_POSDEF, FVT_LIM_MONO
 
         implicit none
 
         private
 
         public :: ADV_MODE_LEN, adv_mode, atm_fvmois_check_mode, atm_fvmois_init, atm_fvmois_is_on, atm_fvmois_step
+        public :: atm_fvmois_ratio, atm_fvmois_density
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -90,6 +97,7 @@
         real(dblp),           save      :: fvm_q_min    = huge(1.0_dblp)   !< smallest value after transport
         integer(ip),          save      :: fvm_nwarn    = 0                !< warnings written so far
         integer(ip),          save      :: fvm_report   = 0                !< steps per summary (one model year)
+        logical,              save      :: fvm_have_flx = .false.          !< fluxes set by atm_fvmois_step
 
 
       contains
@@ -212,6 +220,34 @@
           endif
 
         end subroutine atm_fvmois_step
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   wiso:2c:0001 tracers moved with the fluxes of the last atm_fvmois_step (isotopologues, D30, D32)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        subroutine atm_fvmois_ratio(qc, r)
+
+          real(dblp), intent(inout) :: qc(:,:)    !< (nlat,nlon) copy of the carrier before the step; overwritten
+          real(dblp), intent(inout) :: r(:,:,:)   !< (nlat,nlon,nr) ratios to the carrier
+
+          if (.not. fvm_on) error stop 'atm_fvmois_ratio: called with adv_mode /= fv'
+          if (.not. fvm_have_flx) error stop 'atm_fvmois_ratio: no fluxes yet (call atm_fvmois_step first)'
+          call fvt_ffsl_ratio(fvm_grid, fvm_fx, fvm_fy, qc, r, FVT_RECON_PPM, FVT_LIM_POSDEF,                          &
+                              limiter_ratio=FVT_LIM_MONO)
+
+        end subroutine atm_fvmois_ratio
+
+        subroutine atm_fvmois_density(q)
+
+          real(dblp), intent(inout) :: q(:,:)     !< (nlat,nlon) tracer (column amount)
+
+          if (.not. fvm_on) error stop 'atm_fvmois_density: called with adv_mode /= fv'
+          if (.not. fvm_have_flx) error stop 'atm_fvmois_density: no fluxes yet (call atm_fvmois_step first)'
+          fvm_q(:,:,1) = q(:,:)
+          call fvt_ffsl_density(fvm_grid, fvm_fx, fvm_fy, fvm_q, FVT_RECON_PPM, FVT_LIM_POSDEF)
+          q(:,:) = fvm_q(:,:,1)
+
+        end subroutine atm_fvmois_density
 
       end module atm_fvmois_mod
 

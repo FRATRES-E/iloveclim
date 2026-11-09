@@ -33,6 +33,9 @@
                          tzero, rmoisg, temp2g, temp4g, dyrain, dysnow, &
                          corain, cosnow, thforg2, vhforg1, vhforg2, tetacr, &
                          gams, teta, torain, tosnow
+#if ( WISOATM == 1 )
+      use wiso_vap_mod, only: wiso_vap_follow_water   ! dmr&clo wiso:2c:0001
+#endif
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: tsurf
       use atm_wbudget_mod, only: wb_clip_conv     ! dmr&clo wiso:1e:0003
@@ -947,6 +950,11 @@
 
 !
 ! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologues in convective rain and snow go here (ratio-consistent, D7, D36)
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0001 interim: convection acts on the isotopologues at the local vapour ratio (alpha = 1); replaced
+!           in wiso:2c:0004.
+      call wiso_vap_follow_water(rmoisg)
+#endif
       return
       end subroutine ec_convec_two
    
