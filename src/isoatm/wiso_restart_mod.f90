@@ -31,7 +31,9 @@
 !!     double precision, for iwat16 .. iwat2h (dimension species):
 !!       vap, rain, snow   isotopologue amounts rmoisg, torain, tosnow
 !!       rvap              vapour ratio memory of wiso_vap_mod (state where the water is ~0, D43)
-!!     and the water fields they go with (water_vap, water_rain, water_snow), to check the pairing on reading.
+!!       evap              isotopologue evaporation coevap + clevap, computed in a step and used in the next one
+!!                         (wiso:2c:0003; the coupler restart keeps the water one the same way)
+!!     and the water fields they go with (water_vap, water_rain, water_snow, water_evap), to check the pairing.
 !!
 !!     Reading (restart_read = .true. in wisoatm.nml, file restart_file), after the atmospheric restart:
 !!       - water of the file bitwise equal to the water just read: amounts and memory taken as they are, the run
@@ -43,7 +45,10 @@
 !!     Contract
 !!       - wiso_restart_write(fname): writes the current state; called by emic_write_state with the other restarts
 !!         (restartdata/resYYYYYY/wisoatm_restartYYYYYY.nc).
-!!       - wiso_restart_read(fname): stops if the file is missing or its grid does not match.
+!!       - wiso_restart_read(fname): stops if the file is missing or its grid does not match. The evaporation is
+!!         applied later by wiso_restart_coupler, called by ec_initcoup once the coupler restart is read: as is if
+!!         paired with the water evaporation of that restart, ratios applied otherwise. Without isotope restart, the
+!!         evaporation of the first step is set at r_vap_init (one step only).
 !
 !      REFERENCES: ROADMAP D34, D43; ncio (netCDF).
 !
@@ -61,9 +66,13 @@
 
         private
 
-        public :: wiso_restart_write, wiso_restart_read
+        public :: wiso_restart_write, wiso_restart_read, wiso_restart_coupler
 
         integer(ip), parameter :: NSPEC = iwat2h - iwat16 + 1      !< species in the file (iwat16 .. iwat2h)
+
+        ! evaporation of the last step, kept from wiso_restart_read until the coupler restart is read (wiso:2c:0003)
+        logical,                 save :: have_evap = .false.
+        real(dblp), allocatable, save :: evap_file(:,:,:), wevap_file(:,:)
 
       contains
 
@@ -76,6 +85,7 @@
           use ncio,          only: nc_create, nc_write_dim, nc_write, nc_write_attr
           use comphys,       only: rmoisg, torain, tosnow
           use comemic_mod,   only: iyear
+          use comcoup_mod,   only: coevap, clevap
           use wiso_vap_mod,  only: wiso_vap_get_memory
 
           character(len=*), intent(in) :: fname
@@ -108,6 +118,10 @@
                         long_name = 'isotopologue snow')
           call nc_write(fname, 'rvap', rvap, dim1 = 'lat', dim2 = 'lon', dim3 = 'species',                             &
                         long_name = 'vapour ratio memory')
+          call nc_write(fname, 'water_evap', coevap(:,:,iwater) + clevap(:,:,iwater), dim1 = 'lat', dim2 = 'lon',      &
+                        long_name = 'water evaporation coevap + clevap, m/s (pairing check)')
+          call nc_write(fname, 'evap', coevap(:,:,iwat16:iwat2h) + clevap(:,:,iwat16:iwat2h), dim1 = 'lat',             &
+                        dim2 = 'lon', dim3 = 'species', long_name = 'isotopologue evaporation coevap + clevap, m/s')
 
         end subroutine wiso_restart_write
 
@@ -169,6 +183,11 @@
           endif
           call wiso_vap_set_memory(rvap)
 
+          if (.not. allocated(evap_file)) allocate(evap_file(nlat, nlon, NSPEC), wevap_file(nlat, nlon))
+          call nc_read(fname, 'water_evap', wevap_file)
+          call nc_read(fname, 'evap', evap_file)
+          have_evap = .true.
+
           if (same_vap .and. same_prc) then
             write(*,*) "wiso_restart_read: ", trim(fname), " read, paired with the atmospheric restart (exact restart)"
           else
@@ -177,6 +196,47 @@
           endif
 
         end subroutine wiso_restart_read
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   Evaporation of the last step, once the coupler restart is read (ec_initcoup, wiso:2c:0003)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        subroutine wiso_restart_coupler
+
+          use comcoup_mod,   only: coevap, clevap
+          use iso_nml_mod,   only: r_vap_init
+          use wiso_vap_mod,  only: wiso_vap_get_memory
+          use comphys,       only: rmoisg
+
+          real(dblp)  :: rvap(nlat, nlon, NSPEC), we(nlat, nlon)
+          integer(ip) :: k
+
+          ! the coupler restart keeps the sum coevap + clevap in coevap, clevap = 0 (ec_initcoup)
+          we = coevap(:,:,iwater) + clevap(:,:,iwater)
+          if (have_evap) then
+            if (all(wevap_file == we)) then
+              coevap(:,:,iwat16:iwat2h) = evap_file
+              write(*,*) "wiso_restart_coupler: isotopologue evaporation paired with the coupler restart (exact)"
+            else
+              call wiso_vap_get_memory(rmoisg, rvap)
+              do k = 1, NSPEC
+                coevap(:,:,iwat16+k-1) = ratio_or(evap_file(:,:,k), wevap_file, rvap(:,:,k))*we
+              enddo
+              write(*,*) "wiso_restart_coupler: WATER EVAPORATION DIFFERS from the coupler restart: ratios applied"
+            endif
+            clevap(:,:,iwat16:iwat2h) = 0.0_dblp
+#if ( ISOOCN < 1 )
+          else
+            ! no isotope restart: first step at the initial vapour composition (with ISOOCN >= 1, the legacy
+            ! wisocpl_restart.dat read of ec_initcoup is kept)
+            do k = iwat16, iwat2h
+              coevap(:,:,k) = r_vap_init(k)*we
+            enddo
+            clevap(:,:,iwat16:iwat2h) = 0.0_dblp
+#endif
+          endif
+
+        end subroutine wiso_restart_coupler
 
         ! ratio qi/q where q > 0, fallback elsewhere
         pure function ratio_or(qi, q, fallback) result(r)

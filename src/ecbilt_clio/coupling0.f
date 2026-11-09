@@ -27,6 +27,7 @@
 #if (WISOATM == 1 )
        use comatm, only: iwater, iwat18, nwisos
        use iso_param_mod, only: rsmow
+       use wiso_restart_mod, only: wiso_restart_coupler
 #endif
 #if ( WISOATM == 1 && ISOOCN >= 1 )
        USE iso_param_mod, ONLY : datmini,isolbm_restart
@@ -227,6 +228,11 @@ c~ #endif
 
           enddo
         enddo
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2c:0003 isotopologue evaporation of the last step,
+!         from the isotope restart (D34)
+        call wiso_restart_coupler
+#endif
       endif
 
 
@@ -415,6 +421,9 @@ c~ #include "comsurf.h"
 c~ #endif
 
       integer i,j,nn
+#if ( WISOATM == 1 )
+      integer k
+#endif
 c~ #if (ISOATM >= 1 )
 c~       integer k
 c~ #endif
@@ -466,6 +475,12 @@ c~           ENDDO
 c~ #else
           evap(i,j,iwater)  =coevap(i,j,iwater) + clevap(i,j,iwater)
 c~ #endif
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2c:0003 isotopologue evaporation, as the water
+          do k=iwat16,iwat2h
+            evap(i,j,k) = coevap(i,j,k) + clevap(i,j,k)
+          enddo
+#endif
 ! *** these two variables are communicated to the atmosphere only
 ! *** for the output routines
 c~ #if ( ISOATM >= 2 && ISOOCN >= 1 )
@@ -492,12 +507,18 @@ c~ #endif
       use comatm, only: nlat, nlon
       use comsurf_mod
       use comatm, only: iwater
+#if ( WISOATM == 1 )
+      use comatm, only: iwat16, iwat2h
+#endif
 
 
 
       implicit none
 
       integer kst,i,j
+#if ( WISOATM == 1 )
+      integer k
+#endif
 c~ #if ( ISOATM >= 1 )
 c~       integer k
 c~       real, dimension(neauiso) :: variso
@@ -564,6 +585,13 @@ c~ #else
           clevap(i,j,iwater)  = clevap(i,j,iwater)
      >                        + fractn(i,j,nld)*evapn(i,j,nld,iwater)
 c~ #endif
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2c:0003 isotopologue evaporation, as the water
+          do k=iwat16,iwat2h
+            clevap(i,j,k) = clevap(i,j,k)
+     >                    + fractn(i,j,nld)*evapn(i,j,nld,k)
+          enddo
+#endif
 c~ #if ( ISOATM >= 2 && ISOOCN >= 1 )
           sumrl(i,j,:)   = sumrl(i,j,:)   + couprunl(i,j,:)
           sumro(i,j,:)   = sumro(i,j,:)   + coupruno(i,j,:)
@@ -619,6 +647,12 @@ c~        ENDDO
 c~ #else
             clevap(i,j,iwater)  = clevap(i,j,iwater)  *rlan
 c~ #endif
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2c:0003 isotopologue evaporation, as the water
+            do k=iwat16,iwat2h
+              clevap(i,j,k) = clevap(i,j,k)*rlan
+            enddo
+#endif
 c~ #if ( ISOATM >= 2 && ISOOCN >= 1 )
 c~             sumrl(i,j,:)   = sumrl(i,j,:)   *rlan
 c~             sumro(i,j,:)   = sumro(i,j,:)   *rlan
@@ -653,6 +687,9 @@ c~ #endif /* on  ISOATM >= 2 && ISOOCN >= 1 */
       implicit none
 
       integer ist,jst,i,j
+#if ( WISOATM == 1 )
+      integer k
+#endif
       real*8  ratm,facstr,rndws,dwsm1,facsnow
 
       facsnow=rowat*rlatfus
@@ -693,6 +730,13 @@ c~      &                                  fractn(i,j,noc)*evapn(i,j,noc)
           coevap(i,j,iwater)  = fractn(i,j,nse)*evapn(i,j,nse,iwater)+
      &                          fractn(i,j,noc)*evapn(i,j,noc,iwater)
 c~ #endif
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2c:0003 isotopologue evaporation, as the water
+          do k=iwat16,iwat2h
+            coevap(i,j,k) = fractn(i,j,nse)*evapn(i,j,nse,k)
+     &                    + fractn(i,j,noc)*evapn(i,j,noc,k)
+          enddo
+#endif
         enddo
       enddo
 

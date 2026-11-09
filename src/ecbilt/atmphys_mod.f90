@@ -1581,6 +1581,9 @@ contains
 #if ( IMSK == 1 )
       USE input_icemask, ONLY: icemask
 #endif
+#if ( WISOATM == 1 )
+      use wiso_evap_mod, only: wiso_evap_split                      ! dmr&clo wiso:2c:0003
+#endif
 
       implicit none
 
@@ -1669,11 +1672,15 @@ contains
 !~ #else
             evapn(i,j,nn,iwater)=efluxn(i,j,nn)/(rowat*rlatvap)
 !~ #endif
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0003 open ocean (and sea ice if EVAPSI = 0, D41): ocean composition (frac_mode = 0)
+            call wiso_evap_split(evapn(i,j,nn,:), i, j, evapn(i,j,nn,iwater), 0.0_dblp, 0.0_dblp)
+#endif
           enddo
         enddo
 
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue evaporation over the ocean goes here: fixed ratio (frac_mode = 0),
-!           then MJ79 (2d, O4). The legacy equilibrium-only version (with per-cell prints) was removed.
+! dmr&clo   wiso:2c:0003 isotopologue evaporation over the ocean: in the loop above (frac_mode = 0); equilibrium and
+!           MJ79 in 2d (O4). The legacy equilibrium-only version (with per-cell prints) was removed.
 
       else
 
@@ -1774,7 +1781,10 @@ contains
                   evapn(i,j,nld,iwater)=esnow/(rowat*rlatsub)+ &
                                                 emois/(rowat*rlatvap)
 !~ #endif
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue evaporation over land and snow goes here: fixed surface ratios (D10).
+#if ( WISOATM == 1 && ISOLBM < 1 )
+! dmr&clo   wiso:2c:0003 snow sublimated (r_snow_evap) and bucket (r_land_evap), fixed until step 3 (D10, D42)
+                  call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, esnow/(rowat*rlatsub), emois/(rowat*rlatvap))
+#endif
 #if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of sublimation for the water isotopes
@@ -1840,6 +1850,10 @@ contains
 !~ #else
                   evapn(i,j,nld,iwater)=esubf/(rowat*rlatsub)
 !~ #endif
+#if ( WISOATM == 1 && ISOLBM < 1 )
+! dmr&clo   wiso:2c:0003 snow only
+                  call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, evapn(i,j,nld,iwater), 0.0_dblp)
+#endif
 
 #if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
@@ -1943,6 +1957,10 @@ contains
 !~ #else
             evapn(i,j,nld,iwater)=efluxn(i,j,nld)/(rowat*rlatvap)
 !~ #endif
+#if ( WISOATM == 1 && ISOLBM < 1 )
+! dmr&clo   wiso:2c:0003 bucket only
+            call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, 0.0_dblp, evapn(i,j,nld,iwater))
+#endif
 
 #if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|

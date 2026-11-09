@@ -40,10 +40,16 @@
 !!       4. iwat16 in density mode, independent of the water (D32; check of the transport);
 !!       5. amounts rebuilt as R_i * water; the ratio of iwat16 is updated from its amount.
 !!
-!!     wiso_vap_follow_water rebuilds the amounts from the ratio memory after a change of the water alone. Until the
-!!     isotopologue sources and sinks exist (wiso:2c:0002 to 0004), every water source and sink is applied this way
-!!     at the local vapour ratio (alpha = 1, no source composition): a uniform ratio must then stay uniform in a full
-!!     model run, a check of the transport and of the bookkeeping. Each later step replaces one of these calls.
+!!     Evaporation (wiso:2c:0003, order D36): the evaporated isotopologues are mixed into the vapour of the cell, and
+!!     every other change of the water in ec_moisture (vertical advection, large-scale condensation, hole filling)
+!!     acts at the ratio after that mixing:
+!!         R = (qi0 + fac*Ei) / (qw0 + fac*Ew),   qi = R*qw (qw the water at the end of ec_moisture)
+!!     with qw0, qi0 the amounts before the sources of the step (wiso_vap_keep_water) and fac = dtime*imsink.
+!!     The large-scale condensation gets its own isotopologue sink in wiso:2c:0004.
+!!
+!!     wiso_vap_follow_water rebuilds the amounts from the ratio memory after a change of the water alone; it stands
+!!     for the processes without isotopologue physics yet (convection, until wiso:2c:0005), applied at the local
+!!     vapour ratio (alpha = 1).
 !!
 !!     Contract
 !!       - wiso_vap_transport(rmois): FV mode, once per step, where ec_moisture transports the water; rmois is
@@ -69,6 +75,7 @@
         private
 
         public :: wiso_vap_transport, wiso_vap_follow_water, wiso_vap_get_memory, wiso_vap_set_memory
+        public :: wiso_vap_keep_water, wiso_vap_evaporation
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Module constants and state
@@ -79,6 +86,7 @@
         integer(ip), parameter :: WISO_NR = iwat2h - iwat17 + 1            !< species in ratio mode (17O, 18O, 2H)
 
         real(dblp), allocatable, save :: wiso_rvap(:,:,:)                  !< (nlat,nlon,iwat16:iwat2h) vapour ratios
+        real(dblp), allocatable, save :: wiso_qw0(:,:)                     !< water before the sources of the step
 
       contains
 
@@ -107,6 +115,41 @@
           call wiso_vap_follow_water(rmois, only_ratio_mode = .true.)
 
         end subroutine wiso_vap_transport
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+! dmr&clo   Evaporation (wiso:2c:0003)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+        ! water before the sources of the step (ec_moisture, before its forward step)
+        subroutine wiso_vap_keep_water(rmois)
+
+          real(dblp), intent(in) :: rmois(:,:,:)   !< (nlat,nlon,nwisos)
+
+          if (.not. allocated(wiso_qw0)) allocate(wiso_qw0(nlat, nlon))
+          wiso_qw0 = rmois(:,:,iwater)
+
+        end subroutine wiso_vap_keep_water
+
+        ! after ec_moisture: evaporation mixed in, then the other changes of the water at that ratio
+        subroutine wiso_vap_evaporation(rmois, ev, fac)
+
+          real(dblp), intent(inout) :: rmois(:,:,:)   !< (nlat,nlon,nwisos) column amounts; water already updated
+          real(dblp), intent(in)    :: ev(:,:,:)      !< (nlat,nlon,nwisos) evaporation (m/s)
+          real(dblp), intent(in)    :: fac            !< dtime*imsink, as in the water update
+
+          real(dblp)  :: den(nlat, nlon)
+          integer(ip) :: k
+
+          if (.not. allocated(wiso_qw0)) error stop 'wiso_vap_evaporation: wiso_vap_keep_water not called'
+          if (.not. allocated(wiso_rvap)) call wiso_vap_ratios(rmois)
+
+          den = wiso_qw0 + fac*ev(:,:,iwater)
+          do k = iwat16, iwat2h
+            call ratio_where_wet(den, rmois(:,:,k) + fac*ev(:,:,k), wiso_rvap(:,:,k))
+          enddo
+          call wiso_vap_follow_water(rmois)
+
+        end subroutine wiso_vap_evaporation
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Amounts from the ratio memory
