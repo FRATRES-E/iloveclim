@@ -40,16 +40,23 @@
 !!       4. iwat16 in density mode, independent of the water (D32; check of the transport);
 !!       5. amounts rebuilt as R_i * water; the ratio of iwat16 is updated from its amount.
 !!
-!!     Evaporation (wiso:2c:0003, order D36): the evaporated isotopologues are mixed into the vapour of the cell, and
-!!     every other change of the water in ec_moisture (vertical advection, large-scale condensation, hole filling)
-!!     acts at the ratio after that mixing:
-!!         R = (qi0 + fac*Ei) / (qw0 + fac*Ew),   qi = R*qw (qw the water at the end of ec_moisture)
-!!     with qw0, qi0 the amounts before the sources of the step (wiso_vap_keep_water) and fac = dtime*imsink.
-!!     The large-scale condensation gets its own isotopologue sink in wiso:2c:0004.
+!!     Sources and sinks of ec_moisture (wiso:2c:0004): evaporation E and large-scale condensation C act together over
+!!     the step in the water update (forward Euler, both constant). The isotopologues follow the same process in
+!!     continuous time: with q = q0 + (E - C) t, an evaporation flux E_i and a condensate at alpha R,
+!!         q dR/dt = E_i - (E + (alpha - 1) C) R,   i.e.   q (E - C) dR/dq = E_i - (E + (alpha - 1) C) R
+!!     (from d(Rq)/dt = E_i - alpha R C and dq/dt = E - C; condensate at alpha R removed at once, open system)
+!!     hence, with b = E + (alpha - 1) C and R* = E_i / b,
+!!         R1 = R* + (R0 - R*) (q1/q0)^(-b/(E - C))
+!!     (amounts over the step: E = dtime*imsink*evap, C = dtime*ivavm*vemoisg). Limits: C = 0 gives the mixing
+!!     (R0 q0 + E_i)/(q0 + E); E = 0 gives Rayleigh, R0 (q1/q0)^(alpha - 1); E = C the exponential limit (no
+!!     branch); q1 -> 0 or q0 ~ 0 give R*. R1 lies between R0 and R*: bounded, whatever the water content. The
+!!     condensate follows by mass balance, R0 q0 + E_i - R1 q1, and goes to rain and snow in proportion to the water
+!!     ones. The other changes of the water in ec_moisture (negative clip, ec_moisbalance) act at R1 (D7).
+!!     alpha = 1 until step 2d (R1 = R0 where E = 0, condensate at the vapour ratio).
 !!
 !!     wiso_vap_follow_water rebuilds the amounts from the ratio memory after a change of the water alone; it stands
-!!     for the processes without isotopologue physics yet (convection, until wiso:2c:0005), applied at the local
-!!     vapour ratio (alpha = 1).
+!!     for convection (until wiso:2c:0005), at the local vapour ratio (alpha = 1); wiso_vap_convec_interim gives the
+!!     convective precipitation that ratio in the meantime.
 !!
 !!     Contract
 !!       - wiso_vap_transport(rmois): FV mode, once per step, where ec_moisture transports the water; rmois is
@@ -75,7 +82,7 @@
         private
 
         public :: wiso_vap_transport, wiso_vap_follow_water, wiso_vap_get_memory, wiso_vap_set_memory
-        public :: wiso_vap_keep_water, wiso_vap_evaporation
+        public :: wiso_vap_keep_water, wiso_vap_sources, wiso_vap_convec_interim, wiso_vap_cont_ratio
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Module constants and state
@@ -87,6 +94,8 @@
 
         real(dblp), allocatable, save :: wiso_rvap(:,:,:)                  !< (nlat,nlon,iwat16:iwat2h) vapour ratios
         real(dblp), allocatable, save :: wiso_qw0(:,:)                     !< water before the sources of the step
+        real(dblp), allocatable, save :: wiso_dr0(:,:), wiso_ds0(:,:)      !< water rain, snow before ec_moisture adds
+        real(dblp), allocatable, save :: wiso_lsr(:,:), wiso_lss(:,:)      !< large-scale water rain, snow of the step
 
       contains
 
@@ -117,39 +126,125 @@
         end subroutine wiso_vap_transport
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr&clo   Evaporation (wiso:2c:0003)
+! dmr&clo   Sources and sinks of ec_moisture: evaporation and large-scale condensation (wiso:2c:0003, 0004)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        ! water before the sources of the step (ec_moisture, before its forward step)
-        subroutine wiso_vap_keep_water(rmois)
+        ! water vapour, rain and snow before the sources of the step (ec_moisture, before its condensation loop)
+        subroutine wiso_vap_keep_water(rmois, dyr, dys)
 
           real(dblp), intent(in) :: rmois(:,:,:)   !< (nlat,nlon,nwisos)
+          real(dblp), intent(in) :: dyr(:,:,:)     !< (nlat,nlon,nwisos) dyrain
+          real(dblp), intent(in) :: dys(:,:,:)     !< (nlat,nlon,nwisos) dysnow
 
-          if (.not. allocated(wiso_qw0)) allocate(wiso_qw0(nlat, nlon))
+          if (.not. allocated(wiso_qw0)) then
+            allocate(wiso_qw0(nlat, nlon), wiso_dr0(nlat, nlon), wiso_ds0(nlat, nlon))
+            allocate(wiso_lsr(nlat, nlon), wiso_lss(nlat, nlon))
+          endif
           wiso_qw0 = rmois(:,:,iwater)
+          wiso_dr0 = dyr(:,:,iwater)
+          wiso_ds0 = dys(:,:,iwater)
 
         end subroutine wiso_vap_keep_water
 
-        ! after ec_moisture: evaporation mixed in, then the other changes of the water at that ratio
-        subroutine wiso_vap_evaporation(rmois, ev, fac)
+        ! after ec_moisture: evaporation and large-scale condensation together, then the rest of the water changes
+        subroutine wiso_vap_sources(rmois, ev, fac, cond, dyr, dys)
 
           real(dblp), intent(inout) :: rmois(:,:,:)   !< (nlat,nlon,nwisos) column amounts; water already updated
           real(dblp), intent(in)    :: ev(:,:,:)      !< (nlat,nlon,nwisos) evaporation (m/s)
           real(dblp), intent(in)    :: fac            !< dtime*imsink, as in the water update
+          real(dblp), intent(in)    :: cond(:,:)      !< (nlat,nlon) water condensed over the step, dtime*ivavm*vemoisg
+          real(dblp), intent(inout) :: dyr(:,:,:)     !< (nlat,nlon,nwisos) dyrain: isotopologues added
+          real(dblp), intent(inout) :: dys(:,:,:)     !< (nlat,nlon,nwisos) dysnow: isotopologues added
 
-          real(dblp)  :: den(nlat, nlon)
-          integer(ip) :: k
+          real(dblp), parameter :: ALPHA = 1.0_dblp   ! wiso:2d: equilibrium fractionation of the condensate
 
-          if (.not. allocated(wiso_qw0)) error stop 'wiso_vap_evaporation: wiso_vap_keep_water not called'
+          real(dblp)  :: qtiny, q0, q1, ea, ca, eia, r0, r1, ci, rc, dr, ds
+          integer(ip) :: i, j, k
+
+          if (.not. allocated(wiso_qw0)) error stop 'wiso_vap_sources: wiso_vap_keep_water not called'
           if (.not. allocated(wiso_rvap)) call wiso_vap_ratios(rmois)
 
-          den = wiso_qw0 + fac*ev(:,:,iwater)
-          do k = iwat16, iwat2h
-            call ratio_where_wet(den, rmois(:,:,k) + fac*ev(:,:,k), wiso_rvap(:,:,k))
+          qtiny = WISO_RATIO_TINY*max(maxval(wiso_qw0), tiny(1.0_dblp))
+          wiso_lsr = dyr(:,:,iwater) - wiso_dr0
+          wiso_lss = dys(:,:,iwater) - wiso_ds0
+          do j = 1, nlon
+            do i = 1, nlat
+              q0 = wiso_qw0(i, j)
+              ea = fac*ev(i, j, iwater)
+              ca = cond(i, j)
+              q1 = q0 + ea - ca
+              dr = wiso_lsr(i, j)
+              ds = wiso_lss(i, j)
+              do k = iwat16, iwat2h
+                eia = fac*ev(i, j, k)
+                r0  = wiso_rvap(i, j, k)
+                if (q0 > qtiny) r0 = rmois(i, j, k)/q0
+                r1  = wiso_vap_cont_ratio(q0, r0, ea, eia, ca, ALPHA, qtiny)
+                ! condensate: mass balance; to rain and snow as the water ones
+                ci = rmois(i, j, k) + eia - max(q1, 0.0_dblp)*r1
+                rc = r1
+                if (ca > 0.0_dblp) rc = ci/ca
+                dyr(i, j, k) = dyr(i, j, k) + rc*dr
+                dys(i, j, k) = dys(i, j, k) + rc*ds
+                wiso_rvap(i, j, k) = r1
+              enddo
+            enddo
           enddo
           call wiso_vap_follow_water(rmois)
 
-        end subroutine wiso_vap_evaporation
+        end subroutine wiso_vap_sources
+
+        ! Ratio at the end of a step with constant evaporation (ea, of ratio eia/ea) and condensation (ca, at alpha R)
+        ! from q0 at ratio r0 (amounts over the step); see the module description.
+        pure function wiso_vap_cont_ratio(q0, r0, ea, eia, ca, alpha, qtiny) result(r1)
+
+          real(dblp), intent(in) :: q0, r0, ea, eia, ca, alpha, qtiny
+          real(dblp)             :: r1
+
+          real(dblp)            :: b, rstar, u, g, q1, x
+
+          b  = ea + (alpha - 1.0_dblp)*ca
+          q1 = q0 + ea - ca
+          if (b == 0.0_dblp) then                      ! nothing changes the ratio (alpha = 1, no evaporation)
+            r1 = r0
+            return
+          endif
+          rstar = eia/b
+          if (q0 <= qtiny .or. q1 <= 0.0_dblp) then    ! dry start, or everything condensed: the steady state
+            r1 = rstar
+            return
+          endif
+          ! (q1/q0)^(-b/(ea-ca)) = exp(-b g/q0), g = ln(1+z)/z, z = (ea-ca)/q0 > -1; g = ln(u)/(u-1) with u = 1+z
+          ! as rounded (accurate for any z, Goldberg 1991), g = 1 at u = 1: smooth through ea = ca
+          u = 1.0_dblp + (ea - ca)/q0
+          if (u == 1.0_dblp) then
+            g = 1.0_dblp
+          else
+            g = log(u)/(u - 1.0_dblp)
+          endif
+          x  = exp(-b*g/q0)
+          r1 = rstar + (r0 - rstar)*x
+
+        end function wiso_vap_cont_ratio
+
+        ! ec_convec_two, before wiso_vap_follow_water (interim until wiso:2c:0005): convective rain and snow at the
+        ! vapour ratio before convection (alpha = 1); total precipitation = large-scale isotopologues + that part
+        subroutine wiso_vap_convec_interim(tor, tos, dyr, dys)
+
+          real(dblp), intent(inout) :: tor(:,:,:)     !< (nlat,nlon,nwisos) torain: isotopologues set
+          real(dblp), intent(inout) :: tos(:,:,:)     !< (nlat,nlon,nwisos) tosnow: isotopologues set
+          real(dblp), intent(in)    :: dyr(:,:,:)     !< (nlat,nlon,nwisos) dyrain (isotopologues: large-scale)
+          real(dblp), intent(in)    :: dys(:,:,:)     !< (nlat,nlon,nwisos) dysnow
+
+          integer(ip) :: k
+
+          if (.not. allocated(wiso_lsr)) error stop 'wiso_vap_convec_interim: wiso_vap_sources not called'
+          do k = iwat16, iwat2h
+            tor(:,:,k) = dyr(:,:,k) + wiso_rvap(:,:,k)*(tor(:,:,iwater) - wiso_lsr)
+            tos(:,:,k) = dys(:,:,k) + wiso_rvap(:,:,k)*(tos(:,:,iwater) - wiso_lss)
+          enddo
+
+        end subroutine wiso_vap_convec_interim
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Amounts from the ratio memory

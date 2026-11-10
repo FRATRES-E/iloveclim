@@ -319,7 +319,7 @@
       use atm_fvmois_mod, only: atm_fvmois_is_on, atm_fvmois_step     ! dmr&clo wiso:1e:0002
       use atm_wbudget_mod, only: atm_wb_transport, atm_wb_moisbalance_pre, atm_wb_moisbalance_post   ! dmr&clo wiso:1e:0003
 #if ( WISOATM == 1 )
-      use wiso_vap_mod, only: wiso_vap_transport, wiso_vap_keep_water, wiso_vap_evaporation   ! dmr&clo wiso:2c:0001, 0003
+      use wiso_vap_mod, only: wiso_vap_transport, wiso_vap_keep_water, wiso_vap_sources   ! dmr&clo wiso:2c:0001, 0004
 #endif
       use global_constants_mod, only: dblp=>dp, ip
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
@@ -545,6 +545,11 @@
 ! dmr&clo   wiso:2c:0001 isotopologue transport: in the FV branch above (wiso_vap_transport). The legacy per-isotope
 !           spectral loop was removed (D3, D29).
 
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0004 water vapour, rain and snow before the sources of the step (isotopologues: after ec_moisbalance)
+      call wiso_vap_keep_water(rmoisg, dyrain, dysnow)
+#endif
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  2.0) Vertical advection of moisture
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -763,11 +768,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 
-#if ( WISOATM == 1 )
-! dmr&clo   wiso:2c:0003 water before the sources of the step (isotopologue evaporation, after ec_moisbalance)
-      call wiso_vap_keep_water(rmoisg)
-#endif
-
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  4.0) Forward time stepping for plain water
 !            = Actual modification of the moisture
@@ -816,9 +816,8 @@
       call atm_wb_transport(hdivmg(:,:,iwater), hdmoisg(:,:,iwater))
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr&clo   wiso:2c:0003 isotopologue evaporation: after ec_moisbalance below (wiso_vap_evaporation).
-! dmr&clo   wiso:2a:0002 [wiso:2c] large-scale condensation in the before/after (Rayleigh) form of ROADMAP 3.2 goes
-!           here, order D36; limiters ratio-consistent (D7).
+! dmr&clo   wiso:2c:0004 isotopologue evaporation and large-scale condensation: after ec_moisbalance below
+!           (wiso_vap_sources: both over the step in continuous time, alpha-ready; limiters ratio-consistent, D7).
 !           The legacy Rayleigh code (dmr, 2016) was removed: reference in git history (a3c0881) and the legacy zip.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -853,9 +852,9 @@
         call atm_wb_moisbalance_post
 
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:2c:0003 evaporation mixed into the vapour; the other water changes above at that ratio (alpha = 1;
-!           large-scale condensation in wiso:2c:0004)
-        call wiso_vap_evaporation(rmoisg, evap, dtime*imsink)
+! dmr&clo   wiso:2c:0004 evaporation and large-scale condensation (rain, snow) of the isotopologues; the other water
+!           changes above at the resulting ratio
+        call wiso_vap_sources(rmoisg, evap, dtime*imsink, dtime*ivavm*vemoisg(:,:,iwater), dyrain, dysnow)
 #endif
 !~ #endif
 
