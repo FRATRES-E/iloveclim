@@ -34,7 +34,7 @@
                          corain, cosnow, thforg2, vhforg1, vhforg2, tetacr, &
                          gams, teta, torain, tosnow
 #if ( WISOATM == 1 )
-      use wiso_vap_mod, only: wiso_vap_follow_water, wiso_vap_convec_interim   ! dmr&clo wiso:2c:0001, 0004
+      use wiso_vap_mod, only: wiso_vap_conv_begin, wiso_vap_conv_end, wiso_vap_conv_total   ! dmr&clo wiso:2c:0005
 #endif
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: tsurf
@@ -244,6 +244,12 @@
 #endif
 
           do while (iconvn.le.10) !afq -- 10 continue
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0005 cell water vapour and precipitation at the start of the iteration
+          call wiso_vap_conv_begin(rmoisg(i,j,iwater), dyrain(i,j,iwater), dysnow(i,j,iwater),                       &
+                                   corain(i,j,iwater), cosnow(i,j,iwater))
+#endif
 
 #if ( DOWNSTS == 1 )
 
@@ -851,6 +857,12 @@
             endif ! on sub_grid being flat or not ...
 #endif /* on DOWNSCALING == 2 */
 
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0005 condensation of the iteration (both branches): Rayleigh step of the isotopologues, condensate to
+!           the precipitation as the water
+            call wiso_vap_conv_end(i, j, rmoisg(i,j,iwater), dyrain(i,j,:), dysnow(i,j,:), corain(i,j,:), cosnow(i,j,:))
+#endif
+
             if (teta(i,j) .lt. (tetacr(i,j)-0.1)) then
 
 
@@ -949,12 +961,9 @@
 
 
 !
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologues in convective rain and snow go here (ratio-consistent, D7, D36)
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:2c:0001, 0004 interim: convection acts on the isotopologues at the vapour ratio before convection
-!           (alpha = 1), for the vapour and for the convective rain and snow; replaced in wiso:2c:0005.
-      call wiso_vap_convec_interim(torain, tosnow, dyrain, dysnow)
-      call wiso_vap_follow_water(rmoisg)
+! dmr&clo   wiso:2c:0005 isotopologue total precipitation; vapour amounts from the ratios of the convection steps
+      call wiso_vap_conv_total(rmoisg, torain, tosnow, dyrain, dysnow, corain, cosnow)
 #endif
       return
       end subroutine ec_convec_two
