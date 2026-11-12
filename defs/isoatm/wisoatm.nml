@@ -33,4 +33,9 @@
   theta_diff17     = 0.518                  ! D17/D = (D18/D)**theta
   ss_s0            = 1.0                    ! supersaturation over ice for snow: S = ss_s0 - ss_s1 * T(degC)
   ss_s1            = 0.004
+
+  d18o_check_min   = -100.0                 ! plausibility window of the delta-bound diagnostic (wisobounds_*.txt)
+  d18o_check_max   =   50.0
+  dd_check_min     = -800.0
+  dd_check_max     =  400.0
 /

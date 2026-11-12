@@ -82,6 +82,7 @@
 
         use global_constants_mod, only: ip, dblp=>dp
         use comatm,               only: nlat, nlon, nwisos, iwater, iwat16, iwat17, iwat2h
+        use wiso_budget_mod,      only: wiso_bud_mark, WB_AT_TR, WB_AT_MO, WB_AT_CV
 
         implicit none
 
@@ -131,6 +132,8 @@
           wiso_rvap(:,:,iwat17:iwat2h) = rr
           call wiso_vap_ratio16(rmois)
           call wiso_vap_follow_water(rmois, only_ratio_mode = .true.)
+          call wiso_bud_mark(WB_AT_TR)                                     ! dmr&clo wiso:2c:0006
+
 
         end subroutine wiso_vap_transport
 
@@ -195,6 +198,7 @@
             enddo
           enddo
           call wiso_vap_follow_water(rmois)
+          call wiso_bud_mark(WB_AT_MO)                                     ! dmr&clo wiso:2c:0006
 
         end subroutine wiso_vap_sources
 
@@ -287,6 +291,7 @@
             tos(:,:,k) = dys(:,:,k) + cos(:,:,k)
           enddo
           call wiso_vap_follow_water(rmois)
+          call wiso_bud_mark(WB_AT_CV)                                     ! dmr&clo wiso:2c:0006
 
         end subroutine wiso_vap_conv_total
 

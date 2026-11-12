@@ -66,6 +66,7 @@
         public :: ISO_NML_FILE, iso_nml_read, iso_nml_write, iso_ratios
         public :: frac_mode, ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
+        public :: delta_check_min, delta_check_max
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -119,13 +120,19 @@
         real(dblp)             :: ss_s0            = 1.0_dblp        !< supersaturation over ice S = ss_s0 - ss_s1 T(degC)
         real(dblp)             :: ss_s1            = 0.004_dblp      !< (Jouzel and Merlivat 1984; 0.002 to 0.004)
 
+! dmr&clo   Plausibility window of the delta-bound diagnostic (wiso_budget_mod, wiso:2c:0006); 17O from 18O with 0.528
+        real(dblp)             :: d18o_check_min   = -100.0_dblp     !< permil
+        real(dblp)             :: d18o_check_max   =   50.0_dblp     !< permil
+        real(dblp)             :: dd_check_min     = -800.0_dblp     !< permil
+        real(dblp)             :: dd_check_max     =  400.0_dblp     !< permil
+
         namelist /wisoatm_nml/ frac_mode, d18o_vap_init, dexc_vap_init, o17exc_vap_init,                              &
                                d18o_land_evap, dexc_land_evap, o17exc_land_evap,                                      &
                                d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap,                                      &
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
                                restart_read, restart_file,                                                            &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
-                               ss_s0, ss_s1
+                               ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Derived ratios (set by iso_nml_read)
@@ -137,6 +144,8 @@
         real(dblp), dimension(nwisos) :: r_ocean_fixed = 1.0_dblp     !< surface ocean, ocean_ratio_mode = 'fixed'
         real(dblp)                    :: dexc_ocean_frac   = 0.0_dblp  !< dexc_ocean as a fraction ('file' mode)
         real(dblp)                    :: o17exc_ocean_frac = 0.0_dblp  !< o17exc_ocean as a fraction ('file' mode)
+        real(dblp), dimension(nwisos) :: delta_check_min = -1.0_dblp  !< plausibility window, delta as a fraction
+        real(dblp), dimension(nwisos) :: delta_check_max =  1.0_dblp  !< (iwat16: +-1e-6, the deviation from water)
 
 
       contains
@@ -225,6 +234,14 @@
           r_ocean_fixed = iso_ratios(d18o_ocean     * ISO_PERMIL, dexc_ocean     * ISO_PERMIL, o17exc_ocean     * ISO_PERMEG)
           dexc_ocean_frac   = dexc_ocean   * ISO_PERMIL
           o17exc_ocean_frac = o17exc_ocean * ISO_PERMEG
+          delta_check_min(iwat16) = -1.0e-6_dblp
+          delta_check_max(iwat16) =  1.0e-6_dblp
+          delta_check_min(iwat18) = d18o_check_min * ISO_PERMIL
+          delta_check_max(iwat18) = d18o_check_max * ISO_PERMIL
+          delta_check_min(iwat17) = exp(0.528_dblp*log(1.0_dblp + delta_check_min(iwat18))) - 1.0_dblp
+          delta_check_max(iwat17) = exp(0.528_dblp*log(1.0_dblp + delta_check_max(iwat18))) - 1.0_dblp
+          delta_check_min(iwat2h) = dd_check_min * ISO_PERMIL
+          delta_check_max(iwat2h) = dd_check_max * ISO_PERMIL
 
           write(*,*) "iso_nml_read: water isotopes, frac_mode = ", frac_mode, ", ocean_ratio_mode = ",                    &
                      trim(ocean_ratio_mode)
@@ -258,6 +275,8 @@
           write(unit_chk, '(a,a)')       'diff_form        = ', trim(diff_form)
           write(unit_chk, '(a,3f8.4)')   'theta17 lv, sv, diff = ', theta_lv17, theta_sv17, theta_diff17
           write(unit_chk, '(a,2f8.4)')   'supersaturation s0, s1 (per degC) = ', ss_s0, ss_s1
+          write(unit_chk, '(a,4f10.2)')  'check window d18o min max, dD min max (permil) = ',                           &
+                                         d18o_check_min, d18o_check_max, dd_check_min, dd_check_max
           call iso_alphas_report(unit_chk)
 
         end subroutine iso_nml_write
