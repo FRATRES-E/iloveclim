@@ -44,6 +44,14 @@
 
       integer(ip) ::     ixout,ioutdaily,ioutyearly,itel,minterv,ntotdays, meantype,meantot,meanyl,ifrendat,instcount,irad
 
+! dmr&clo   wiso:2e:0001 output statistics over every time step (atmdiag0): position of the step in the model day, set
+!           by ec_atmout; the daily part of ec_selectout (counters, instantaneous outputs, writes) runs at the last step
+!           of the day only, as before. nstat_myl counts the steps of the current yearly-monthly interval.
+      integer(ip) :: diag_stepinday = 1
+      logical     :: diag_dayend    = .true.
+      integer(ip) :: nstat_myl      = 0
+      logical     :: myl_newint     = .true.
+
 !~       common /ec_writectl/ixout,ioutdaily,ioutyearly,itel,minterv,
 !~      &                 meantype,meantot,meanyl,ifrendat,instcount,irad
 !~ #if ( PMIP == 1 )

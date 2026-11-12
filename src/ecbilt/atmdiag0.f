@@ -6,6 +6,7 @@
       use atmdyn_mod, only: ec_sptogg
       USE comatm, only: 
       use comemic_mod, only: iatm
+      use comdiag, only: diag_stepinday, diag_dayend
 
 #if ( WISOATM == 1 )
       use comatm, only: iwater
@@ -14,9 +15,12 @@
 
       integer istep
 
-      if ( mod(istep,iatm) .eq. 0) then
-        call ec_selectout(istep)
-      endif
+! dmr&clo wiso:2e:0001 monthly, whole-run and yearly means over every
+!         time step (were one sample per day, at the last step of the
+!         day); the daily part of ec_selectout still runs once a day
+      diag_stepinday = mod(istep-1,iatm) + 1
+      diag_dayend    = ( mod(istep,iatm) .eq. 0 )
+      call ec_selectout(istep)
 
       call ec_outamean(istep)
       call ec_outiocht(istep)
@@ -48,7 +52,7 @@
      &                 , q0, uvw10, cdragw
       use comdiag, only: newtotvar, minterv, meantype, meantot, ixout
      &                 , instcount, ioutyearly, itel, nvl, meanyl
-     &                 , ioutdaily
+     &                 , ioutdaily, diag_dayend
       use comemic_mod, only: iatm, iseason, iday, imonth
       use comoutlocal_mod
       use comsurf_mod
@@ -145,6 +149,9 @@ c~ #else
         enddo
       enddo
 
+! dmr&clo wiso:2e:0001 day counters, instantaneous outputs and daily
+!         climate indices: last step of the day only
+      if (diag_dayend) then
       if(meantype.eq.2) then
         if(istep.gt.(11*30*iatm)) then
           iseason = iseason + 1
@@ -166,6 +173,8 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 #if ( CLM_INDICES >= 1 )
       call DAILYSTEP_FOR_CLIM_INDICES()
 #endif
+
+      endif
 
       if (meantype .eq. 1) then
         minterv=30
@@ -191,8 +200,10 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
         call ec_outputyrl
       endif
 
-      if (itel.eq.minterv) itel = 0
-      if (instcount.eq.ixout) instcount = 0
+      if (diag_dayend) then
+        if (itel.eq.minterv) itel = 0
+        if (instcount.eq.ixout) instcount = 0
+      endif
 
       return
       end subroutine ec_selectout
@@ -744,19 +755,23 @@ c~      &                 , sxvhforg1, sxvhforg2, sxvhforg3
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
 !
 
-      IF (itel == 0) RETURN
+! dmr&clo wiso:2e:0001 called at every step: itel = 0 only skips at the
+!         end of a day; writes at the last step of the day
+      IF (itel == 0 .AND. diag_dayend) RETURN
 
       IF (meantype == 1) THEN
          need_to_write = ( realyear == nyears .AND. imonth .GE. realmonth .AND.
      &                     iday == 30 )
          IF (.NOT. need_to_write) need_to_write = ( iyear == nyears .AND.
      &                     imonth .LT. realmonth .AND. iday == 30 )
+         need_to_write = need_to_write .AND. diag_dayend
          IF (need_to_write) CALL open(Total_Monthly_Means)
       ELSE
          need_to_write = ( realyear == nyears .AND. imonth .GE. realmonth .AND.
      &                     iseason == 90 )
          IF (.NOT. need_to_write) need_to_write = ( iyear == nyears .AND.
      &                     imonth .LT. realmonth .AND. iseason == 90 )
+         need_to_write = need_to_write .AND. diag_dayend
          IF (need_to_write) CALL open(Total_Seasonal_Means)
       END IF
 
@@ -1569,6 +1584,7 @@ c~ #endif
       USE comatm
       USE comdiag
       use comemic_mod, only: nyears, imonth, irunlabeld, iyear, iday
+      use comemic_mod, only: iatm
       use comcoup_mod
 
 
@@ -1587,17 +1603,21 @@ c~ #endif
       if ( irunlabeld/=360 ) realmonth=(irunlabeld/30)+1
       IF (meantype == 1) THEN
          k     = imonth
-         ncase = nyears*30
+! dmr&clo wiso:2e:0001 every step: iatm samples a day; reset at the first
+!         step of the first day
+         ncase = nyears*30*iatm
          nk    = 12
-         IF (realyear == 1 .AND. imonth == realmonth .AND. iday == 1) THEN
+         IF (realyear == 1 .AND. imonth == realmonth .AND. iday == 1
+     &       .AND. diag_stepinday == 1) THEN
             sumx1(:,:,1:nk)   = 0.0
             sumy1(:,:,1:nk)   = 0.0
          END IF
       ELSE                      ! IF (meantype == 2) THEN
          k     = Mod(imonth/3,4) + 1
-         ncase = (nyears-1)*90
+         ncase = (nyears-1)*90*iatm
          nk    = 4
-         IF (realyear == 1 .AND. imonth == 12 .AND. iday == 1) then
+         IF (realyear == 1 .AND. imonth == 12 .AND. iday == 1
+     &       .AND. diag_stepinday == 1) then
             sumx1(:,:,1:nk)   = 0.0
             sumy1(:,:,1:nk)   = 0.0
          END IF
@@ -1660,10 +1680,18 @@ c~ #endif
       LOGICAL :: need_to_write
       real(kind=8), dimension(1:nlat,1:nlon,1:4) :: mean, stddev
 
-      IF (itel == 0) RETURN
+! dmr&clo wiso:2e:0001 called at every step: nstat_myl counts the steps of
+!         the interval (used by ec_stat); writes at the last step of the day
+      IF (itel == 0 .AND. diag_dayend) RETURN
+      IF (myl_newint) THEN
+         nstat_myl  = 0
+         myl_newint = .FALSE.
+      END IF
+      nstat_myl = nstat_myl + 1
 
 !mab      need_to_write = ( itel == minterv )
-      need_to_write = ( (mod(iday,30).eq.0) )
+      need_to_write = ( (mod(iday,30).eq.0) ) .AND. diag_dayend
+      IF (need_to_write) myl_newint = .TRUE.
 
       IF (need_to_write) THEN
          IF (meantype == 1) THEN
@@ -2493,8 +2521,10 @@ c~ #endif
       REAL*8, DIMENSION(:,:), INTENT(out)   :: xxm, xxdev
       LOGICAL,                INTENT(in)    :: compute
 
-      IF (itel /= 0) THEN
-         IF (itel == 1) THEN
+! dmr&clo wiso:2e:0001 nstat_myl steps in the interval (was itel days, of
+!         which minterv in a full interval)
+      IF (nstat_myl /= 0) THEN
+         IF (nstat_myl == 1) THEN
             sumxx  (:,:) = xx(:,:)
             sumxxsq(:,:) = xx(:,:)**2
          ELSE
@@ -2503,12 +2533,12 @@ c~ #endif
          END IF
 
          IF (compute) THEN
-            xxm  (:,:) = sumxx  (:,:)/minterv
-            xxdev(:,:) = sumxxsq(:,:) - sumxx(:,:)**2/minterv
+            xxm  (:,:) = sumxx  (:,:)/nstat_myl
+            xxdev(:,:) = sumxxsq(:,:) - sumxx(:,:)**2/nstat_myl
             WHERE (xxdev(:,:) < 0.0)
                xxdev(:,:) = 0.0
             ELSE WHERE
-               xxdev (:,:) = Sqrt(xxdev(:,:)/(minterv - 1.0))
+               xxdev (:,:) = Sqrt(xxdev(:,:)/(nstat_myl - 1.0))
             END WHERE
          END IF
       END IF
@@ -2847,7 +2877,10 @@ c~ #endif
 
       samples = samples + 1 ! Increment sampel counter
 
+! dmr&clo wiso:2e:0001 samples counts every step; writes at the last step
+!         of the day
       need_to_write = ( imonth == realmonth .AND. iday == 30 )
+     &                .AND. diag_dayend
 
 ! --- BdB 05-2019: calculate start time
       IF (need_to_write) THEN
@@ -3680,7 +3713,8 @@ c~ #endif
       INTEGER,                INTENT(in)    :: samples
 
 
-      IF (imonth == 1 .AND. iday == 1) THEN
+! dmr&clo wiso:2e:0001 reset at the first step of the year only
+      IF (imonth == 1 .AND. iday == 1 .AND. diag_stepinday == 1) THEN
          sumx1(:,:) = 0.0
          sumy1(:,:) = 0.0
       END IF
