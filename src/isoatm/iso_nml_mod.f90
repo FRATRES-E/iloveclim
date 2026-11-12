@@ -64,7 +64,8 @@
         private
 
         public :: ISO_NML_FILE, iso_nml_read, iso_nml_write, iso_ratios
-        public :: frac_mode, ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
+        public :: frac_mode, frac_evap, frac_lsc, frac_conv, iso_passive
+        public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: delta_check_min, delta_check_max
 
@@ -83,8 +84,14 @@
 ! dmr&clo   Namelist variables (defaults)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-! dmr&clo   Fractionation: 0 none (passive tracers), 1 equilibrium, 2 equilibrium + kinetic; only 0 until ROADMAP 2d
+! dmr&clo   Fractionation (wiso:2d:0000): frac_mode = 0 none (passive tracers), 1 equilibrium, 2 equilibrium + kinetic,
+!           for every process; frac_mode = -1: per process, frac_evap (ocean evaporation: 1 equilibrium with the ocean,
+!           2 Craig-Gordon), frac_lsc (large-scale condensation) and frac_conv (convection) (1 equilibrium, 2 + kinetic
+!           effect for snow). After iso_nml_read, frac_evap, frac_lsc and frac_conv hold the values in use.
         integer(ip)            :: frac_mode        = 0
+        integer(ip)            :: frac_evap        = 0
+        integer(ip)            :: frac_lsc         = 0
+        integer(ip)            :: frac_conv        = 0
 
 ! dmr&clo   Initial vapour (replaces the datmini parameters; d-excess 0 as in the legacy code)
         real(dblp)             :: d18o_vap_init    = -12.0_dblp      !< permil
@@ -126,7 +133,8 @@
         real(dblp)             :: dd_check_min     = -800.0_dblp     !< permil
         real(dblp)             :: dd_check_max     =  400.0_dblp     !< permil
 
-        namelist /wisoatm_nml/ frac_mode, d18o_vap_init, dexc_vap_init, o17exc_vap_init,                              &
+        namelist /wisoatm_nml/ frac_mode, frac_evap, frac_lsc, frac_conv,                                             &
+                               d18o_vap_init, dexc_vap_init, o17exc_vap_init,                                         &
                                d18o_land_evap, dexc_land_evap, o17exc_land_evap,                                      &
                                d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap,                                      &
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
@@ -206,10 +214,19 @@
             stop 1
           endif
 
-          if (frac_mode /= 0) then
-            write(*,*) "iso_nml_read: frac_mode = ", frac_mode, " is not available yet (only 0, ROADMAP 2d)"
+          ! dmr&clo   wiso:2d:0000 one switch for all processes, or per process with frac_mode = -1
+          if (frac_mode < -1 .or. frac_mode > 2) then
+            write(*,*) "iso_nml_read: frac_mode = ", frac_mode, " (expected -1, 0, 1 or 2)"
             stop 1
           endif
+          if (frac_mode >= 0) then
+            frac_evap = frac_mode
+            frac_lsc  = frac_mode
+            frac_conv = frac_mode
+          endif
+          call check_frac('frac_evap', frac_evap)
+          call check_frac('frac_lsc',  frac_lsc)
+          call check_frac('frac_conv', frac_conv)
 
           select case (trim(ocean_ratio_mode))
           case ('file', 'fixed')
@@ -243,10 +260,32 @@
           delta_check_min(iwat2h) = dd_check_min * ISO_PERMIL
           delta_check_max(iwat2h) = dd_check_max * ISO_PERMIL
 
-          write(*,*) "iso_nml_read: water isotopes, frac_mode = ", frac_mode, ", ocean_ratio_mode = ",                    &
-                     trim(ocean_ratio_mode)
+          write(*,*) "iso_nml_read: water isotopes, frac_evap, frac_lsc, frac_conv = ", frac_evap, frac_lsc, frac_conv,  &
+                     ", ocean_ratio_mode = ", trim(ocean_ratio_mode)
+
+        contains
+
+          ! one per-process switch: 0, 1 or 2; only 0 until its 2d step is in
+          subroutine check_frac(name, val)
+            character(len=*), intent(in) :: name
+            integer(ip),      intent(in) :: val
+            if (val < 0 .or. val > 2) then
+              write(*,*) "iso_nml_read: ", name, " = ", val, " (expected 0, 1 or 2)"
+              stop 1
+            endif
+            if (val /= 0) then
+              write(*,*) "iso_nml_read: ", name, " = ", val, " is not available yet (only 0, ROADMAP 2d)"
+              stop 1
+            endif
+          end subroutine check_frac
 
         end subroutine iso_nml_read
+
+        !> No fractionation anywhere: every ratio is a mixture of the sources (strict check of wiso_budget_mod)
+        pure function iso_passive() result(p)
+          logical :: p
+          p = frac_evap == 0 .and. frac_lsc == 0 .and. frac_conv == 0
+        end function iso_passive
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Report to parameters.chk
@@ -258,6 +297,7 @@
 
           write(unit_chk, '(a)')         '--- water isotopes (wisoatm.nml) ---'
           write(unit_chk, '(a,i0)')      'frac_mode        = ', frac_mode
+          write(unit_chk, '(a,3(1x,i0))') 'in use: frac_evap, frac_lsc, frac_conv =', frac_evap, frac_lsc, frac_conv
           write(unit_chk, '(a,3f12.4)')  'vap_init  d18o, dexc (permil), o17exc (per meg) = ',                          &
                                          d18o_vap_init, dexc_vap_init, o17exc_vap_init
           write(unit_chk, '(a,3f12.4)')  'land_evap d18o, dexc (permil), o17exc (per meg) = ',                          &

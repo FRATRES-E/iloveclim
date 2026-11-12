@@ -3,7 +3,11 @@
 !         (ln(d17O + 1) = 0.528 ln(d18O + 1) + o17exc).
 ! Requires adv_mode = 'fv' in namelist group moipar (namelistecbilt).
 &wisoatm_nml
-  frac_mode        = 0                      ! 0 none (passive); 1 equilibrium, 2 + kinetic: from ROADMAP 2d
+  frac_mode        = 0                      ! 0 none (passive), 1 equilibrium, 2 + kinetic, for every process;
+                                            ! -1: per process below (from ROADMAP 2d; only 0 available yet)
+  frac_evap        = 0                      ! ocean evaporation: 1 equilibrium with the ocean, 2 Craig-Gordon
+  frac_lsc         = 0                      ! large-scale condensation: 1 equilibrium, 2 + kinetic effect for snow
+  frac_conv        = 0                      ! convection: idem
 
   d18o_vap_init    = -12.0                  ! initial vapour
   dexc_vap_init    =   0.0

@@ -48,7 +48,7 @@
 !!         w2h: d-excess (dD - 8 d18O) of vapour and precipitation, min / max; w17: 17O-excess (per meg), min / max
 !!         nbad   cell-steps with a non-finite ratio, a ratio <= 0, or a delta outside [delta_check_min, max]
 !!                (wisoatm.nml; w16: |delta| > 1e-6, i.e. iwat16 departing from the water)
-!!         frac_mode = 0 only (alpha = 1 everywhere, all ratios are mixtures of the sources): strict check against
+!!         no fractionation only (iso_passive: alpha = 1 everywhere, all ratios are mixtures of the sources): strict check against
 !!         the source range [smin, smax] = initial vapour (at the first step of the run, restart included) and every
 !!         evaporation ratio met since: nout cell-steps beyond it by more than 1e-9 (relative), worst excess, smin,
 !!         smax.
@@ -235,7 +235,7 @@
 
           use comphys,     only: rmoisg, torain, tosnow
           use comsurf_mod, only: evap
-          use iso_nml_mod, only: frac_mode, delta_check_min, delta_check_max
+          use iso_nml_mod, only: iso_passive, delta_check_min, delta_check_max
 
           real(dblp)  :: rv(nlat, nlon, NS), rr(nlat, nlon, NS), rs(nlat, nlon, NS), re(nlat, nlon, NS)
           real(dblp)  :: pw_(nlat, nlon), rp18(nlat, nlon), rp(nlat, nlon), x
@@ -265,7 +265,7 @@
                               + count_bad(rs(:,:,s), ms, delta_check_min(k), delta_check_max(k))
 
             ! strict check (alpha = 1): sources met so far, then the fields against them
-            if (frac_mode == 0) then
+            if (iso_passive()) then
               if (any(me)) then
                 smin(s) = min(smin(s), minval(re(:,:,s), mask = me))
                 smax(s) = max(smax(s), maxval(re(:,:,s), mask = me))
@@ -398,7 +398,7 @@
         subroutine write_month()
 
           use comemic_mod, only: fini, irunlabel
-          use iso_nml_mod, only: frac_mode
+          use iso_nml_mod, only: iso_passive
 
           real(dblp)  :: m(NT, NB), eps, b(NBS), xs
           integer(ip) :: s
@@ -419,7 +419,7 @@
             xs = 1000.0_dblp
             if (s == iwat17 - iwat16 + 1) xs = 1.0e6_dblp     ! 17O-excess: per meg
             b(B_XVMIN:B_XPMAX) = b(B_XVMIN:B_XPMAX)/1000.0_dblp*xs
-            if (frac_mode == 0) then
+            if (iso_passive()) then
               write(ubnd(s), '(i6,i4,i6,10es12.4,i10,i10,es12.3,2es12.4)') cur_year, cur_month, nstep, b(1:10),        &
                     nbad(s), nout(s), bst(B_WORST, s), (smin(s) - 1.0_dblp)*1000.0_dblp,                             &
                     (smax(s) - 1.0_dblp)*1000.0_dblp
@@ -448,7 +448,7 @@
               write(ubnd(t), '(a,a,a,i0)') '# ECBilt isotopologue delta bounds (wiso_budget_mod), species ',          &
                    SNAME(t), ', deltas in permil over the month, irunlabel = ', irunlabel
               write(ubnd(t), '(a)') '# xs: w2h d-excess (permil), w17 17O-excess (per meg), 0 otherwise; '//        &
-                   'nbad: non-finite, <= 0 or outside the check window; frac_mode = 0: nout cells beyond the '//     &
+                   'nbad: non-finite, <= 0 or outside the check window; passive: nout cells beyond the '//     &
                    'source range [smin, smax] (rel. 1e-9), worst relative excess'
               write(ubnd(t), '(a)') '# year month nstep   vap_min     vap_max     rain_min    rain_max    snow_min'//   &
                    '    snow_max    xs_vap_min  xs_vap_max  xs_prc_min  xs_prc_max      nbad      nout     worst'//   &

@@ -27,13 +27,13 @@
 !
 !      DESCRIPTION:
 !
-!>     frac_mode = 0 (passive, alpha = 1): the isotopologue flux is the water flux at the composition of its source:
+!>     frac_evap = 0 (passive, alpha = 1): the isotopologue flux is the water flux at the composition of its source:
 !!       - open ocean, and sea ice when it evaporates (EVAPSI = 0; D41): surface ocean ratios ratio_oceanatm
 !!         (map or fixed, ocean_ratio_mode of wisoatm.nml);
 !!       - land (D10, D42): sublimation of snow at r_snow_evap, evaporation of the bucket at r_land_evap, fixed in
 !!         wisoatm.nml until the land isotopes (step 3). The heat flux esice over the ice mask carries no water, hence
 !!         no isotopologues.
-!!     Equilibrium (frac_mode = 1) and Craig-Gordon (frac_mode = 2) come in step 2d.
+!!     Equilibrium (frac_evap = 1) and Craig-Gordon (frac_evap = 2) come in step 2d.
 !!
 !!     Contract
 !!       - wiso_evap_split(ev, i, j, e_ocean, e_snow, e_land): ev(iwat16:iwat2h) of cell (i,j) from the parts of the

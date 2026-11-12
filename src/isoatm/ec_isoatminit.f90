@@ -35,7 +35,8 @@
        use iso_nml_mod, only: ocean_ratio_mode, ocean_d18o_file, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac,       &
                               iso_ratios
        USE lectNC, only: lect_2D_NC
-       use comatm, only: nlat, nlon, iwat18
+       use comatm, only: nlat, nlon, iwat18, phi
+       use netcdf
 
        IMPLICIT NONE
 
@@ -49,10 +50,18 @@
        character(len=4), parameter :: varia="d18o"
        INTEGER :: i,j
 
-! dmr&clo   wiso:2c:0001 the isotopologues are transported (wiso_vap_mod); until wiso:2c:0002 to 0004 every water source
-!           and sink acts on them at the local vapour ratio (alpha = 1, no source composition).
-       write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues transported; sources and sinks at the vapour ratio",      &
-                  " (alpha = 1, interim, ROADMAP wiso:2c)"
+! dmr&clo   wiso:2d:0000 coordinates of the file against the model grid; missing values; check of the filled field
+       real(dblp), parameter :: COORD_TOL = 0.01_dblp       ! degrees
+       real(dblp), parameter :: MISS_ABS  = 1.0e10_dblp     ! |d18O| above: missing (file: -1e30)
+       real(dblp), parameter :: MISS_SET  = 1.0e30_dblp     ! -> ratio far above the fill threshold of fix_input_field
+       real(dblp), parameter :: OCN_MAX   = 20.0_dblp       ! permil: plausible |d18O| of sea water after filling
+       real(dblp) :: flat(nlat), flon(nlon), mlat(nlat), mlon(nlon)
+       logical    :: north_first
+       integer    :: nmiss, nfill
+
+! dmr&clo   wiso:2d:0000 state of the isotope physics (ROADMAP 2c done, 2d in progress)
+       write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues transported, evaporated and condensed; fractionation as",  &
+                  " set by frac_mode (iso_nml_read)"
 
 ! dmr&clo   wiso:2b:0001 surface ocean ratios from wisoatm.nml: 'fixed' (uniform) or 'file' (d18O map in permil, converted
 !           to a fraction on reading; dD and 17O from dexc_ocean and o17exc_ocean, as in iso_ratios)
@@ -74,23 +83,63 @@
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      Reading the input file leads to an array indexed differently as ours. We thus reformat it.
+! dmr&clo   wiso:2d:0000 (O40) format_nc_to_ec transposes and reverses the latitudes (north-first file -> ECBilt, whose
+!           row 1 is the southernmost). The file coordinates are now checked against the model grid: reversed back
+!           for a south-first file; stop if they do not match (tolerance COORD_TOL).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
        CALL format_nc_to_ec(dataread,dataecb,nlon,nlat)
 
+       call read_coord(TRIM(ocean_d18o_file), 'lat', flat)
+       call read_coord(TRIM(ocean_d18o_file), 'lon', flon)
+       mlat = phi(:)*45.0_dblp/atan(1.0_dblp)
+       do j = 1, nlon
+         mlon(j) = 360.0_dblp*real(j-1, dblp)/real(nlon, dblp)
+       enddo
+       north_first = flat(1) > flat(nlat)
+       if (north_first) then
+         flat = flat(nlat:1:-1)
+       else
+         dataecb = dataecb(nlat:1:-1, :)
+       endif
+       if (maxval(abs(flat - mlat)) > COORD_TOL) then
+         write(*,*) "ec_isoatminit: latitudes of ", TRIM(ocean_d18o_file), " differ from the model grid by ",         &
+                    maxval(abs(flat - mlat)), " degrees"
+         stop 1
+       endif
+       if (maxval(abs(modulo(flon - mlon + 180.0_dblp, 360.0_dblp) - 180.0_dblp)) > COORD_TOL) then
+         write(*,*) "ec_isoatminit: longitudes of ", TRIM(ocean_d18o_file), " differ from the model grid (from 0 E, ", &
+                    "step 360/nlon) by ", maxval(abs(modulo(flon - mlon + 180.0_dblp, 360.0_dblp) - 180.0_dblp))
+         stop 1
+       endif
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       The dataset read has negative missing values that are incompatible with our formulation. Change this.
-!       (missing values become very large ratios, which fix_input_field replaces where fractoc /= 0)
+! dmr&clo   wiso:2d:0000 missing values (file: -1e30) set to +1e30: as ratios, far above the fill threshold of
+!           fix_input_field, which replaces them where fractoc /= 0 by the mean of their valid neighbours
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       WHERE(dataecb.LT.-1E10_dblp)
-         dataecb = ABS(dataecb)
+       nmiss = count(abs(dataecb) > MISS_ABS)
+       WHERE(abs(dataecb) > MISS_ABS)
+         dataecb = MISS_SET
        ENDWHERE
+       nfill = count(abs(dataecb) > MISS_ABS .and. fractoc > 0.0_dblp)
 
 ! dmr&clo   wiso:2b:0001 the 18O ratio is filled first and dD, 17O are derived from the filled field: in the legacy order
 !           (filling after R17 = R18**0.528) missing cells gave R17 ~ 5e3, below the fill threshold, and stayed wrong
        ratio_oceanatm(:,:,iwat18) = 1.0_dblp + dataecb(:,:) * 1.0e-3_dblp
        call fix_input_field(fractoc,ratio_oceanatm,iwat18,iwat18)
+
+! dmr&clo   wiso:2d:0000 every ocean cell must now hold a plausible value
+       if (any(fractoc > 0.0_dblp .and. abs(ratio_oceanatm(:,:,iwat18) - 1.0_dblp)*1.0e3_dblp > OCN_MAX)) then
+         write(*,*) "ec_isoatminit: surface ocean d18O beyond +-", OCN_MAX, " permil after filling, in ",            &
+                    count(fractoc > 0.0_dblp .and. abs(ratio_oceanatm(:,:,iwat18) - 1.0_dblp)*1.0e3_dblp > OCN_MAX),   &
+                    " ocean cells"
+         stop 1
+       endif
+       write(*,'(a,a,a,i0,a,i0,a,2f8.3,a)') " ec_isoatminit: ", TRIM(ocean_d18o_file), ": ", nmiss,                   &
+             " missing cells, ", nfill, " ocean cells filled; ocean d18O ",                                           &
+             minval((ratio_oceanatm(:,:,iwat18) - 1.0_dblp)*1.0e3_dblp, mask = fractoc > 0.0_dblp),                     &
+             maxval((ratio_oceanatm(:,:,iwat18) - 1.0_dblp)*1.0e3_dblp, mask = fractoc > 0.0_dblp), " permil"
 
        do j=1,nlon
          do i=1,nlat
@@ -102,7 +151,28 @@
 #endif
 
       contains
-      
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2d:0000 one coordinate variable of a netCDF file
+       subroutine read_coord(path, name, val)
+
+         character(len=*), intent(in)  :: path, name
+         real(dblp),       intent(out) :: val(:)
+
+         integer :: ncid, varid, st
+
+         st = nf90_open(path, nf90_nowrite, ncid)
+         if (st == nf90_noerr) st = nf90_inq_varid(ncid, name, varid)
+         if (st == nf90_noerr) st = nf90_get_var(ncid, varid, val)
+         if (st /= nf90_noerr) then
+           write(*,*) "ec_isoatminit: cannot read ", name, " of ", path, ": ", trim(nf90_strerror(st))
+           stop 1
+         endif
+         st = nf90_close(ncid)
+
+       end subroutine read_coord
+#endif
+
       
        SUBROUTINE fix_input_field(data_in,data_out,nzi,nzj)
 
