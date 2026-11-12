@@ -765,15 +765,6 @@ contains
                          newgh, newcdragw, newcdragv, newqgpv, newtcc, &
                          newdumt1, newdumt2, newdumu1, newdumu2, &
                          newomega, newhic, newswrs, newlwrs
-#if ( WISOATM == 1 )
-      use comdiag, only: newpp17, newpp18, newppd, &
-                         newrmoisg17, newrmoisg18, newrmoisgd, &
-                         newsn17, newsn18, newsnd
-#endif
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comdiag, only: newbmoisg17, newbmoisg18, newbmoisgd, &
-                         newsdl17, newsdl18, newsdld
-#endif
 
 
       use newunit_mod, only: namelistecbilt_id
@@ -790,12 +781,6 @@ contains
               runoffo(20), runoffl(20),dumt1(20),dumt2(20),dumu1(20), &
               dumu2(20),snow(20),t2m(20),hic(20),swrs(20), lwrs(20) !mohr
 ! dmr&clo   wiso:2a:0002 isotope output selections as separate declarations (a #if cannot split a continued statement)
-#if ( WISOATM == 1 )
-      integer pp18(20), sn18(20), pp17(20), sn17(20), ppd(20), snd(20), q18(20), q17(20), qd(20)
-#endif
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      integer bm18(20), sdl18(20), bm17(20), sdl17(20), bmd(20), sdld(20)
-#endif
       integer i
 
 !!mohr
@@ -809,12 +794,6 @@ contains
       hforc,vforc,ssr,tsr,ttr,str,swrs,lwrs,albs,albp,ustress,vstress,cdragw, &
       cdragv,bm,sdl,runoffo, runoffl,hic,dumt1,dumt2,dumu1,dumu2
 ! dmr&clo   wiso:2a:0002 a second NAMELIST statement extends the group wratpar
-#if ( WISOATM == 1 )
-      NAMELIST /wratpar/ pp18, sn18, pp17, sn17, ppd, snd, q18, q17, qd
-#endif
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      NAMELIST /wratpar/ bm18, sdl18, bm17, sdl17, bmd, sdld
-#endif
       NAMELIST /flgout/irad
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 ! ixout:        output frequency for instantanous field in days        C
@@ -933,25 +912,6 @@ contains
         dumu2(i)   = 0
         swrs(i)    = 0 !mohr
         lwrs(i)    = 0 !mohr
-#if ( WISOATM == 1 )
-        pp18(i)    = 0
-        sn18(i)    = 0
-        pp17(i)    = 0
-        sn17(i)    = 0
-        ppd(i)     = 0
-        snd(i)     = 0
-        q18(i)     = 0
-        q17(i)     = 0
-        qd(i)      = 0
-#endif
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-        bm18(i)= 0
-        sdl18(i)   = 0
-        bm17(i)= 0
-        sdl17(i)   = 0
-        bmd(i) = 0
-        sdld(i)    = 0
-#endif
 
       enddo
 
@@ -1010,25 +970,6 @@ contains
         newswrs(i)   = swrs(i)     !mohr
         newlwrs(i)   = lwrs(i)     !mohr
 
-#if ( WISOATM == 1 )
-        newpp18(i)   = pp18(i)
-        newsn18(i)   = sn18(i)
-        newpp17(i)   = pp17(i)
-        newsn17(i)   = sn17(i)
-        newppd(i)    = ppd(i)
-        newsnd(i)    = snd(i)
-        newrmoisg18(i) = q18(i)
-        newrmoisg17(i) = q17(i)
-        newrmoisgd(i)  = qd(i)
-#endif
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-        newbmoisg18(i) = bm18(i)
-        newsdl18(i)  = sdl18(i)
-        newbmoisg17(i) = bm17(i)
-        newsdl17(i)  = sdl17(i)
-        newbmoisgd(i)= bmd(i)
-        newsdld(i)   = sdld(i)
-#endif
       enddo
 
       return
@@ -1044,7 +985,7 @@ contains
         use comdiag, only: fill_value, ifrendat, instcount, ioutdaily, &
                          ioutyearly, irad, itel, ixout, meantot, meantype, &
                          meanyl, missing_value, nametotvar, newtotvar, &
-                         numtotvar, thirdd
+                         numtotvar, thirdd, MAX_OUT_VAR
 
       implicit none
 
@@ -1052,6 +993,10 @@ contains
       integer      totvar(80,20)
       integer      i,l
       integer :: outp_atmosparam_id
+#if ( WISOATM == 1 )
+      logical :: wiso_par
+      integer :: nwiso_var
+#endif
 
 
       NAMELIST /outatctl/ixout,ifrendat
@@ -1128,13 +1073,41 @@ contains
       read(outp_atmosparam_id,'(/,/,/,/,/,/,/,/)')
       read(outp_atmosparam_id,*) numtotvar,fill_value,missing_value
       read(outp_atmosparam_id,*)
+      call read_entries(outp_atmosparam_id, 1, numtotvar)
+      close(outp_atmosparam_id)
 
-      do i=1,numtotvar
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2e:0002 isotope output variables, own file (installed by the isoatm component), same format, appended
+!           after the standard ones; no file: no isotope output
+      inquire(file='outp_wisoatm.param', exist=wiso_par)
+      if (wiso_par) then
+        open(newunit=outp_atmosparam_id,file='outp_wisoatm.param')
+        read(outp_atmosparam_id,'(/,/,/,/,/,/,/,/)')
+        read(outp_atmosparam_id,*) nwiso_var
+        read(outp_atmosparam_id,*)
+        if (numtotvar + nwiso_var > MAX_OUT_VAR) then
+          write(*,*) "ec_inioutparat2: more than ", MAX_OUT_VAR, " output variables"
+          call ec_error(123)
+        endif
+        call read_entries(outp_atmosparam_id, numtotvar+1, numtotvar+nwiso_var)
+        numtotvar = numtotvar + nwiso_var
+        close(outp_atmosparam_id)
+      endif
+#endif
 
-         read(outp_atmosparam_id,"(A)") part1
+      return
+
+      contains
+
+! dmr&clo   wiso:2e:0002 entries nfirst..nlast of an output parameter file (loop moved here unchanged)
+      subroutine read_entries(unit_p, nfirst, nlast)
+      integer, intent(in) :: unit_p, nfirst, nlast
+      do i=nfirst,nlast
+
+         read(unit_p,"(A)") part1
          nametotvar(i,1)=trim(part1)
-         read(outp_atmosparam_id,*) (nametotvar(i,l),l=2,5)
-         read(outp_atmosparam_id,*) (newtotvar(i,l),l=1,7)
+         read(unit_p,*) (nametotvar(i,l),l=2,5)
+         read(unit_p,*) (newtotvar(i,l),l=1,7)
          do l=1,6
             newtotvar(i,l)=newtotvar(i,l+1)
          enddo
@@ -1166,8 +1139,7 @@ contains
 
       enddo
 
-      close(outp_atmosparam_id)
+      end subroutine read_entries
 
-      return
       end subroutine ec_inioutparat2
 end module initial0_mod

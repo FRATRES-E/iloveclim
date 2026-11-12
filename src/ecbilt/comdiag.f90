@@ -59,8 +59,10 @@
       integer(ip)                        :: numtotvar
       integer(ip), dimension(4)          :: thirdd
       real(dblp)                         :: fill_value, missing_value
-      real(dblp), dimension(80,20)       :: newtotvar
-      character(len=60), dimension(80,6) :: nametotvar
+! dmr&clo   wiso:2e:0002 room for the isotope variables (outp_wisoatm.param), appended after the standard ones
+      integer(ip), parameter             :: MAX_OUT_VAR = 120
+      real(dblp), dimension(MAX_OUT_VAR,20)       :: newtotvar
+      character(len=60), dimension(MAX_OUT_VAR,6) :: nametotvar
 
 !~       common /ec_netcdf/newtotvar,fill_value,missing_value,numtotvar,
 !~      &                  nametotvar,thirdd
@@ -72,12 +74,6 @@
                                           , newrunoffo, newrunoffl, neweflux, newdivu, newuv10, newchi, newsp, newalbp, newgh      &
                                           , newcdragw, newcdragv, newqgpv, newtcc, newdumt1, newdumt2, newdumu1, newdumu2          &
                                           , newomega, newsnow, newhic, newswrs, newlwrs
-#if ( WISOATM == 1 )
-      integer(ip), dimension(20)         :: newpp18, newsn18, newpp17, newsn17, newppd, newsnd, newrmoisg18, newrmoisg17, newrmoisgd
-#endif
-#if ( WISOATM == 1 )
-      integer(ip), dimension(20)         :: newbmoisg18, newsdl18, newbmoisg17, newsdl17, newbmoisgd, newsdld
-#endif
 
       real(dblp), dimension(nlat,nlon)   :: s1u200, s2u200, s1u500, s2u500, s1u800, s2u800, s1temp4g, s2temp4g, s1temp2g, s2temp2g &
                                           , s1tstrat, s2tstrat, s1tsurf, s2tsurf, s1tempsg, s2tempsg, s1t2m, s2t2m, s1v200, s2v200 &
@@ -94,13 +90,6 @@
       real(dblp), dimension(nlat,nlon,nvl)::s1omeg, s2omeg, s1psi, s2psi, s1udivg, s2udivg, s1vdivg, s2vdivg, s1chi, s2chi, s1gh   &
                                           , s2gh, s1qgpv, s2qgpv, s1dt1, s2dt1, s1dt2, s2dt2, s1du1, s2du1, s1du2, s2du2
 
-#if ( WISOATM == 1 )
-      real(dblp), dimension(nlat,nlon)   :: s1torain18, s2torain18, s1tosnow18, s2tosnow18, s1torain17, s2torain17, s1tosnow17     &
-                                          , s2tosnow17, s1toraind, s2toraind, s1tosnowd, s2tosnowd, s1rmoisg18, s2rmoisg18         &
-                                          , s1rmoisg17, s2rmoisg17, s1rmoisgd, s2rmoisgd, s1dsnow18, s2dsnow18, s1dsnow17          &
-                                          , s2dsnow17,  s1dsnowd, s2dsnowd, s1bmoisg18, s2bmoisg18, s1bmoisg17, s2bmoisg17         &
-                                          , s1bmoisgd, s2bmoisgd
-#endif
 
       real(dblp), dimension(nlat,nlon,12) :: sxu200, syu200, sxu500, syu500, sxu800, syu800, sxomeg3, syomeg3, sxomeg2, syomeg2    &
                                            , sxomeg1, syomeg1, sxtemp4g, sytemp4g, sxtemp2g, sytemp2g, sxtstrat, sytstrat, sxtsurf &
@@ -120,15 +109,6 @@
                                            , sytcc, sxdt13, sydt13, sxdt12, sydt12, sxdt11, sydt11, sxdt23, sydt23, sxdt22, sydt22 &
                                            , sxdt21, sydt21, sxdu13, sydu13, sxdu12, sydu12, sxdu11, sydu11, sxdu23, sydu23, sxdu22&
                                            , sydu22, sxdu21, sydu21
-#if ( WISOATM == 1 )
-      real(dblp), dimension(nlat,nlon,12) :: sxtorain18, sytorain18, sxtosnow18, sytosnow18, sxtorain17, sytorain17, sxtosnow17    &
-                                           , sytosnow17, sxtoraind , sytoraind , sxtosnowd , sytosnowd , sxrmoisg18, syrmoisg18    &
-                                           , sxrmoisg17, syrmoisg17, sxrmoisgd , syrmoisgd
-#endif
-#if ( WISOATM == 1 )
-      real(dblp), dimension(nlat,nlon,12) :: sxdsnow18, sydsnow18, sxdsnow17, sydsnow17, sxdsnowd, sydsnowd, sxbmoisg18,sybmoisg18 &
-                                           , sxbmoisg17,sybmoisg17,sxbmoisgd, sybmoisgd
-#endif
 
       integer(ip), parameter             :: nbasa = 8
       real(dblp),  dimension(nbasa)      :: precan, evapan, runoan, arocbasa
