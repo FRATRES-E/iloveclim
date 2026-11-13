@@ -25,7 +25,7 @@ sources = ["src/isoatm"]
 [[isoatm.data]]
 from  = "${emic_dir}/defs/isoatm"
 to    = ""                       # "" = run_dir directement
-files = ["wisoatm.nml"]
+files = ["wisoatm.nml", "outp_wisoatm.param"]   # outp_wisoatm.param: isotope outputs (wiso:2e:0003)
 
 # --- Données strictes -------------------------------------------------------
 [[isoatm.data]]

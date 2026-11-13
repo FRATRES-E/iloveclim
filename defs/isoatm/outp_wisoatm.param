@@ -1,0 +1,122 @@
+Parameters for water isotope outputs (WISOATM = 1; read after outp_atmos.param) : (WARNING: '/' character forbidden)
+
+long_name
+name, standard_name(WARNING: never change it), units, kind of pressure
+
+number, Instantaneous, Monthly_Means,
+Total_Monthly_Means, Yearly_Means
+multiplicative constant (units), additive constant
+--------------------------------------------------------------------------
+37
+
+Total precipitation, H2 17O (amount)
+pp17	Precip_H217O		cm.yr-1	N
+1	0	0	0	0	1.	0.
+Total precipitation, H2 18O (amount)
+pp18	Precip_H218O		cm.yr-1	N
+2	0	0	0	0	1.	0.
+Total precipitation, HDO (amount)
+ppd	Precip_HDO		cm.yr-1	N
+3	0	0	0	0	1.	0.
+Snow fall, H2 17O (amount)
+sn17	Snow_H217O		cm.yr-1	N
+4	0	0	0	0	1.	0.
+Snow fall, H2 18O (amount)
+sn18	Snow_H218O		cm.yr-1	N
+5	0	0	0	0	1.	0.
+Snow fall, HDO (amount)
+snd	Snow_HDO		cm.yr-1	N
+6	0	0	0	0	1.	0.
+Evaporation, H2 17O (amount)
+ev17	Evap_H217O		cm.yr-1	N
+7	0	0	0	0	1.	0.
+Evaporation, H2 18O (amount)
+ev18	Evap_H218O		cm.yr-1	N
+8	0	0	0	0	1.	0.
+Evaporation, HDO (amount)
+evd	Evap_HDO		cm.yr-1	N
+9	0	0	0	0	1.	0.
+Vapour column, H2 17O (amount)
+q17	Vapour_H217O		m	N
+10	0	0	0	0	1.	0.
+Vapour column, H2 18O (amount)
+q18	Vapour_H218O		m	N
+11	0	0	0	0	1.	0.
+Vapour column, HDO (amount)
+qd	Vapour_HDO		m	N
+12	0	0	0	0	1.	0.
+Precipitation delta 18O (amount weighted)
+d18p	Precipitation_d18O		permil	N
+13	0	1	0	1	1.	0.
+Precipitation delta 17O (amount weighted)
+d17p	Precipitation_d17O		permil	N
+14	0	0	0	0	1.	0.
+Precipitation delta D (amount weighted)
+ddp	Precipitation_dD		permil	N
+15	0	1	0	1	1.	0.
+Precipitation deuterium excess (amount weighted)
+dxp	Precipitation_dexcess		permil	N
+16	0	1	0	1	1.	0.
+Precipitation 17O excess (amount weighted)
+e17p	Precipitation_17Oexcess		per_meg	N
+17	0	0	0	0	1.	0.
+Rain delta 18O (amount weighted)
+d18r	Rain_d18O		permil	N
+18	0	0	0	0	1.	0.
+Rain delta 17O (amount weighted)
+d17r	Rain_d17O		permil	N
+19	0	0	0	0	1.	0.
+Rain delta D (amount weighted)
+ddr	Rain_dD		permil	N
+20	0	0	0	0	1.	0.
+Rain deuterium excess (amount weighted)
+dxr	Rain_dexcess		permil	N
+21	0	0	0	0	1.	0.
+Rain 17O excess (amount weighted)
+e17r	Rain_17Oexcess		per_meg	N
+22	0	0	0	0	1.	0.
+Snow delta 18O (amount weighted)
+d18s	Snow_d18O		permil	N
+23	0	0	0	0	1.	0.
+Snow delta 17O (amount weighted)
+d17s	Snow_d17O		permil	N
+24	0	0	0	0	1.	0.
+Snow delta D (amount weighted)
+dds	Snow_dD		permil	N
+25	0	0	0	0	1.	0.
+Snow deuterium excess (amount weighted)
+dxs	Snow_dexcess		permil	N
+26	0	0	0	0	1.	0.
+Snow 17O excess (amount weighted)
+e17s	Snow_17Oexcess		per_meg	N
+27	0	0	0	0	1.	0.
+Evaporation delta 18O (amount weighted)
+d18e	Evaporation_d18O		permil	N
+28	0	0	0	0	1.	0.
+Evaporation delta 17O (amount weighted)
+d17e	Evaporation_d17O		permil	N
+29	0	0	0	0	1.	0.
+Evaporation delta D (amount weighted)
+dde	Evaporation_dD		permil	N
+30	0	0	0	0	1.	0.
+Evaporation deuterium excess (amount weighted)
+dxe	Evaporation_dexcess		permil	N
+31	0	0	0	0	1.	0.
+Evaporation 17O excess (amount weighted)
+e17e	Evaporation_17Oexcess		per_meg	N
+32	0	0	0	0	1.	0.
+Vapour delta 18O (amount weighted)
+d18v	Vapour_d18O		permil	N
+33	0	1	0	1	1.	0.
+Vapour delta 17O (amount weighted)
+d17v	Vapour_d17O		permil	N
+34	0	0	0	0	1.	0.
+Vapour delta D (amount weighted)
+ddv	Vapour_dD		permil	N
+35	0	1	0	1	1.	0.
+Vapour deuterium excess (amount weighted)
+dxv	Vapour_dexcess		permil	N
+36	0	1	0	1	1.	0.
+Vapour 17O excess (amount weighted)
+e17v	Vapour_17Oexcess		per_meg	N
+37	0	0	0	0	1.	0.

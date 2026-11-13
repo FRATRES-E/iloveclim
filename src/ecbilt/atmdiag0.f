@@ -30,6 +30,9 @@
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       subroutine ec_selectout(istep)
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_step
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine selects which kind of outputs should be written to output
 ! *** itel counts the number of days in the output interval
@@ -135,6 +138,11 @@
         enddo
       enddo
 
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2e:0003 isotope output sums, every step
+      call wiso_out_step
+#endif
+
 ! dmr&clo wiso:2e:0001 day counters, instantaneous outputs and daily
 !         climate indices: last step of the day only
       if (diag_dayend) then
@@ -196,6 +204,9 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
       SUBROUTINE ec_outputinst
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_INST
+#endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
 ! *** this routine output instantanous fields.
 ! *** complete re-write Didier M. Roche, 2020-01-24
@@ -568,6 +579,10 @@ c~ #endif
 
 
 
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2e:0003 isotope outputs of the step
+      CALL wiso_out_write(WO_INST, .TRUE.)
+#endif
       CALL close
 
       RETURN
@@ -577,6 +592,9 @@ c~ #endif
 !23456789012345678901234567890123456789012345678901234567890123456789012
 
       SUBROUTINE ec_outputmtl
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_MTL
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine calls another routine which computes the  whole period
 ! *** monthly or seasonal mean fields.
@@ -1303,6 +1321,10 @@ c~ #endif
 
 
 
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2e:0003 isotope whole-run monthly means
+      CALL wiso_out_write(WO_MTL, need_to_write)
+#endif
       IF (need_to_write) CALL close
 
       RETURN
@@ -1378,6 +1400,9 @@ c~ #endif
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_outputmyl
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_MYL
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine calls another routine which computes the yearly monthly
 ! *** mean fields.
@@ -2084,6 +2109,10 @@ c~ #endif
       END IF
 
 
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2e:0003 isotope yearly-monthly means
+      CALL wiso_out_write(WO_MYL, need_to_write)
+#endif
       IF (need_to_write) CALL close
 
       RETURN
@@ -2357,6 +2386,9 @@ c~ #endif
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_outputyrl
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_YRL
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine calls another routine which computes the yearly mean
 ! *** written by camiel severijns, march 2001.
@@ -3099,6 +3131,10 @@ c~ #endif
          END IF
       END IF
 
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2e:0003 isotope yearly means
+      CALL wiso_out_write(WO_YRL, need_to_write)
+#endif
       IF (need_to_write) THEN
          CALL close
          samples = 0 ! Restart counting samples
