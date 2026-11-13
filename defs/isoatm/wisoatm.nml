@@ -4,8 +4,9 @@
 ! Requires adv_mode = 'fv' in namelist group moipar (namelistecbilt).
 &wisoatm_nml
   frac_mode        = 0                      ! 0 none (passive), 1 equilibrium, 2 + kinetic, for every process;
-                                            ! -1: per process below (from ROADMAP 2d; only 0 available yet)
-  frac_evap        = 0                      ! ocean evaporation: 1 equilibrium with the ocean, 2 Craig-Gordon
+                                            ! -1: per process below (ROADMAP 2d; available: frac_evap 0, 1; others 0)
+  frac_evap        = 0                      ! ocean evaporation: 1 equilibrium with the ocean, 2 Craig-Gordon;
+                                            ! fractionation requires EVAPSI = 1
   frac_lsc         = 0                      ! large-scale condensation: 1 equilibrium, 2 + kinetic effect for snow
   frac_conv        = 0                      ! convection: idem
 

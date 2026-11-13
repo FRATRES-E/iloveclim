@@ -224,9 +224,16 @@
             frac_lsc  = frac_mode
             frac_conv = frac_mode
           endif
-          call check_frac('frac_evap', frac_evap)
-          call check_frac('frac_lsc',  frac_lsc)
-          call check_frac('frac_conv', frac_conv)
+          call check_frac('frac_evap', frac_evap, 1)
+          call check_frac('frac_lsc',  frac_lsc,  0)
+          call check_frac('frac_conv', frac_conv, 0)
+#if ( EVAPSI != 1 )
+          ! dmr&clo   wiso:2d:0001 evaporation over sea ice (EVAPSI = 0): source and water bookkeeping to settle first (O45)
+          if (frac_evap /= 0) then
+            write(*,*) "iso_nml_read: frac_evap = ", frac_evap, " requires EVAPSI = 1 (no evaporation over sea ice, O45)"
+            stop 1
+          endif
+#endif
 
           select case (trim(ocean_ratio_mode))
           case ('file', 'fixed')
@@ -265,16 +272,17 @@
 
         contains
 
-          ! one per-process switch: 0, 1 or 2; only 0 until its 2d step is in
-          subroutine check_frac(name, val)
+          ! one per-process switch: 0, 1 or 2; values above vmax not available until their 2d step is in
+          subroutine check_frac(name, val, vmax)
             character(len=*), intent(in) :: name
             integer(ip),      intent(in) :: val
+            integer,          intent(in) :: vmax              !< highest value available (wiso:2d:0001: 1 for frac_evap)
             if (val < 0 .or. val > 2) then
               write(*,*) "iso_nml_read: ", name, " = ", val, " (expected 0, 1 or 2)"
               stop 1
             endif
-            if (val /= 0) then
-              write(*,*) "iso_nml_read: ", name, " = ", val, " is not available yet (only 0, ROADMAP 2d)"
+            if (val > vmax) then
+              write(*,*) "iso_nml_read: ", name, " = ", val, " is not available yet (at most ", vmax, ", ROADMAP 2d)"
               stop 1
             endif
           end subroutine check_frac

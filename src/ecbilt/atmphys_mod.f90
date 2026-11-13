@@ -1554,7 +1554,7 @@ contains
                         rlatvap,tzero,fswdsfc
       use comsurf_mod, only: epss,nse,noc,nld,q10n,qsurfn,fractn,efluxn,evapn, &
                             evfacan,adsnow,abmoisg,abmoism,cdragvn, &
-                            pgroundn,tempsgn
+                            pgroundn,tempsgn,tsurfn                         ! tsurfn: dmr&clo wiso:2d:0001
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
@@ -1673,14 +1673,15 @@ contains
             evapn(i,j,nn,iwater)=efluxn(i,j,nn)/(rowat*rlatvap)
 !~ #endif
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:2c:0003 open ocean (and sea ice if EVAPSI = 0, D41): ocean composition (frac_mode = 0)
-            call wiso_evap_split(evapn(i,j,nn,:), i, j, evapn(i,j,nn,iwater), 0.0_dblp, 0.0_dblp)
+! dmr&clo   wiso:2c:0003 open ocean (and sea ice if EVAPSI = 0, D41): ocean composition (frac_evap = 0);
+!           wiso:2d:0001 frac_evap = 1: in equilibrium with the ocean at tsurfn (open ocean only: EVAPSI = 1 required)
+            call wiso_evap_split(evapn(i,j,nn,:), i, j, evapn(i,j,nn,iwater), 0.0_dblp, 0.0_dblp, tsurfn(i,j,nn))
 #endif
           enddo
         enddo
 
-! dmr&clo   wiso:2c:0003 isotopologue evaporation over the ocean: in the loop above (frac_mode = 0); equilibrium and
-!           MJ79 in 2d (O4). The legacy equilibrium-only version (with per-cell prints) was removed.
+! dmr&clo   wiso:2c:0003 isotopologue evaporation over the ocean: in the loop above; equilibrium since wiso:2d:0001,
+!           Craig-Gordon in 2d:0002 (O4). The legacy equilibrium-only version (with per-cell prints) was removed.
 
       else
 
