@@ -1674,14 +1674,16 @@ contains
 !~ #endif
 #if ( WISOATM == 1 )
 ! dmr&clo   wiso:2c:0003 open ocean (and sea ice if EVAPSI = 0, D41): ocean composition (frac_evap = 0);
-!           wiso:2d:0001 frac_evap = 1: in equilibrium with the ocean at tsurfn (open ocean only: EVAPSI = 1 required)
-            call wiso_evap_split(evapn(i,j,nn,:), i, j, evapn(i,j,nn,iwater), 0.0_dblp, 0.0_dblp, tsurfn(i,j,nn))
+!           wiso:2d:0001 frac_evap = 1: in equilibrium with the ocean at tsurfn (open ocean only: EVAPSI = 1 required);
+!           wiso:2d:0002 frac_evap = 2: Craig-Gordon with the humidities and wind of the bulk formula above
+            call wiso_evap_split(evapn(i,j,nn,:), i, j, evapn(i,j,nn,iwater), 0.0_dblp, 0.0_dblp, tsurfn(i,j,nn),      &
+                                 qsurfn(i,j,nn), q10n(i,j,nn), uv10(i,j))
 #endif
           enddo
         enddo
 
 ! dmr&clo   wiso:2c:0003 isotopologue evaporation over the ocean: in the loop above; equilibrium since wiso:2d:0001,
-!           Craig-Gordon in 2d:0002 (O4). The legacy equilibrium-only version (with per-cell prints) was removed.
+!           Craig-Gordon since 2d:0002 (O4). The legacy equilibrium-only version (with per-cell prints) was removed.
 
       else
 

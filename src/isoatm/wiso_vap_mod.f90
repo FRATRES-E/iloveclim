@@ -91,6 +91,7 @@
         public :: wiso_vap_transport, wiso_vap_follow_water, wiso_vap_get_memory, wiso_vap_set_memory
         public :: wiso_vap_keep_water, wiso_vap_sources, wiso_vap_cont_ratio
         public :: wiso_vap_conv_begin, wiso_vap_conv_end, wiso_vap_conv_total
+        public :: wiso_vap_ratio_at
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Module constants and state
@@ -330,6 +331,23 @@
           r = wiso_rvap
 
         end subroutine wiso_vap_get_memory
+
+        !> Vapour ratio of one cell (wiso:2d:0002, Craig-Gordon evaporation): the state, or the initial ratio of the
+        !! namelist before the first ec_moisture of a run without restart (the state is set from it anyway)
+        function wiso_vap_ratio_at(i, j, k) result(r)
+
+          use iso_nml_mod, only: r_vap_init
+
+          integer(ip), intent(in) :: i, j, k
+          real(dblp)              :: r
+
+          if (allocated(wiso_rvap)) then
+            r = wiso_rvap(i, j, k)
+          else
+            r = r_vap_init(k)
+          endif
+
+        end function wiso_vap_ratio_at
 
         subroutine wiso_vap_set_memory(r)
 

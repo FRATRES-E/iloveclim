@@ -76,7 +76,7 @@
         private
 
         public :: WB_AT_TR, WB_AT_MO, WB_AT_CV
-        public :: wiso_bud_step_begin, wiso_bud_mark, wiso_bud_step_end
+        public :: wiso_bud_step_begin, wiso_bud_mark, wiso_bud_step_end, wiso_bud_count_eclip
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Constants and state
@@ -106,6 +106,7 @@
         real(dblp),  save :: x_end(NB)                             !< inventory at the end of the last step (m)
         real(dblp),  save :: bst(NBS, NS)                          !< bound statistics of the month (fractions)
         integer(ip), save :: nbad(NS), nout(NS)
+        integer(ip), save :: neclip(NS) = 0                        !< Craig-Gordon isotope flux clipped at 0 (cell-steps)
         real(dblp),  save :: smin(NS), smax(NS)                    !< source range (strict check)
         logical,     save :: have_src = .false.
         integer(ip), save :: nstep = 0, cur_month = -1, cur_year = -1
@@ -176,6 +177,12 @@
           x_last = x
 
         end subroutine wiso_bud_mark
+
+        !> wiso:2d:0002 one ocean cell where the Craig-Gordon isotopologue flux of species k was negative, set to 0
+        subroutine wiso_bud_count_eclip(k)
+          integer(ip), intent(in) :: k
+          neclip(k - iwat16 + 1) = neclip(k - iwat16 + 1) + 1
+        end subroutine wiso_bud_count_eclip
 
         subroutine wiso_bud_step_end()
 
@@ -382,6 +389,7 @@
           nstep = 0
           nbad  = 0
           nout  = 0
+          neclip = 0
           bst(B_VMIN:B_SMAX:2, :)  =  BIG
           bst(B_VMAX:B_SMAX:2, :)  = -BIG
           bst(B_XVMIN, :) =  BIG
@@ -424,7 +432,7 @@
                     nbad(s), nout(s), bst(B_WORST, s), (smin(s) - 1.0_dblp)*1000.0_dblp,                             &
                     (smax(s) - 1.0_dblp)*1000.0_dblp
             else
-              write(ubnd(s), '(i6,i4,i6,10es12.4,i10)') cur_year, cur_month, nstep, b(1:10), nbad(s)
+              write(ubnd(s), '(i6,i4,i6,10es12.4,i10,i10)') cur_year, cur_month, nstep, b(1:10), nbad(s), neclip(s)
             endif
             flush(ubnd(s))
           enddo
@@ -449,7 +457,8 @@
                    SNAME(t), ', deltas in permil over the month, irunlabel = ', irunlabel
               write(ubnd(t), '(a)') '# xs: w2h d-excess (permil), w17 17O-excess (per meg), 0 otherwise; '//        &
                    'nbad: non-finite, <= 0 or outside the check window; passive: nout cells beyond the '//     &
-                   'source range [smin, smax] (rel. 1e-9), worst relative excess'
+                   'source range [smin, smax] (rel. 1e-9), worst relative excess; with fractionation, nout '//    &
+                   'is replaced by neclip: ocean cell-steps where the Craig-Gordon flux was negative, set to 0'
               write(ubnd(t), '(a)') '# year month nstep   vap_min     vap_max     rain_min    rain_max    snow_min'//   &
                    '    snow_max    xs_vap_min  xs_vap_max  xs_prc_min  xs_prc_max      nbad      nout     worst'//   &
                    '        smin        smax'

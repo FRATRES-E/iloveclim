@@ -68,6 +68,7 @@
         public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: delta_check_min, delta_check_max
+        public :: kin_wind, kin_k18_frac, kin_kd_ratio
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -127,6 +128,18 @@
         real(dblp)             :: ss_s0            = 1.0_dblp        !< supersaturation over ice S = ss_s0 - ss_s1 T(degC)
         real(dblp)             :: ss_s1            = 0.004_dblp      !< (Jouzel and Merlivat 1984; 0.002 to 0.004)
 
+! dmr&clo   wiso:2d:0002 Kinetic fractionation of ocean evaporation (frac_evap = 2, Craig-Gordon; O4)
+!           kin_form = 'mj79': Merlivat and Jouzel (1979, eq. 9), R_E = (1 - k)(R_oc/alpha - h R_v)/(1 - h); k18 =
+!           kin_k18 (smooth regime, read from MJ79 fig. 2; k18 is not given as a number in the paper); k_i = k18 eps_i/
+!           eps_18 with eps_i = D/D_i - 1 from diff_form (MJ79: kD/k18 = eps_D/eps_18 = 0.88 with Merlivat 1978), for
+!           17O always, for D unless kin_kd_ratio >= 0 is given; kin_wind = .true.: rough regime above 7 m/s,
+!           k18 = 0.285 u10 + 0.82 permil (a fit of MJ79 fig. 2, source to verify; no wind dependence by default:
+!           Bonne et al. 2019, Zannoni et al. 2022). 'diffusivity' (Mathieu and Bariac style) reserved.
+        character(len=ISO_FORM_LEN) :: kin_form = 'mj79'
+        logical                :: kin_wind         = .false.
+        real(dblp)             :: kin_k18          = 6.0_dblp        !< permil, smooth regime of MJ79
+        real(dblp)             :: kin_kd_ratio     = -1.0_dblp       !< kD / k18; < 0: eps_D/eps_18 from diff_form
+
 ! dmr&clo   Plausibility window of the delta-bound diagnostic (wiso_budget_mod, wiso:2c:0006); 17O from 18O with 0.528
         real(dblp)             :: d18o_check_min   = -100.0_dblp     !< permil
         real(dblp)             :: d18o_check_max   =   50.0_dblp     !< permil
@@ -140,7 +153,8 @@
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
                                restart_read, restart_file,                                                            &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
-                               ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max
+                               ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
+                               kin_form, kin_wind, kin_k18, kin_kd_ratio
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Derived ratios (set by iso_nml_read)
@@ -154,6 +168,7 @@
         real(dblp)                    :: o17exc_ocean_frac = 0.0_dblp  !< o17exc_ocean as a fraction ('file' mode)
         real(dblp), dimension(nwisos) :: delta_check_min = -1.0_dblp  !< plausibility window, delta as a fraction
         real(dblp), dimension(nwisos) :: delta_check_max =  1.0_dblp  !< (iwat16: +-1e-6, the deviation from water)
+        real(dblp)                    :: kin_k18_frac  = 6.0e-3_dblp  !< kin_k18 as a fraction (wiso:2d:0002)
 
 
       contains
@@ -224,7 +239,7 @@
             frac_lsc  = frac_mode
             frac_conv = frac_mode
           endif
-          call check_frac('frac_evap', frac_evap, 1)
+          call check_frac('frac_evap', frac_evap, 2)
           call check_frac('frac_lsc',  frac_lsc,  0)
           call check_frac('frac_conv', frac_conv, 0)
 #if ( EVAPSI != 1 )
@@ -243,6 +258,23 @@
           end select
 
 ! dmr&clo   wiso:2c:0002 restart_read: read by wiso_restart_mod at the end of ec_iatmphys
+
+! dmr&clo   wiso:2d:0002 kinetic settings of the ocean evaporation
+          select case (trim(kin_form))
+          case ('mj79')
+          case ('diffusivity')
+            write(*,*) "iso_nml_read: kin_form = 'diffusivity' is not available yet (ROADMAP 2d, O4)"
+            stop 1
+          case default
+            write(*,*) "iso_nml_read: unknown kin_form = ", trim(kin_form), " (mj79)"
+            stop 1
+          end select
+          if (kin_k18 < 0.0_dblp .or. kin_k18 > 30.0_dblp .or. kin_kd_ratio > 2.0_dblp) then
+            write(*,*) "iso_nml_read: kin_k18 = ", kin_k18, " permil (0 to 30), kin_kd_ratio = ", kin_kd_ratio,         &
+                       " (< 0: from diff_form, or 0 to 2)"
+            stop 1
+          endif
+          kin_k18_frac = kin_k18 * ISO_PERMIL
 
           call iso_alphas_init(alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, ok, msg)
@@ -325,6 +357,9 @@
           write(unit_chk, '(a,2f8.4)')   'supersaturation s0, s1 (per degC) = ', ss_s0, ss_s1
           write(unit_chk, '(a,4f10.2)')  'check window d18o min max, dD min max (permil) = ',                           &
                                          d18o_check_min, d18o_check_max, dd_check_min, dd_check_max
+          write(unit_chk, '(a,a,a,l1,a,f8.3,a,f8.4)') 'kinetic (frac_evap = 2): kin_form = ', trim(kin_form),         &
+                                         ', kin_wind = ', kin_wind, ', kin_k18 (permil) = ', kin_k18,                    &
+                                         ', kin_kd_ratio = ', kin_kd_ratio
           call iso_alphas_report(unit_chk)
 
         end subroutine iso_nml_write
