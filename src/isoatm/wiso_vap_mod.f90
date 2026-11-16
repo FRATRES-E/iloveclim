@@ -49,10 +49,13 @@
 !!         R1 = R* + (R0 - R*) (q1/q0)^(-b/(E - C))
 !!     (amounts over the step: E = dtime*imsink*evap, C = dtime*ivavm*vemoisg). Limits: C = 0 gives the mixing
 !!     (R0 q0 + E_i)/(q0 + E); E = 0 gives Rayleigh, R0 (q1/q0)^(alpha - 1); E = C the exponential limit (no
-!!     branch); q1 -> 0 or q0 ~ 0 give R*. R1 lies between R0 and R*: bounded, whatever the water content. The
-!!     condensate follows by mass balance, R0 q0 + E_i - R1 q1, and goes to rain and snow in proportion to the water
-!!     ones. The other changes of the water in ec_moisture (negative clip, ec_moisbalance) act at R1 (D7).
-!!     alpha = 1 until step 2d (R1 = R0 where E = 0, condensate at the vapour ratio).
+!!     branch). R1 lies between R0 and R*: bounded, whatever the water content. Near-dry cells (wiso:2d:0003b):
+!!     where q0 or q1 is at most qtiny (10^-10 of the field maximum), R1 is the ratio kept for a vanishing residue
+!!     (and the ratio memory, D43): R* with evaporation (E > 0), R0 without (R* = 0 there when alpha > 1: Rayleigh
+!!     to f -> 0, which would leave ratios of 0 or extreme depletions in the memory, later given to new water).
+!!     The condensate follows by mass balance, R0 q0 + E_i - R1 q1, and goes to rain and snow in proportion to the
+!!     water ones. The other changes of the water in ec_moisture (negative clip, ec_moisbalance) act at R1 (D7).
+!!     alpha from wiso_cond_mod (wiso:2d:0003, frac_lsc; 1 with frac_lsc = 0).
 !!
 !!     Convection (wiso:2c:0005): each iteration of the adjustment loop of ec_convec_two is a pure condensation of
 !!     the cell, C = q_before - q_after (E = 0 in the solution above: Rayleigh, R1 = R0 (q1/q0)^(alpha - 1)). The
@@ -233,8 +236,9 @@
             return
           endif
           rstar = eia/b
-          if (q0 <= qtiny .or. q1 <= 0.0_dblp) then    ! dry start, or everything condensed: the steady state
-            r1 = rstar
+          if (q0 <= qtiny .or. q1 <= qtiny) then       ! dry start, or (almost) everything condensed (wiso:2d:0003b):
+            r1 = r0                                    ! without evaporation, keep the ratio;
+            if (ea > 0.0_dblp) r1 = rstar              ! with evaporation, the steady state
             return
           endif
           ! (q1/q0)^(-b/(ea-ca)) = exp(-b g/q0), g = ln(1+z)/z, z = (ea-ca)/q0 > -1; g = ln(u)/(u-1) with u = 1+z
