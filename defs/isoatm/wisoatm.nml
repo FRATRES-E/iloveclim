@@ -4,7 +4,7 @@
 ! Requires adv_mode = 'fv' in namelist group moipar (namelistecbilt).
 &wisoatm_nml
   frac_mode        = 0                      ! 0 none (passive), 1 equilibrium, 2 + kinetic, for every process;
-                                            ! -1: per process below (ROADMAP 2d; available: frac_evap 0-2; others 0)
+                                            ! -1: per process below (ROADMAP 2d; available: frac_evap, frac_lsc 0-2; frac_conv 0)
   frac_evap        = 0                      ! ocean evaporation: 1 equilibrium with the ocean, 2 Craig-Gordon;
                                             ! fractionation requires EVAPSI = 1
   frac_lsc         = 0                      ! large-scale condensation: 1 equilibrium, 2 + kinetic effect for snow
@@ -47,4 +47,9 @@
   kin_wind         = .false.                ! .true.: MJ79 rough regime above 7 m/s (k18 = 0.285 u10 + 0.82 permil)
   kin_k18          = 6.0                    ! permil, k18 (MJ79 smooth regime, fig. 2; 5.2 in Zannoni et al. 2022)
   kin_kd_ratio     = -1.0                   ! kD / k18; < 0: eps_D/eps_18 from diff_form (0.88 with merlivat78, MJ79)
+  cond_temp        = 't500'                 ! condensation temperature (frac_lsc, frac_conv): 't500' or 'temp4g' (650 hPa)
+  cond_phase       = 'ramp'                 ! condensate phase: 'ramp' (liquid fraction from cond_tice to cond_tliq) or
+                                            ! 'water' (rain/snow of the water by tsurf, Roche 2013)
+  cond_tliq        =   0.0                  ! degC, all liquid above ('ramp')
+  cond_tice        = -20.0                  ! degC, all ice below ('ramp')
 /

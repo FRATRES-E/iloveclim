@@ -325,7 +325,7 @@
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
       use comdyn, only: omegg,pp
       use comphys,only: rmoisg, rowat, tzero, rmoiss, relhum, rlatsub, rlatvap, cormois, vhforg1, thforg1, dysnow, dyrain    &
-                      , cpair, dp1, ihavm, ivavm, imsink
+                      , cpair, dp1, ihavm, ivavm, imsink, temp2g, temp4g                     ! temp2g, temp4g: wiso:2d:0003
 
        use comsurf_mod, only: tsurf, evap
 
@@ -817,7 +817,8 @@
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   wiso:2c:0004 isotopologue evaporation and large-scale condensation: after ec_moisbalance below
-!           (wiso_vap_sources: both over the step in continuous time, alpha-ready; limiters ratio-consistent, D7).
+!           (wiso_vap_sources: both over the step in continuous time; limiters ratio-consistent, D7); alpha of the
+!           condensate from wiso:2d:0003 (frac_lsc, wiso_cond_mod).
 !           The legacy Rayleigh code (dmr, 2016) was removed: reference in git history (a3c0881) and the legacy zip.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -854,7 +855,8 @@
 #if ( WISOATM == 1 )
 ! dmr&clo   wiso:2c:0004 evaporation and large-scale condensation (rain, snow) of the isotopologues; the other water
 !           changes above at the resulting ratio
-        call wiso_vap_sources(rmoisg, evap, dtime*imsink, dtime*ivavm*vemoisg(:,:,iwater), dyrain, dysnow)
+        call wiso_vap_sources(rmoisg, evap, dtime*imsink, dtime*ivavm*vemoisg(:,:,iwater), dyrain, dysnow,           &
+                              temp2g, temp4g, tsurf)                       ! wiso:2d:0003 condensation temperature, phase
 #endif
 !~ #endif
 

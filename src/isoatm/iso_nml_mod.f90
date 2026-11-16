@@ -55,7 +55,7 @@
 
 #if ( WISOATM == 1 )
 
-        use global_constants_mod, only: str_len, ip, dblp=>dp
+        use global_constants_mod, only: str_len, ip, dblp=>dp, tK_zero_C
         use comatm,               only: nwisos, iwater, iwat16, iwat17, iwat18, iwat2h
         use iso_alphas,           only: ISO_FORM_LEN, iso_alphas_init, iso_alphas_report
 
@@ -69,6 +69,7 @@
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: delta_check_min, delta_check_max
         public :: kin_wind, kin_k18_frac, kin_kd_ratio
+        public :: cond_temp, cond_phase, cond_tliq_k, cond_tice_k
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -138,6 +139,16 @@
         character(len=ISO_FORM_LEN) :: kin_form = 'mj79'
         logical                :: kin_wind         = .false.
         real(dblp)             :: kin_k18          = 6.0_dblp        !< permil, smooth regime of MJ79
+! dmr&clo   wiso:2d:0003 Condensation (frac_lsc, frac_conv; wiso_cond_mod): temperature 't500' or 'temp4g'; phase 'ramp'
+!           (liquid fraction linear between cond_tice and cond_tliq, degC) or 'water' (rain/snow of the water by tsurf,
+!           Roche 2013)
+        character(len=ISO_FORM_LEN) :: cond_temp  = 't500'
+        character(len=ISO_FORM_LEN) :: cond_phase = 'ramp'
+        real(dblp)             :: cond_tliq        = 0.0_dblp        !< degC, all liquid above
+        real(dblp)             :: cond_tice        = -20.0_dblp      !< degC, all ice below
+        real(dblp)             :: cond_tliq_k      = 273.15_dblp     !< the same in K (after reading)
+        real(dblp)             :: cond_tice_k      = 253.15_dblp
+
         real(dblp)             :: kin_kd_ratio     = -1.0_dblp       !< kD / k18; < 0: eps_D/eps_18 from diff_form
 
 ! dmr&clo   Plausibility window of the delta-bound diagnostic (wiso_budget_mod, wiso:2c:0006); 17O from 18O with 0.528
@@ -154,7 +165,7 @@
                                restart_read, restart_file,                                                            &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
-                               kin_form, kin_wind, kin_k18, kin_kd_ratio
+                               kin_form, kin_wind, kin_k18, kin_kd_ratio, cond_temp, cond_phase, cond_tliq, cond_tice
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Derived ratios (set by iso_nml_read)
@@ -240,7 +251,7 @@
             frac_conv = frac_mode
           endif
           call check_frac('frac_evap', frac_evap, 2)
-          call check_frac('frac_lsc',  frac_lsc,  0)
+          call check_frac('frac_lsc',  frac_lsc,  2)
           call check_frac('frac_conv', frac_conv, 0)
 #if ( EVAPSI != 1 )
           ! dmr&clo   wiso:2d:0001 evaporation over sea ice (EVAPSI = 0): source and water bookkeeping to settle first (O45)
@@ -275,6 +286,22 @@
             stop 1
           endif
           kin_k18_frac = kin_k18 * ISO_PERMIL
+
+! dmr&clo   wiso:2d:0003 condensation settings
+          if (cond_temp /= 't500' .and. cond_temp /= 'temp4g') then
+            write(*,*) "iso_nml_read: unknown cond_temp = ", trim(cond_temp), " (t500, temp4g)"
+            stop 1
+          endif
+          if (cond_phase /= 'ramp' .and. cond_phase /= 'water') then
+            write(*,*) "iso_nml_read: unknown cond_phase = ", trim(cond_phase), " (ramp, water)"
+            stop 1
+          endif
+          if (cond_tliq <= cond_tice) then
+            write(*,*) "iso_nml_read: cond_tliq = ", cond_tliq, " must be above cond_tice = ", cond_tice
+            stop 1
+          endif
+          cond_tliq_k = cond_tliq + tK_zero_C
+          cond_tice_k = cond_tice + tK_zero_C
 
           call iso_alphas_init(alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, ok, msg)
@@ -360,6 +387,9 @@
           write(unit_chk, '(a,a,a,l1,a,f8.3,a,f8.4)') 'kinetic (frac_evap = 2): kin_form = ', trim(kin_form),         &
                                          ', kin_wind = ', kin_wind, ', kin_k18 (permil) = ', kin_k18,                    &
                                          ', kin_kd_ratio = ', kin_kd_ratio
+          write(unit_chk, '(a,a,a,a,a,f7.2,a,f7.2)') 'condensation: cond_temp = ', trim(cond_temp),                   &
+                                         ', cond_phase = ', trim(cond_phase), ', cond_tliq (degC) = ', cond_tliq,        &
+                                         ', cond_tice (degC) = ', cond_tice
           call iso_alphas_report(unit_chk)
 
         end subroutine iso_nml_write

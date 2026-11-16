@@ -35,7 +35,8 @@
 !!         Jouzel (1979), R_E = (1 - k)(R_oc/alpha - h R_v)/(1 - h), h = q10/q_s the humidity of the bulk formula of
 !!         the water flux, R_v the (column) vapour ratio, k18 from iso_nml_mod (smooth regime, or rough above 7 m/s
 !!         with kin_wind), k_i = k18 eps_i/eps_18 with eps_i = D/D_i - 1 (MJ79 eq. 11 to first order, which gives
-!!         their kD/k18 = 0.88; 17O consistently), kD optionally from kin_kd_ratio; computed as the flux E/(1 - h) (1 - k)(R_oc/alpha - h R_v), finite as h -> 1; a negative
+!!         their kD/k18 = 0.88; 17O consistently), kD optionally from kin_kd_ratio; computed as the flux
+!!         E/(1 - h) (1 - k)(R_oc/alpha - h R_v), finite as h -> 1; a negative
 !!         isotopologue flux (h R_v > R_oc/alpha) is set to 0 and counted (wisobounds_*, neclip); iwat16 follows
 !!         the water. Fractionation is refused with EVAPSI = 0 (iso_nml_mod);
 !!       - land (D10, D42): sublimation of snow at r_snow_evap, evaporation of the bucket at r_land_evap, fixed in
