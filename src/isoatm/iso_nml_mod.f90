@@ -252,7 +252,7 @@
           endif
           call check_frac('frac_evap', frac_evap, 2)
           call check_frac('frac_lsc',  frac_lsc,  2)
-          call check_frac('frac_conv', frac_conv, 0)
+          call check_frac('frac_conv', frac_conv, 2)
 #if ( EVAPSI != 1 )
           ! dmr&clo   wiso:2d:0001 evaporation over sea ice (EVAPSI = 0): source and water bookkeeping to settle first (O45)
           if (frac_evap /= 0) then

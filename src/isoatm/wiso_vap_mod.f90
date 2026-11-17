@@ -63,7 +63,9 @@
 !!     that iteration (caps and rain/snow choice inherited; DOWNSCALING = 2 cells at the cell level; DOWNSTS levels
 !!     without isotopologues). A clip of the vapour at 0 removes all its isotopologues, the precipitation keeps the
 !!     ratio of the condensate (D7). wiso_vap_conv_begin / _end bracket each iteration, wiso_vap_conv_total sums
-!!     torain, tosnow and rebuilds the vapour amounts.
+!!     torain, tosnow and rebuilds the vapour amounts. alpha (wiso:2d:0004, frac_conv): wiso_cond_mod with the same
+!!     settings as the large-scale condensation, from temp2g, temp4g and tsurf at the start of the iteration (before
+!!     its latent heating); the near-dry rule of wiso_vap_cont_ratio applies (E = 0: R0 kept).
 !!
 !!     wiso_vap_follow_water rebuilds the amounts from the ratio memory after a change of the water alone.
 !!
@@ -103,14 +105,14 @@
         real(dblp),  parameter :: WISO_RATIO_TINY = 1.0e-10_dblp           !< water below this fraction of its maximum:
                                                                            !< the cell keeps its ratio (as fvt_ffsl_mod)
         integer(ip), parameter :: WISO_NR = iwat2h - iwat17 + 1            !< species in ratio mode (17O, 18O, 2H)
-        real(dblp),  parameter :: WISO_ALPHA = 1.0_dblp                    !< condensate / vapour in convection: 1 until
-                                                                           !< 2d:0004 (large-scale: wiso_cond_mod, 2d:0003)
 
         real(dblp), allocatable, save :: wiso_rvap(:,:,:)                  !< (nlat,nlon,iwat16:iwat2h) vapour ratios
         real(dblp), allocatable, save :: wiso_qw0(:,:)                     !< water before the sources of the step
         real(dblp), allocatable, save :: wiso_dr0(:,:), wiso_ds0(:,:)      !< water rain, snow before ec_moisture adds
         real(dblp),              save :: wiso_cq0, wiso_cp0(4)             !< convection: cell water, dyrain, dysnow,
                                                                            !< corain, cosnow at the start of an iteration
+        real(dblp),              save :: wiso_ctc, wiso_cwl                !< convection: condensation temperature (K)
+                                                                           !< and liquid fraction (wiso:2d:0004)
 
       contains
 
@@ -258,23 +260,34 @@
 ! dmr&clo   Convection (wiso:2c:0005): one call pair per iteration of the adjustment loop of ec_convec_two
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-        subroutine wiso_vap_conv_begin(qw, dyr, dys, cor, cos)
+        subroutine wiso_vap_conv_begin(qw, dyr, dys, cor, cos, t2, t4, ts)
+
+          use iso_nml_mod,   only: frac_conv
+          use wiso_cond_mod, only: wiso_cond_temp, wiso_cond_liq
 
           real(dblp), intent(in) :: qw                   !< water vapour of the cell
           real(dblp), intent(in) :: dyr, dys, cor, cos   !< water dyrain, dysnow, corain, cosnow of the cell
+          real(dblp), intent(in) :: t2, t4, ts           !< temp2g, temp4g, tsurf of the cell (K; wiso:2d:0004)
 
           wiso_cq0 = qw
           wiso_cp0 = [dyr, dys, cor, cos]
+          if (frac_conv /= 0) then
+            wiso_ctc = wiso_cond_temp(t2, t4)
+            wiso_cwl = wiso_cond_liq(wiso_ctc, ts)
+          endif
 
         end subroutine wiso_vap_conv_begin
 
         subroutine wiso_vap_conv_end(i, j, qw, dyr, dys, cor, cos)
 
+          use iso_nml_mod,   only: frac_conv
+          use wiso_cond_mod, only: wiso_cond_alpha
+
           integer(ip), intent(in)    :: i, j                    !< cell
           real(dblp),  intent(in)    :: qw                      !< water vapour of the cell after the iteration
           real(dblp),  intent(inout) :: dyr(:), dys(:), cor(:), cos(:)   !< (nwisos) of the cell: isotopologues added
 
-          real(dblp)  :: c, dp(4), qtiny, r0, r1, ci, rc
+          real(dblp)  :: c, dp(4), qtiny, r0, r1, ci, rc, alpha
           integer(ip) :: k
 
           if (.not. allocated(wiso_rvap)) error stop 'wiso_vap_conv_end: no ratio memory (ec_moisture not called)'
@@ -284,7 +297,8 @@
           qtiny = WISO_RATIO_TINY*max(maxval(wiso_qw0), tiny(1.0_dblp))
           do k = iwat16, iwat2h
             r0 = wiso_rvap(i, j, k)
-            r1 = wiso_vap_cont_ratio(wiso_cq0, r0, 0.0_dblp, 0.0_dblp, c, WISO_ALPHA, qtiny)
+            alpha = wiso_cond_alpha(wiso_ctc, wiso_cwl, k, frac_conv)       ! 1 with frac_conv = 0 (wiso:2d:0004)
+            r1 = wiso_vap_cont_ratio(wiso_cq0, r0, 0.0_dblp, 0.0_dblp, c, alpha, qtiny)
             ci = r0*wiso_cq0 - r1*max(qw, 0.0_dblp)
             rc = ci/c
             dyr(k) = dyr(k) + rc*dp(1)

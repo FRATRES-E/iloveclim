@@ -246,9 +246,10 @@
           do while (iconvn.le.10) !afq -- 10 continue
 
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:2c:0005 cell water vapour and precipitation at the start of the iteration
+! dmr&clo   wiso:2c:0005 cell water vapour and precipitation at the start of the iteration;
+!           wiso:2d:0004 and its condensation temperature and phase (frac_conv)
           call wiso_vap_conv_begin(rmoisg(i,j,iwater), dyrain(i,j,iwater), dysnow(i,j,iwater),                       &
-                                   corain(i,j,iwater), cosnow(i,j,iwater))
+                                   corain(i,j,iwater), cosnow(i,j,iwater), temp2g(i,j), temp4g(i,j), tsurf(i,j))
 #endif
 
 #if ( DOWNSTS == 1 )
