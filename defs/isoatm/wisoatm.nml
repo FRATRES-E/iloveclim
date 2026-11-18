@@ -47,6 +47,7 @@
   kin_wind         = .false.                ! .true.: MJ79 rough regime above 7 m/s (k18 = 0.285 u10 + 0.82 permil)
   kin_k18          = 6.0                    ! permil, k18 (MJ79 smooth regime, fig. 2; 5.2 in Zannoni et al. 2022)
   kin_kd_ratio     = -1.0                   ! kD / k18; < 0: eps_D/eps_18 from diff_form (0.88 with merlivat78, MJ79)
+  cg_rv_gamma      = 0.0                    ! Craig-Gordon: vapour ratio = column ratio * alpha_lv(SST)**gamma (0: column)
   cond_temp        = 't500'                 ! condensation temperature (frac_lsc, frac_conv): 't500' or 'temp4g' (650 hPa)
   cond_phase       = 'ramp'                 ! condensate phase: 'ramp' (liquid fraction from cond_tice to cond_tliq) or
                                             ! 'water' (rain/snow of the water by tsurf, Roche 2013)

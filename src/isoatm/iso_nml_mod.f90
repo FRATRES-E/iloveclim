@@ -68,7 +68,7 @@
         public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: delta_check_min, delta_check_max
-        public :: kin_wind, kin_k18_frac, kin_kd_ratio
+        public :: kin_wind, kin_k18_frac, kin_kd_ratio, cg_rv_gamma
         public :: cond_temp, cond_phase, cond_tliq_k, cond_tice_k
 
 
@@ -149,6 +149,10 @@
         real(dblp)             :: cond_tliq_k      = 273.15_dblp     !< the same in K (after reading)
         real(dblp)             :: cond_tice_k      = 253.15_dblp
 
+! dmr&clo   wiso:2f:0002 Near-surface vapour ratio in the Craig-Gordon evaporation (O52): R_v = R_col alpha_lv(T_s)**gamma;
+!           0 = the column ratio (D55); gamma = 1 for an exponential humidity profile distilled from the surface (idealised)
+        real(dblp)             :: cg_rv_gamma      = 0.0_dblp
+
         real(dblp)             :: kin_kd_ratio     = -1.0_dblp       !< kD / k18; < 0: eps_D/eps_18 from diff_form
 
 ! dmr&clo   Plausibility window of the delta-bound diagnostic (wiso_budget_mod, wiso:2c:0006); 17O from 18O with 0.528
@@ -165,7 +169,8 @@
                                restart_read, restart_file,                                                            &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
-                               kin_form, kin_wind, kin_k18, kin_kd_ratio, cond_temp, cond_phase, cond_tliq, cond_tice
+                               kin_form, kin_wind, kin_k18, kin_kd_ratio, cond_temp, cond_phase, cond_tliq, cond_tice, &
+                               cg_rv_gamma
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Derived ratios (set by iso_nml_read)
@@ -286,6 +291,10 @@
             stop 1
           endif
           kin_k18_frac = kin_k18 * ISO_PERMIL
+          if (cg_rv_gamma < 0.0_dblp .or. cg_rv_gamma > 2.0_dblp) then
+            write(*,*) "iso_nml_read: cg_rv_gamma = ", cg_rv_gamma, " (0 to 2)"
+            stop 1
+          endif
 
 ! dmr&clo   wiso:2d:0003 condensation settings
           if (cond_temp /= 't500' .and. cond_temp /= 'temp4g') then
@@ -387,6 +396,7 @@
           write(unit_chk, '(a,a,a,l1,a,f8.3,a,f8.4)') 'kinetic (frac_evap = 2): kin_form = ', trim(kin_form),         &
                                          ', kin_wind = ', kin_wind, ', kin_k18 (permil) = ', kin_k18,                    &
                                          ', kin_kd_ratio = ', kin_kd_ratio
+          write(unit_chk, '(a,f7.3)') 'Craig-Gordon near-surface vapour: cg_rv_gamma = ', cg_rv_gamma
           write(unit_chk, '(a,a,a,a,a,f7.2,a,f7.2)') 'condensation: cond_temp = ', trim(cond_temp),                   &
                                          ', cond_phase = ', trim(cond_phase), ', cond_tliq (degC) = ', cond_tliq,        &
                                          ', cond_tice (degC) = ', cond_tice

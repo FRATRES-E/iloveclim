@@ -33,7 +33,8 @@
 !!         with the surface ocean, ratio_oceanatm / alpha_lv(T_ocean), T_ocean the surface temperature of the
 !!         ocean tile (that of qsurfn); frac_evap = 2 (wiso:2d:0002): Craig-Gordon with the closure of Merlivat and
 !!         Jouzel (1979), R_E = (1 - k)(R_oc/alpha - h R_v)/(1 - h), h = q10/q_s the humidity of the bulk formula of
-!!         the water flux, R_v the (column) vapour ratio, k18 from iso_nml_mod (smooth regime, or rough above 7 m/s
+!!         the water flux, R_v the vapour ratio, the column one times alpha_lv(t_ocean)**cg_rv_gamma (wiso:2f:0002, an
+!!         estimate of the near-surface vapour, O52; gamma = 0 by default: the column ratio), k18 from iso_nml_mod (smooth regime, or rough above 7 m/s
 !!         with kin_wind), k_i = k18 eps_i/eps_18 with eps_i = D/D_i - 1 (MJ79 eq. 11 to first order, which gives
 !!         their kD/k18 = 0.88; 17O consistently), kD optionally from kin_kd_ratio; computed as the flux
 !!         E/(1 - h) (1 - k)(R_oc/alpha - h R_v), finite as h -> 1; a negative
@@ -79,7 +80,7 @@
         subroutine wiso_evap_split(ev, i, j, e_ocean, e_snow, e_land, t_ocean, q_s, q_a, u10)
 
           use iso_param_mod,   only: ratio_oceanatm
-          use iso_nml_mod,     only: r_snow_evap, r_land_evap, frac_evap
+          use iso_nml_mod,     only: r_snow_evap, r_land_evap, frac_evap, cg_rv_gamma
           use iso_alphas,      only: alpha_lv
           use wiso_vap_mod,    only: wiso_vap_ratio_at
           use wiso_budget_mod, only: wiso_bud_count_eclip
@@ -95,7 +96,7 @@
           real(dblp),  intent(in), optional :: u10     !< 10 m wind speed (m/s), frac_evap = 2
 
           integer(ip) :: k
-          real(dblp)  :: h, ecg, eo
+          real(dblp)  :: h, ecg, eo, rv
 
           if (frac_evap == 0 .or. e_ocean == 0.0_dblp) then
             ! passive: the flux at the composition of each source (wiso:2c:0003)
@@ -110,8 +111,9 @@
             ecg = e_ocean*q_s/(q_s - q_a)                       ! E/(1 - h)
             ev(iwat16) = e_ocean*ratio_oceanatm(i, j, iwat16) + e_snow*r_snow_evap(iwat16) + e_land*r_land_evap(iwat16)
             do k = iwat17, iwat2h
-              eo = ecg*mj79_one_minus_k(u10, k)*(ratio_oceanatm(i, j, k)/alpha_lv(t_ocean, k)                         &
-                                                 - h*wiso_vap_ratio_at(i, j, k))
+              rv = wiso_vap_ratio_at(i, j, k)
+              if (cg_rv_gamma /= 0.0_dblp) rv = rv*alpha_lv(t_ocean, k)**cg_rv_gamma    ! wiso:2f:0002 (O52)
+              eo = ecg*mj79_one_minus_k(u10, k)*(ratio_oceanatm(i, j, k)/alpha_lv(t_ocean, k) - h*rv)
               if (eo < 0.0_dblp) then
                 eo = 0.0_dblp
                 call wiso_bud_count_eclip(k)
