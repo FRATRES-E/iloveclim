@@ -7,7 +7,7 @@ number, Instantaneous, Monthly_Means,
 Total_Monthly_Means, Yearly_Means
 multiplicative constant (units), additive constant
 --------------------------------------------------------------------------
-37
+38
 
 Total precipitation, H2 17O (amount)
 pp17	Precip_H217O		cm.yr-1	N
@@ -120,3 +120,6 @@ dxv	Vapour_dexcess		permil	N
 Vapour 17O excess (amount weighted)
 e17v	Vapour_17Oexcess		per_meg	N
 37	0	0	0	1	1.	0.
+Ocean surface humidity h, q10 over qsat(SST) (open ocean)
+hoc	Ocean_surface_h		1	N
+38	0	0	0	1	1.	0.

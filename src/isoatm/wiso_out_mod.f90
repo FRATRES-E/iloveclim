@@ -44,14 +44,16 @@
 !!                 that ratios formed offline are amount-weighted;
 !!       deltas    d18X, d17X, ddX (permil), dxX = ddX - 8 d18X (permil), e17X = ln(R17) - 0.528 ln(R18) (per meg),
 !!                 from the sums: R = sum(isotopologue)/sum(water), delta = R - 1 (rsmow = 1), never an average of deltas;
-!!                 set to fill_value where the water sum is below WO_TINY of its field maximum (no amount to weigh).
+!!                 set to fill_value where the water sum is below WO_TINY of its field maximum (no amount to weigh);
+!!       diagnostic hoc   h = q10n/qsurfn of the open-ocean tile, the humidity of the Craig-Gordon evaporation (D55;
+!!                 wiso:2f:0001), mean over the steps where the cell has open ocean, fill_value elsewhere.
 !!
 !!     Contract
 !!       wiso_out_step()              : ec_selectout, every step, before the output routines.
 !!       wiso_out_write(file, write)  : ec_outputinst / ec_outputmtl / ec_outputmyl / ec_outputyrl, with their file
 !!                                      open, before their close; writes when write is true.
 !
-!      REFERENCES: ROADMAP 2e, D40 (permil and per meg at the output boundary only).
+!      REFERENCES: ROADMAP 2e, D40 (permil and per meg at the output boundary only), 2f (hoc).
 !
 !      AUTHORS: dmr&clo
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -92,6 +94,10 @@
 
         real(dblp), allocatable, save :: smyl(:,:,:,:), syrl(:,:,:,:), smtl(:,:,:,:,:), sinst(:,:,:,:)
         real(dblp),              save :: nmyl = 0.0_dblp, nyrl = 0.0_dblp, nmtl(12) = 0.0_dblp
+
+        ! dmr&clo   wiso:2f:0001 hoc: sums of h and of the number of steps with open ocean, per cell (last index 1, 2)
+        real(dblp), allocatable, save :: hmyl(:,:,:), hyrl(:,:,:), hmtl(:,:,:,:), hinst(:,:,:)
+        integer(ip),             save :: hidx = 0                  !< output number of hoc, 0 if not declared
         logical,                 save :: myl_reset = .true.
 
       contains
@@ -107,24 +113,30 @@
 
           if (.not. ready) call setup()
           call current(sinst)
+          call current_h(hinst)
 
           if (myl_reset) then
             smyl = 0.0_dblp
             nmyl = 0.0_dblp
+            hmyl = 0.0_dblp
             myl_reset = .false.
           endif
           smyl = smyl + sinst
           nmyl = nmyl + 1.0_dblp
+          hmyl = hmyl + hinst
 
           smtl(:,:,:,:,imonth) = smtl(:,:,:,:,imonth) + sinst
           nmtl(imonth) = nmtl(imonth) + 1.0_dblp
+          hmtl(:,:,:,imonth) = hmtl(:,:,:,imonth) + hinst
 
           if (imonth == 1 .and. iday == 1 .and. diag_stepinday == 1) then
             syrl = 0.0_dblp
             nyrl = 0.0_dblp
+            hyrl = 0.0_dblp
           endif
           syrl = syrl + sinst
           nyrl = nyrl + 1.0_dblp
+          hyrl = hyrl + hinst
 
         end subroutine wiso_out_step
 
@@ -144,14 +156,19 @@
           select case (file)
           case (WO_INST)
             call current(sinst)
+            call current_h(hinst)
             call write_all(sinst, 1.0_dblp)
+            call write_h(hinst)
           case (WO_MYL)
             call write_all(smyl, nmyl)
+            call write_h(hmyl)
             myl_reset = .true.
           case (WO_MTL)
             call write_all(smtl(:,:,:,:,imonth), nmtl(imonth))
+            call write_h(hmtl(:,:,:,imonth))
           case (WO_YRL)
             call write_all(syrl, nyrl)
+            call write_h(hyrl)
           end select
 
         end subroutine wiso_out_write
@@ -205,6 +222,23 @@
 
         end subroutine write_all
 
+        ! dmr&clo   wiso:2f:0001 hoc: mean h over the steps with open ocean
+        subroutine write_h(hs)
+
+          use atmoutp_mod, only: out_write => write
+          use comdiag,     only: fill_value
+
+          real(dblp), intent(in) :: hs(:,:,:)        !< (nlat,nlon,2) sum of h, number of steps with open ocean
+
+          real(dblp) :: f(nlat, nlon, 1)
+
+          if (hidx == 0) return
+          f(:,:,1) = fill_value
+          where (hs(:,:,2) > 0.0_dblp) f(:,:,1) = hs(:,:,1)/hs(:,:,2)
+          call out_write(hidx, f)
+
+        end subroutine write_h
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Helpers
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -229,6 +263,23 @@
           enddo
 
         end subroutine current
+
+        ! dmr&clo   wiso:2f:0001 h of the open-ocean tile and its indicator for the step (as in ec_latentheat)
+        subroutine current_h(c)
+
+          use comsurf_mod, only: q10n, qsurfn, fractn, noc
+
+          real(dblp), intent(out) :: c(:,:,:)
+
+          where (fractn(:,:,noc) > 0.0_dblp .and. qsurfn(:,:,noc) > 0.0_dblp)
+            c(:,:,1) = q10n(:,:,noc)/qsurfn(:,:,noc)
+            c(:,:,2) = 1.0_dblp
+          elsewhere
+            c(:,:,1) = 0.0_dblp
+            c(:,:,2) = 0.0_dblp
+          end where
+
+        end subroutine current_h
 
         pure function species(s) result(k)
           integer(ip), intent(in) :: s
@@ -289,9 +340,17 @@
               if (trim(nametotvar(i,2)) == trim(vname(v))) vidx(v) = i
             enddo
           enddo
+          hidx = 0
+          do i = 1, numtotvar
+            if (trim(nametotvar(i,2)) == 'hoc') hidx = i
+          enddo
 
           allocate(smyl(nlat, nlon, NQ, NSP), syrl(nlat, nlon, NQ, NSP), smtl(nlat, nlon, NQ, NSP, 12))
           allocate(sinst(nlat, nlon, NQ, NSP))
+          allocate(hmyl(nlat, nlon, 2), hyrl(nlat, nlon, 2), hmtl(nlat, nlon, 2, 12), hinst(nlat, nlon, 2))
+          hmyl = 0.0_dblp
+          hyrl = 0.0_dblp
+          hmtl = 0.0_dblp
           smyl = 0.0_dblp
           syrl = 0.0_dblp
           smtl = 0.0_dblp
