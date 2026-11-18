@@ -127,7 +127,8 @@
         real(dblp)             :: theta_sv17       = 0.528_dblp      !< idem, ice-vapour
         real(dblp)             :: theta_diff17     = 0.518_dblp      !< D17/D = (D18/D)**theta (Barkan and Luz 2007)
         real(dblp)             :: ss_s0            = 1.0_dblp        !< supersaturation over ice S = ss_s0 - ss_s1 T(degC)
-        real(dblp)             :: ss_s1            = 0.004_dblp      !< (Jouzel and Merlivat 1984; 0.002 to 0.004)
+        real(dblp)             :: ss_s1            = 0.002_dblp      !< (Jouzel and Merlivat 1984; 0.002 to 0.004);
+                                                                         !< 0.002 since wiso:2f:0003 (D59, 2f run S2)
 
 ! dmr&clo   wiso:2d:0002 Kinetic fractionation of ocean evaporation (frac_evap = 2, Craig-Gordon; O4)
 !           kin_form = 'mj79': Merlivat and Jouzel (1979, eq. 9), R_E = (1 - k)(R_oc/alpha - h R_v)/(1 - h); k18 =
