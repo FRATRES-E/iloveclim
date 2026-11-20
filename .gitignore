@@ -35,10 +35,16 @@
 # Executables
 *.exe
 *.out
-*.app
+*.apip
+
+#output bash
+*.twt
 
 # debug information files
 *.dwo
+
+#to ignore netcdf files
+*.nc
 
 # More ignorance from there
 run-me.sh
@@ -47,3 +53,6 @@ wkdir
 inputs
 inputs_cpl
 std-data
+scenario
+job
+
