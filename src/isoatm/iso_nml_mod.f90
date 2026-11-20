@@ -68,7 +68,7 @@
         public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: delta_check_min, delta_check_max
-        public :: kin_wind, kin_k18_frac, kin_kd_ratio, cg_rv_gamma
+        public :: kin_wind, kin_k18_frac, kin_kd_ratio, cg_rv_gamma, bc_eq_lsc, bc_eq_conv
         public :: cond_temp, cond_phase, cond_tliq_k, cond_tice_k
 
 
@@ -154,6 +154,12 @@
 !           0 = the column ratio (D55); gamma = 1 for an exponential humidity profile distilled from the surface (idealised)
         real(dblp)             :: cg_rv_gamma      = 0.0_dblp
 
+! dmr&clo   wiso:2f:0004 Below-cloud re-equilibration of rain with the vapour (O5, O54): fraction of the step's large-scale
+!           (bc_eq_lsc) and convective (bc_eq_conv) rain brought to isotopic equilibrium with the vapour at tempsg, without
+!           exchange of water (closed system per cell); 0: none. Snow does not exchange.
+        real(dblp)             :: bc_eq_lsc        = 0.0_dblp
+        real(dblp)             :: bc_eq_conv       = 0.0_dblp
+
         real(dblp)             :: kin_kd_ratio     = -1.0_dblp       !< kD / k18; < 0: eps_D/eps_18 from diff_form
 
 ! dmr&clo   Plausibility window of the delta-bound diagnostic (wiso_budget_mod, wiso:2c:0006); 17O from 18O with 0.528
@@ -171,7 +177,7 @@
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
                                kin_form, kin_wind, kin_k18, kin_kd_ratio, cond_temp, cond_phase, cond_tliq, cond_tice, &
-                               cg_rv_gamma
+                               cg_rv_gamma, bc_eq_lsc, bc_eq_conv
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Derived ratios (set by iso_nml_read)
@@ -292,6 +298,10 @@
             stop 1
           endif
           kin_k18_frac = kin_k18 * ISO_PERMIL
+          if (bc_eq_lsc < 0.0_dblp .or. bc_eq_lsc > 1.0_dblp .or. bc_eq_conv < 0.0_dblp .or. bc_eq_conv > 1.0_dblp) then
+            write(*,*) "iso_nml_read: bc_eq_lsc = ", bc_eq_lsc, ", bc_eq_conv = ", bc_eq_conv, " (0 to 1)"
+            stop 1
+          endif
           if (cg_rv_gamma < 0.0_dblp .or. cg_rv_gamma > 2.0_dblp) then
             write(*,*) "iso_nml_read: cg_rv_gamma = ", cg_rv_gamma, " (0 to 2)"
             stop 1
@@ -398,6 +408,8 @@
                                          ', kin_wind = ', kin_wind, ', kin_k18 (permil) = ', kin_k18,                    &
                                          ', kin_kd_ratio = ', kin_kd_ratio
           write(unit_chk, '(a,f7.3)') 'Craig-Gordon near-surface vapour: cg_rv_gamma = ', cg_rv_gamma
+          write(unit_chk, '(a,f6.3,a,f6.3)') 'below-cloud re-equilibration of rain: bc_eq_lsc = ', bc_eq_lsc,             &
+                                             ', bc_eq_conv = ', bc_eq_conv
           write(unit_chk, '(a,a,a,a,a,f7.2,a,f7.2)') 'condensation: cond_temp = ', trim(cond_temp),                   &
                                          ', cond_phase = ', trim(cond_phase), ', cond_tliq (degC) = ', cond_tliq,        &
                                          ', cond_tice (degC) = ', cond_tice

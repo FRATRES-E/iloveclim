@@ -63,7 +63,12 @@
 !!     that iteration (caps and rain/snow choice inherited; DOWNSCALING = 2 cells at the cell level; DOWNSTS levels
 !!     without isotopologues). A clip of the vapour at 0 removes all its isotopologues, the precipitation keeps the
 !!     ratio of the condensate (D7). wiso_vap_conv_begin / _end bracket each iteration, wiso_vap_conv_total sums
-!!     torain, tosnow and rebuilds the vapour amounts. alpha (wiso:2d:0004, frac_conv): wiso_cond_mod with the same
+!!     torain, tosnow and rebuilds the vapour amounts; before the sums, wiso:2f:0004 (O5, O54) brings the fractions
+!!     bc_eq_lsc of the step's large-scale rain (dyrain) and bc_eq_conv of its convective rain (corain) to isotopic
+!!     equilibrium with the vapour at the near-surface air temperature tempsg, without water exchange: per cell, with
+!!     P = f W dtime the exchanging rain (W the water rain rate, so P in the units of the column vapour q), the
+!!     inventory I = P R_r + q R_v is kept and R_v' = I/(q + alpha_lv P), R_r' = alpha_lv R_v' (closed system, bounded);
+!!     large-scale first, then convective; skipped where q or W is negligible; snow does not exchange. alpha (wiso:2d:0004, frac_conv): wiso_cond_mod with the same
 !!     settings as the large-scale condensation, from temp2g, temp4g and tsurf at the start of the iteration (before
 !!     its latent heating); the near-dry rule of wiso_vap_cont_ratio applies (E = 0: R0 kept).
 !!
@@ -311,13 +316,22 @@
         end subroutine wiso_vap_conv_end
 
         ! end of ec_convec_two: total precipitation of the isotopologues, vapour amounts from the ratios
-        subroutine wiso_vap_conv_total(rmois, tor, tos, dyr, dys, cor, cos)
+        subroutine wiso_vap_conv_total(rmois, tor, tos, dyr, dys, cor, cos, ta, dt)
+
+          use iso_nml_mod, only: bc_eq_lsc, bc_eq_conv
 
           real(dblp), intent(inout) :: rmois(:,:,:)              !< (nlat,nlon,nwisos)
           real(dblp), intent(inout) :: tor(:,:,:), tos(:,:,:)    !< torain, tosnow: isotopologues set
-          real(dblp), intent(in)    :: dyr(:,:,:), dys(:,:,:), cor(:,:,:), cos(:,:,:)
+          real(dblp), intent(inout) :: dyr(:,:,:), cor(:,:,:)    !< dyrain, corain (isotopologues changed by 2f:0004)
+          real(dblp), intent(in)    :: dys(:,:,:), cos(:,:,:)
+          real(dblp), intent(in)    :: ta(:,:)                   !< tempsg (K), wiso:2f:0004
+          real(dblp), intent(in)    :: dt                        !< time step (s), rain rate to amount
 
           integer(ip) :: k
+
+          ! dmr&clo   wiso:2f:0004 below-cloud re-equilibration of rain (O5, O54)
+          if (bc_eq_lsc > 0.0_dblp) call wiso_vap_belowcloud(rmois, dyr, bc_eq_lsc, ta, dt)
+          if (bc_eq_conv > 0.0_dblp) call wiso_vap_belowcloud(rmois, cor, bc_eq_conv, ta, dt)
 
           do k = iwat16, iwat2h
             tor(:,:,k) = dyr(:,:,k) + cor(:,:,k)
@@ -327,6 +341,43 @@
           call wiso_bud_mark(WB_AT_CV)                                     ! dmr&clo wiso:2c:0006
 
         end subroutine wiso_vap_conv_total
+
+        !> Below-cloud re-equilibration of a fraction f of one rain type with the vapour (wiso:2f:0004): closed system per
+        !! cell, no water exchanged; updates the rain isotopologues and the vapour ratio memory (amounts follow later)
+        subroutine wiso_vap_belowcloud(rmois, rain, f, ta, dt)
+
+          use iso_alphas, only: alpha_lv
+
+          real(dblp), intent(in)    :: rmois(:,:,:)       !< (nlat,nlon,nwisos) column vapour; water used
+          real(dblp), intent(inout) :: rain(:,:,:)        !< (nlat,nlon,nwisos) rain rate of one type (dyrain or corain)
+          real(dblp), intent(in)    :: f                  !< exchanging fraction
+          real(dblp), intent(in)    :: ta(:,:)            !< near-surface air temperature (K)
+          real(dblp), intent(in)    :: dt                 !< time step (s)
+
+          real(dblp), parameter :: TA_MIN = 253.15_dblp   !< alpha_lv at -20 degC at least (liquid rain colder: negligible)
+          real(dblp)  :: qtiny, wtiny, q, p, rr, rv, alpha, rv1
+          integer(ip) :: i, j, k
+
+          if (.not. allocated(wiso_rvap)) call wiso_vap_ratios(rmois)
+          qtiny = WISO_RATIO_TINY*max(maxval(rmois(:,:,iwater)), tiny(1.0_dblp))
+          wtiny = WISO_RATIO_TINY*max(maxval(rain(:,:,iwater)), tiny(1.0_dblp))
+          do j = 1, nlon
+            do i = 1, nlat
+              q = rmois(i, j, iwater)
+              if (q <= qtiny .or. rain(i, j, iwater) <= wtiny) cycle
+              p = f*rain(i, j, iwater)*dt
+              do k = iwat17, iwat2h
+                rr    = rain(i, j, k)/rain(i, j, iwater)
+                rv    = wiso_rvap(i, j, k)
+                alpha = alpha_lv(max(ta(i, j), TA_MIN), k)
+                rv1   = (p*rr + q*rv)/(q + alpha*p)
+                rain(i, j, k)    = rain(i, j, k) + f*rain(i, j, iwater)*(alpha*rv1 - rr)
+                wiso_rvap(i, j, k) = rv1
+              enddo
+            enddo
+          enddo
+
+        end subroutine wiso_vap_belowcloud
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Amounts from the ratio memory

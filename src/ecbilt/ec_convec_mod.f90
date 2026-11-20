@@ -37,7 +37,7 @@
       use wiso_vap_mod, only: wiso_vap_conv_begin, wiso_vap_conv_end, wiso_vap_conv_total   ! dmr&clo wiso:2c:0005
 #endif
       use comrunlabel_mod, only: irunlabelf
-      use comsurf_mod, only: tsurf
+      use comsurf_mod, only: tsurf, tempsg                                                 ! tempsg: wiso:2f:0004
       use atm_wbudget_mod, only: wb_clip_conv     ! dmr&clo wiso:1e:0003
       use atm_thermo_mod, only: ec_qsat
       use atmphys_mod, only: ec_ptmoisgp
@@ -964,7 +964,7 @@
 !
 #if ( WISOATM == 1 )
 ! dmr&clo   wiso:2c:0005 isotopologue total precipitation; vapour amounts from the ratios of the convection steps
-      call wiso_vap_conv_total(rmoisg, torain, tosnow, dyrain, dysnow, corain, cosnow)
+      call wiso_vap_conv_total(rmoisg, torain, tosnow, dyrain, dysnow, corain, cosnow, tempsg, dtime)   ! 2f:0004
 #endif
       return
       end subroutine ec_convec_two
