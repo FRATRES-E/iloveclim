@@ -31,7 +31,7 @@ SDIR     := suite_build
 SSRC     := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
             fvt_testcases_mod.f90 fvt_ncout_mod.f90 fvt_specref_mod.f90
 
-.PHONY: all check suite realwinds clean
+.PHONY: all check suite realwinds ratiocheck clean
 
 all: $(PROGS)
 
@@ -101,5 +101,21 @@ fvt_realwinds: fvt_realwinds.f90 $(RSRC)
 	cd $(RDIR) && $(FC) $(SFLAGS) -fconvert=big-endian -I../$(TOP)/defs/ecbilt_clio/global_flags -I../$(TOP)/src/clio \
 	  ../$< *.o -o ../$@
 
+# Isotope transport checks on the wind dump (ROADMAP 2c:0001): built with the model's gfortran.options, because the
+# bit-identity of the water between density and ratio mode is a property of the compiled code
+MFLAGS := -O3 -cpp -finit-local-zero -fno-sign-zero -fdefault-real-8 -fdefault-double-8 -fno-align-commons \
+          -fconvert=big-endian -frecord-marker=4 -ffree-line-length-none
+QDIR := ratiocheck_build
+QSRC := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
+        $(SRC_FVT)/fvt_specflux_mod.f90
+
+ratiocheck: fvt_ratiocheck
+
+fvt_ratiocheck: fvt_ratiocheck.f90 $(QSRC)
+	mkdir -p $(QDIR)
+	cd $(QDIR) && for f in $(QSRC); do $(FC) $(MFLAGS) -I../$(TOP)/defs/ecbilt_clio/global_flags \
+	  -I../$(TOP)/src/clio -c ../$$f || exit 1; done
+	cd $(QDIR) && $(FC) $(MFLAGS) -I../$(TOP)/defs/ecbilt_clio/global_flags -I../$(TOP)/src/clio ../$< *.o -o ../$@
+
 clean:
-	rm -rf *.o *.mod $(PROGS) fvt_suite $(SDIR) fvt_realwinds $(RDIR)
+	rm -rf *.o *.mod $(PROGS) fvt_suite $(SDIR) fvt_realwinds $(RDIR) fvt_ratiocheck $(QDIR)

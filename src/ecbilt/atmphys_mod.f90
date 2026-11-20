@@ -68,8 +68,10 @@ contains
 #endif
 
 #if (WISOATM == 1 )
-       USE comatm, ONLY : iwater, iwat16, iwat17, iwat2h
-       USE iso_param_mod, only: datmini, delta_inv, isoatm_restart
+       USE comatm, ONLY : iwater, iwat16, iwat2h
+       USE iso_nml_mod, only: r_vap_init                          ! dmr&clo wiso:2b:0001
+       USE iso_nml_mod, only: restart_read, restart_file          ! dmr&clo wiso:2c:0002
+       USE wiso_restart_mod, only: wiso_restart_read              ! dmr&clo wiso:2c:0002
 #endif
 
 #if ( DOWNSTS == 1 )
@@ -124,7 +126,6 @@ contains
 #if (WISOATM == 1 )
 !~       REAL, DIMENSION(nlat,nlon,neauiso) :: rations
 !~       REAL, DIMENSION(nlat,nlon,neauiso) :: ration_qatm
-      real(kind=dblp), dimension(nlat,nlon), parameter :: Ones_Ecbilt = 1.0
 
 #endif
 
@@ -242,20 +243,13 @@ contains
      
 
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:2a:0002 initial isotopologues from the fixed initial deltas (datmini; namelist in wiso:2b);
-!           iwat16 starts equal to water (rsmow = 1). The binary wisoatm_restart.dat is gone: netCDF restart in wiso:2c (D34).
-        if (isoatm_restart /= 0) then
-          write(*,*) "ec_iatmphys: WISOATM_RESTART = 1 is not available until wiso:2c (netCDF isotope restart, D34)"
-          stop 1
-        endif
-
-        rmoisg(:,:,iwat16) = rmoisg(:,:,iwater)
-        torain(:,:,iwat16) = torain(:,:,iwater)
-        tosnow(:,:,iwat16) = tosnow(:,:,iwater)
-        do i=iwat17,iwat2h
-          rmoisg(:,:,i) = delta_inv(rmoisg(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
-          torain(:,:,i) = delta_inv(torain(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
-          tosnow(:,:,i) = delta_inv(tosnow(:,:,iwater),Ones_Ecbilt(:,:)*datmini(i),i)
+! dmr&clo   wiso:2b:0001 initial isotopologues from the initial vapour deltas of wisoatm.nml (ratios r_vap_init, rsmow = 1;
+!           iwat16 = water). Fixes 2a:0002, where datmini (fractions) went into delta_inv (permil): delta18O was -0.012
+!           permil instead of -12. Restart of the isotopologues: netCDF in wiso:2c (D34, restart_read in wisoatm.nml).
+        do i=iwat16,iwat2h
+          rmoisg(:,:,i) = rmoisg(:,:,iwater) * r_vap_init(i)
+          torain(:,:,i) = torain(:,:,iwater) * r_vap_init(i)
+          tosnow(:,:,i) = tosnow(:,:,iwater) * r_vap_init(i)
         enddo
 #endif
 ! Fin de l'initialisation des isotopes sans/avec relecture de fichier
@@ -263,6 +257,11 @@ contains
 
         close(iuo+95)
       endif
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0002 isotopologue restart (netCDF, D34), after the atmospheric one (exact if paired with it)
+      if (restart_read) call wiso_restart_read(restart_file)
+#endif
 
 #if ( ISM == 2 )
 ! output of orography and land-fraction
@@ -1555,7 +1554,7 @@ contains
                         rlatvap,tzero,fswdsfc
       use comsurf_mod, only: epss,nse,noc,nld,q10n,qsurfn,fractn,efluxn,evapn, &
                             evfacan,adsnow,abmoisg,abmoism,cdragvn, &
-                            pgroundn,tempsgn
+                            pgroundn,tempsgn,tsurfn                         ! tsurfn: dmr&clo wiso:2d:0001
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
@@ -1581,6 +1580,9 @@ contains
 
 #if ( IMSK == 1 )
       USE input_icemask, ONLY: icemask
+#endif
+#if ( WISOATM == 1 )
+      use wiso_evap_mod, only: wiso_evap_split                      ! dmr&clo wiso:2c:0003
 #endif
 
       implicit none
@@ -1670,11 +1672,18 @@ contains
 !~ #else
             evapn(i,j,nn,iwater)=efluxn(i,j,nn)/(rowat*rlatvap)
 !~ #endif
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0003 open ocean (and sea ice if EVAPSI = 0, D41): ocean composition (frac_evap = 0);
+!           wiso:2d:0001 frac_evap = 1: in equilibrium with the ocean at tsurfn (open ocean only: EVAPSI = 1 required);
+!           wiso:2d:0002 frac_evap = 2: Craig-Gordon with the humidities and wind of the bulk formula above
+            call wiso_evap_split(evapn(i,j,nn,:), i, j, evapn(i,j,nn,iwater), 0.0_dblp, 0.0_dblp, tsurfn(i,j,nn),      &
+                                 qsurfn(i,j,nn), q10n(i,j,nn), uv10(i,j))
+#endif
           enddo
         enddo
 
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue evaporation over the ocean goes here: fixed ratio (frac_mode = 0),
-!           then MJ79 (2d, O4). The legacy equilibrium-only version (with per-cell prints) was removed.
+! dmr&clo   wiso:2c:0003 isotopologue evaporation over the ocean: in the loop above; equilibrium since wiso:2d:0001,
+!           Craig-Gordon since 2d:0002 (O4). The legacy equilibrium-only version (with per-cell prints) was removed.
 
       else
 
@@ -1775,7 +1784,10 @@ contains
                   evapn(i,j,nld,iwater)=esnow/(rowat*rlatsub)+ &
                                                 emois/(rowat*rlatvap)
 !~ #endif
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue evaporation over land and snow goes here: fixed surface ratios (D10).
+#if ( WISOATM == 1 && ISOLBM < 1 )
+! dmr&clo   wiso:2c:0003 snow sublimated (r_snow_evap) and bucket (r_land_evap), fixed until step 3 (D10, D42)
+                  call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, esnow/(rowat*rlatsub), emois/(rowat*rlatvap))
+#endif
 #if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !      Computation of sublimation for the water isotopes
@@ -1841,6 +1853,10 @@ contains
 !~ #else
                   evapn(i,j,nld,iwater)=esubf/(rowat*rlatsub)
 !~ #endif
+#if ( WISOATM == 1 && ISOLBM < 1 )
+! dmr&clo   wiso:2c:0003 snow only
+                  call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, evapn(i,j,nld,iwater), 0.0_dblp)
+#endif
 
 #if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|
@@ -1944,6 +1960,10 @@ contains
 !~ #else
             evapn(i,j,nld,iwater)=efluxn(i,j,nld)/(rowat*rlatvap)
 !~ #endif
+#if ( WISOATM == 1 && ISOLBM < 1 )
+! dmr&clo   wiso:2c:0003 bucket only
+            call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, 0.0_dblp, evapn(i,j,nld,iwater))
+#endif
 
 #if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
 !-----|--1--------2---------3---------4---------5---------6---------7-|

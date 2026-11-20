@@ -6,6 +6,7 @@
       use atmdyn_mod, only: ec_sptogg
       USE comatm, only: 
       use comemic_mod, only: iatm
+      use comdiag, only: diag_stepinday, diag_dayend
 
 #if ( WISOATM == 1 )
       use comatm, only: iwater
@@ -14,9 +15,12 @@
 
       integer istep
 
-      if ( mod(istep,iatm) .eq. 0) then
-        call ec_selectout(istep)
-      endif
+! dmr&clo wiso:2e:0001 monthly, whole-run and yearly means over every
+!         time step (were one sample per day, at the last step of the
+!         day); the daily part of ec_selectout still runs once a day
+      diag_stepinday = mod(istep-1,iatm) + 1
+      diag_dayend    = ( mod(istep,iatm) .eq. 0 )
+      call ec_selectout(istep)
 
       call ec_outamean(istep)
       call ec_outiocht(istep)
@@ -26,6 +30,9 @@
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       subroutine ec_selectout(istep)
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_step
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine selects which kind of outputs should be written to output
 ! *** itel counts the number of days in the output interval
@@ -48,7 +55,7 @@
      &                 , q0, uvw10, cdragw
       use comdiag, only: newtotvar, minterv, meantype, meantot, ixout
      &                 , instcount, ioutyearly, itel, nvl, meanyl
-     &                 , ioutdaily
+     &                 , ioutdaily, diag_dayend
       use comemic_mod, only: iatm, iseason, iday, imonth
       use comoutlocal_mod
       use comsurf_mod
@@ -96,20 +103,6 @@
             psig(i,j,k) = psig(i,j,k)*psifac
           enddo
 
-#if ( WISOATM == 1 )
-c~           dyrain1(i,j) = (dyrain(i,j,ieau)+dysnow(i,j,ieau))*pfac
-c~           corain1(i,j) = (corain(i,j,ieau)+cosnow(i,j,ieau))*pfac
-c~           torain1(i,j) = (torain(i,j,ieau)+tosnow(i,j,ieau))*pfac
-          iso18torain(i,j) = (torain(i,j,iwat18)+tosnow(i,j,iwat18))*pfac
-          iso17torain(i,j) = (torain(i,j,iwat17)+tosnow(i,j,iwat17))*pfac
-          isodtorain(i,j) = (torain(i,j,iwat2h)+tosnow(i,j,iwat2h))*pfac
-c~           snow1(i,j)   = tosnow(i,j,ieau)*pfac
-          iso18tosnow(i,j) = tosnow(i,j,iwat18)*pfac
-          iso17tosnow(i,j) = tosnow(i,j,iwat17)*pfac
-          isodtosnow(i,j) = tosnow(i,j,iwat2h)*pfac
-c~           evap1(i,j)   = evap(i,j,ieau)*pfac
-c~ #else
-#endif
           dyrain1(i,j) = (dyrain(i,j,iwater)+dysnow(i,j,iwater))*pfac
           corain1(i,j) = (corain(i,j,iwater)+cosnow(i,j,iwater))*pfac
           torain1(i,j) = (torain(i,j,iwater)+tosnow(i,j,iwater))*pfac
@@ -145,6 +138,14 @@ c~ #else
         enddo
       enddo
 
+#if ( WISOATM == 1 )
+! dmr&clo wiso:2e:0003 isotope output sums, every step
+      call wiso_out_step
+#endif
+
+! dmr&clo wiso:2e:0001 day counters, instantaneous outputs and daily
+!         climate indices: last step of the day only
+      if (diag_dayend) then
       if(meantype.eq.2) then
         if(istep.gt.(11*30*iatm)) then
           iseason = iseason + 1
@@ -166,6 +167,8 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 #if ( CLM_INDICES >= 1 )
       call DAILYSTEP_FOR_CLIM_INDICES()
 #endif
+
+      endif
 
       if (meantype .eq. 1) then
         minterv=30
@@ -191,14 +194,19 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
         call ec_outputyrl
       endif
 
-      if (itel.eq.minterv) itel = 0
-      if (instcount.eq.ixout) instcount = 0
+      if (diag_dayend) then
+        if (itel.eq.minterv) itel = 0
+        if (instcount.eq.ixout) instcount = 0
+      endif
 
       return
       end subroutine ec_selectout
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
       SUBROUTINE ec_outputinst
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_INST
+#endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
 ! *** this routine output instantanous fields.
 ! *** complete re-write Didier M. Roche, 2020-01-24
@@ -255,25 +263,6 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
      &  , User_Assigned_T2            ! dumt2
      &  , User_Assigned_U1            ! dumu1
      &  , User_Assigned_U2            ! dumu2
-#if ( WISOATM == 1 )
-     &  , Total_Precip18              ! iso18torain
-     &  , Total_Precip17              ! iso17torain
-     &  , Total_Precipd               ! isodtorain
-     &  , Total_Snow18                ! iso18tosnow
-     &  , Total_Snow17                ! iso17tosnow
-     &  , Total_Snowd                 ! isodtosnow
-     &  , Spec_Hum_d18                ! rmoisg, iwat18
-     &  , Spec_Hum_d17                ! rmoisg, iwat17
-     &  , Spec_Hum_dd                 ! rmoisg, iwat2h
-#endif
-#if ( WISOATM == 1 )
-     &  , Land_Snow_D18               ! adsnow, iwat18
-     &  , Land_Snow_D17               ! adsnow, iwat17
-     &  , Land_Snow_Dd                ! adsnow, iwat2h
-     &  , Bottom_Mois18               ! abmoisg, iwat18
-     &  , Bottom_Mois17               ! abmoisg, iwat17
-     &  , Bottom_Moisd                ! abmoisg, iwat2h
-#endif
 
 
 
@@ -298,8 +287,6 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 
 #if ( WISOATM == 1 )
       use comatm, only: iwater, iwat18, iwat17, iwat2h
-      USE comoutlocal_mod, only: iso18torain, iso18tosnow, iso17torain
-     &                   , iso17tosnow, isodtorain, isodtosnow
 #endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
@@ -589,90 +576,13 @@ c~ #endif
          CALL write(User_Assigned_U2,mean(1:nlat,1:nlon,1:3))
       END IF
 
-#if ( WISOATM == 1 )
 
-      IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=iso18torain(1:nlat,1:nlon)
-         CALL write(Total_Precip18,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Total_Precip17,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=iso17torain(1:nlat,1:nlon)
-         CALL write(Total_Precip17,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Total_Precipd,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=isodtorain(1:nlat,1:nlon)
-         CALL write(Total_Precipd,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Total_Snow18,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=iso18tosnow(1:nlat,1:nlon)
-         CALL write(Total_Snow18,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Total_Snow17,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=iso17tosnow(1:nlat,1:nlon)
-         CALL write(Total_Snow17,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Total_Snowd,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=isodtosnow(1:nlat,1:nlon)
-         CALL write(Total_Snowd,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d18,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=rmoisg(1:nlat,1:nlon,iwat18)
-         CALL write(Spec_Hum_d18,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d17,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=rmoisg(1:nlat,1:nlon,iwat17)
-         CALL write(Spec_Hum_d17,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_dd,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=rmoisg(1:nlat,1:nlon,iwat2h)
-         CALL write(Spec_Hum_dd,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-#endif
 
 
 #if ( WISOATM == 1 )
-
-      IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=adsnow(1:nlat,1:nlon,iwat18)
-         CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Land_Snow_D17,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=adsnow(1:nlat,1:nlon,iwat17)
-         CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-       IF (output(newtotvar(Land_Snow_Dd,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=adsnow(1:nlat,1:nlon,iwat2h)
-         CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Bottom_Mois18,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=abmoisg(1:nlat,1:nlon,iwat18)
-         CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Bottom_Mois17,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=abmoisg(1:nlat,1:nlon,iwat17)
-         CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-      END IF
-
-      IF (output(newtotvar(Bottom_Moisd,IOFlag))) THEN
-         mean(1:nlat,1:nlon,1)=abmoisg(1:nlat,1:nlon,iwat2h)
-         CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-      END IF
-
+! dmr&clo wiso:2e:0003 isotope outputs of the step
+      CALL wiso_out_write(WO_INST, .TRUE.)
 #endif
-
       CALL close
 
       RETURN
@@ -682,6 +592,9 @@ c~ #endif
 !23456789012345678901234567890123456789012345678901234567890123456789012
 
       SUBROUTINE ec_outputmtl
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_MTL
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine calls another routine which computes the  whole period
 ! *** monthly or seasonal mean fields.
@@ -744,19 +657,23 @@ c~      &                 , sxvhforg1, sxvhforg2, sxvhforg3
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8!
 !
 
-      IF (itel == 0) RETURN
+! dmr&clo wiso:2e:0001 called at every step: itel = 0 only skips at the
+!         end of a day; writes at the last step of the day
+      IF (itel == 0 .AND. diag_dayend) RETURN
 
       IF (meantype == 1) THEN
          need_to_write = ( realyear == nyears .AND. imonth .GE. realmonth .AND.
      &                     iday == 30 )
          IF (.NOT. need_to_write) need_to_write = ( iyear == nyears .AND.
      &                     imonth .LT. realmonth .AND. iday == 30 )
+         need_to_write = need_to_write .AND. diag_dayend
          IF (need_to_write) CALL open(Total_Monthly_Means)
       ELSE
          need_to_write = ( realyear == nyears .AND. imonth .GE. realmonth .AND.
      &                     iseason == 90 )
          IF (.NOT. need_to_write) need_to_write = ( iyear == nyears .AND.
      &                     imonth .LT. realmonth .AND. iseason == 90 )
+         need_to_write = need_to_write .AND. diag_dayend
          IF (need_to_write) CALL open(Total_Seasonal_Means)
       END IF
 
@@ -1403,155 +1320,11 @@ c~ #endif
       END IF
 
 
+
 #if ( WISOATM == 1 )
-      IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
-         CALL ec_totstat(iso18torain(1:nlat,1:nlon),
-     &        sxtorain18(1:nlat,1:nlon,1:12),sytorain18(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Precip18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Precip17,IOFlag))) THEN
-         CALL ec_totstat(iso17torain(1:nlat,1:nlon),
-     &        sxtorain17(1:nlat,1:nlon,1:12),sytorain17(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Precip17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Precipd,IOFlag))) THEN
-         CALL ec_totstat(isodtorain(1:nlat,1:nlon),
-     &        sxtoraind(1:nlat,1:nlon,1:12),sytoraind(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Precipd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snow18,IOFlag))) THEN
-         CALL ec_totstat(iso18tosnow(1:nlat,1:nlon),
-     &        sxtosnow18(1:nlat,1:nlon,1:12),sytosnow18(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Snow18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snow17,IOFlag))) THEN
-         CALL ec_totstat(iso17tosnow(1:nlat,1:nlon),
-     &        sxtosnow17(1:nlat,1:nlon,1:12),sytosnow17(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Snow17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snowd,IOFlag))) THEN
-         CALL ec_totstat(isodtosnow(1:nlat,1:nlon),
-     &        sxtosnowd(1:nlat,1:nlon,1:12),sytosnowd(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Snowd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d18,IOFlag))) THEN
-         CALL ec_totstat(rmoisg(1:nlat,1:nlon,iwat18),
-     &        sxrmoisg18(1:nlat,1:nlon,1:12),syrmoisg18(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_d18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d17,IOFlag))) THEN
-         CALL ec_totstat(rmoisg(1:nlat,1:nlon,iwat17),
-     &        sxrmoisg17(1:nlat,1:nlon,1:12),syrmoisg17(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_d17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_dd,IOFlag))) THEN
-         CALL ec_totstat(rmoisg(1:nlat,1:nlon,iwat2h),
-     &        sxrmoisgd(1:nlat,1:nlon,1:12),syrmoisgd(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
+! dmr&clo wiso:2e:0003 isotope whole-run monthly means
+      CALL wiso_out_write(WO_MTL, need_to_write)
 #endif
-#if ( WISOATM == 1 )
-      IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
-         CALL ec_totstat(adsnow(1:nlat,1:nlon,iwat18),
-     &        sxdsnow18(1:nlat,1:nlon,1:12),sydsnow18(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Land_Snow_D17,IOFlag))) THEN
-         CALL ec_totstat(adsnow(1:nlat,1:nlon,iwat17),
-     &        sxdsnow17(1:nlat,1:nlon,1:12),sydsnow17(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Land_Snow_Dd,IOFlag))) THEN
-         CALL ec_totstat(adsnow(1:nlat,1:nlon,iwat2h),
-     &        sxdsnowd(1:nlat,1:nlon,1:12),sydsnowd(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Mois18,IOFlag))) THEN
-         CALL ec_totstat(abmoisg(1:nlat,1:nlon,iwat18),
-     &        sxbmoisg18(1:nlat,1:nlon,1:12),sybmoisg18(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Mois17,IOFlag))) THEN
-         CALL ec_totstat(abmoisg(1:nlat,1:nlon,iwat17),
-     &        sxbmoisg17(1:nlat,1:nlon,1:12),sybmoisg17(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Moisd,IOFlag))) THEN
-         CALL ec_totstat(abmoisg(1:nlat,1:nlon,iwat2h),
-     &        sxbmoisgd(1:nlat,1:nlon,1:12),sybmoisgd(1:nlat,1:nlon,1:12),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-#endif
-
       IF (need_to_write) CALL close
 
       RETURN
@@ -1569,6 +1342,7 @@ c~ #endif
       USE comatm
       USE comdiag
       use comemic_mod, only: nyears, imonth, irunlabeld, iyear, iday
+      use comemic_mod, only: iatm
       use comcoup_mod
 
 
@@ -1587,17 +1361,21 @@ c~ #endif
       if ( irunlabeld/=360 ) realmonth=(irunlabeld/30)+1
       IF (meantype == 1) THEN
          k     = imonth
-         ncase = nyears*30
+! dmr&clo wiso:2e:0001 every step: iatm samples a day; reset at the first
+!         step of the first day
+         ncase = nyears*30*iatm
          nk    = 12
-         IF (realyear == 1 .AND. imonth == realmonth .AND. iday == 1) THEN
+         IF (realyear == 1 .AND. imonth == realmonth .AND. iday == 1
+     &       .AND. diag_stepinday == 1) THEN
             sumx1(:,:,1:nk)   = 0.0
             sumy1(:,:,1:nk)   = 0.0
          END IF
       ELSE                      ! IF (meantype == 2) THEN
          k     = Mod(imonth/3,4) + 1
-         ncase = (nyears-1)*90
+         ncase = (nyears-1)*90*iatm
          nk    = 4
-         IF (realyear == 1 .AND. imonth == 12 .AND. iday == 1) then
+         IF (realyear == 1 .AND. imonth == 12 .AND. iday == 1
+     &       .AND. diag_stepinday == 1) then
             sumx1(:,:,1:nk)   = 0.0
             sumy1(:,:,1:nk)   = 0.0
          END IF
@@ -1622,6 +1400,9 @@ c~ #endif
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_outputmyl
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_MYL
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine calls another routine which computes the yearly monthly
 ! *** mean fields.
@@ -1660,10 +1441,18 @@ c~ #endif
       LOGICAL :: need_to_write
       real(kind=8), dimension(1:nlat,1:nlon,1:4) :: mean, stddev
 
-      IF (itel == 0) RETURN
+! dmr&clo wiso:2e:0001 called at every step: nstat_myl counts the steps of
+!         the interval (used by ec_stat); writes at the last step of the day
+      IF (itel == 0 .AND. diag_dayend) RETURN
+      IF (myl_newint) THEN
+         nstat_myl  = 0
+         myl_newint = .FALSE.
+      END IF
+      nstat_myl = nstat_myl + 1
 
 !mab      need_to_write = ( itel == minterv )
-      need_to_write = ( (mod(iday,30).eq.0) )
+      need_to_write = ( (mod(iday,30).eq.0) ) .AND. diag_dayend
+      IF (need_to_write) myl_newint = .TRUE.
 
       IF (need_to_write) THEN
          IF (meantype == 1) THEN
@@ -2319,155 +2108,11 @@ c~ #endif
          END IF
       END IF
 
+
 #if ( WISOATM == 1 )
-      IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
-         CALL ec_stat(iso18torain(1:nlat,1:nlon),
-     &      s1torain18(1:nlat,1:nlon),  s2torain18(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Precip18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Precip17,IOFlag))) THEN
-         CALL ec_stat(iso17torain(1:nlat,1:nlon),
-     &      s1torain17(1:nlat,1:nlon),s2torain17(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Precip17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Precipd,IOFlag))) THEN
-         CALL ec_stat(isodtorain(1:nlat,1:nlon),
-     &      s1toraind(1:nlat,1:nlon),s2toraind(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Precipd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snow18,IOFlag))) THEN
-         CALL ec_stat(iso18tosnow(1:nlat,1:nlon),
-     &      s1tosnow18(1:nlat,1:nlon),s2tosnow18(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Snow18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snow17,IOFlag))) THEN
-         CALL ec_stat(iso17tosnow(1:nlat,1:nlon),
-     &      s1tosnow17(1:nlat,1:nlon),s2tosnow17(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Snow17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snowd,IOFlag))) THEN
-         CALL ec_stat(isodtosnow(1:nlat,1:nlon),
-     &      s1tosnowd(1:nlat,1:nlon),s2tosnowd(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Total_Snowd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d18,IOFlag))) THEN
-         CALL ec_stat(rmoisg(1:nlat,1:nlon,iwat18),
-     &        s1rmoisg18(1:nlat,1:nlon),s2rmoisg18(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_d18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d17,IOFlag))) THEN
-         CALL ec_stat(rmoisg(1:nlat,1:nlon,iwat17),
-     &        s1rmoisg17(1:nlat,1:nlon),s2rmoisg17(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_d17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_dd,IOFlag))) THEN
-         CALL ec_stat(rmoisg(1:nlat,1:nlon,iwat2h),
-     &        s1rmoisgd(1:nlat,1:nlon),s2rmoisgd(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
+! dmr&clo wiso:2e:0003 isotope yearly-monthly means
+      CALL wiso_out_write(WO_MYL, need_to_write)
 #endif
-#if ( WISOATM == 1 )
-      IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
-         CALL ec_stat(adsnow(1:nlat,1:nlon,iwat18),
-     &        s1dsnow18(1:nlat,1:nlon),s2dsnow18(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Land_Snow_D17,IOFlag))) THEN
-         CALL ec_stat(adsnow(1:nlat,1:nlon,iwat17),
-     &        s1dsnow17(1:nlat,1:nlon),s2dsnow17(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Land_Snow_Dd,IOFlag))) THEN
-         CALL ec_stat(adsnow(1:nlat,1:nlon,iwat2h),
-     &        s1dsnowd(1:nlat,1:nlon),s2dsnowd(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Mois18,IOFlag))) THEN
-         CALL ec_stat(abmoisg(1:nlat,1:nlon,iwat18),
-     &        s1bmoisg18(1:nlat,1:nlon),s2bmoisg18(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Mois17,IOFlag))) THEN
-         CALL ec_stat(abmoisg(1:nlat,1:nlon,iwat17),
-     &        s1bmoisg17(1:nlat,1:nlon),s2bmoisg17(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Moisd,IOFlag))) THEN
-         CALL ec_stat(abmoisg(1:nlat,1:nlon,iwat2h),
-     &        s1bmoisgd(1:nlat,1:nlon),s2bmoisgd(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-#endif
-
       IF (need_to_write) CALL close
 
       RETURN
@@ -2493,8 +2138,10 @@ c~ #endif
       REAL*8, DIMENSION(:,:), INTENT(out)   :: xxm, xxdev
       LOGICAL,                INTENT(in)    :: compute
 
-      IF (itel /= 0) THEN
-         IF (itel == 1) THEN
+! dmr&clo wiso:2e:0001 nstat_myl steps in the interval (was itel days, of
+!         which minterv in a full interval)
+      IF (nstat_myl /= 0) THEN
+         IF (nstat_myl == 1) THEN
             sumxx  (:,:) = xx(:,:)
             sumxxsq(:,:) = xx(:,:)**2
          ELSE
@@ -2503,12 +2150,12 @@ c~ #endif
          END IF
 
          IF (compute) THEN
-            xxm  (:,:) = sumxx  (:,:)/minterv
-            xxdev(:,:) = sumxxsq(:,:) - sumxx(:,:)**2/minterv
+            xxm  (:,:) = sumxx  (:,:)/nstat_myl
+            xxdev(:,:) = sumxxsq(:,:) - sumxx(:,:)**2/nstat_myl
             WHERE (xxdev(:,:) < 0.0)
                xxdev(:,:) = 0.0
             ELSE WHERE
-               xxdev (:,:) = Sqrt(xxdev(:,:)/(minterv - 1.0))
+               xxdev (:,:) = Sqrt(xxdev(:,:)/(nstat_myl - 1.0))
             END WHERE
          END IF
       END IF
@@ -2739,6 +2386,9 @@ c~ #endif
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_outputyrl
+#if ( WISOATM == 1 )
+      use wiso_out_mod, only: wiso_out_write, WO_YRL
+#endif
 !-----------------------------------------------------------------------
 ! *** this routine calls another routine which computes the yearly mean
 ! *** written by camiel severijns, march 2001.
@@ -2800,25 +2450,6 @@ c~ #endif
      &     dt22s2, dt23s, dt23s2, du11s, du11s2, du12s,
      &     du12s2, du13s, du13s2, du21s, du21s2, du22s,
      &     du22s2, du23s, du23s2
-#if ( WISOATM == 1 )
-     &    ,torains18, torains218
-     &    ,torains17, torains217
-     &    ,torainsd, torains2d
-     &    ,tosnows18, tosnows218
-     &    ,tosnows17, tosnows217
-     &    ,tosnowsd, tosnows2d
-     &    ,rmoisg18s, rmoisg18s2
-     &    ,rmoisg17s, rmoisg17s2
-     &    ,rmoisgds,  rmoisgds2
-#endif
-#if ( WISOATM == 1 )
-     &    ,dsnows18, dsnows218
-     &    ,dsnows17, dsnows217
-     &    ,dsnowsd, dsnows2d
-     &    ,bmoisgs18, bmoisgs218
-     &    ,bmoisgs17, bmoisgs217
-     &    ,bmoisgsd, bmoisgs2d
-#endif
 
       INTERFACE
          SUBROUTINE ec_yrlstat(xx,sumxx,sumxxsq,xxm,xxdev,compute,
@@ -2847,7 +2478,10 @@ c~ #endif
 
       samples = samples + 1 ! Increment sampel counter
 
+! dmr&clo wiso:2e:0001 samples counts every step; writes at the last step
+!         of the day
       need_to_write = ( imonth == realmonth .AND. iday == 30 )
+     &                .AND. diag_dayend
 
 ! --- BdB 05-2019: calculate start time
       IF (need_to_write) THEN
@@ -3498,152 +3132,8 @@ c~ #endif
       END IF
 
 #if ( WISOATM == 1 )
-      IF (output(newtotvar(Total_Precip18,IOFlag))) THEN
-         CALL ec_yrlstat(iso18torain(1:nlat,1:nlon),
-     &      torains18(1:nlat,1:nlon),torains218(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Total_Precip18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Precip17,IOFlag))) THEN
-         CALL ec_yrlstat(iso17torain(1:nlat,1:nlon),
-     &      torains17(1:nlat,1:nlon),torains217(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Total_Precip17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Precipd,IOFlag))) THEN
-         CALL ec_yrlstat(isodtorain(1:nlat,1:nlon),
-     &      torainsd(1:nlat,1:nlon),torains2d(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Total_Precipd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snow18,IOFlag))) THEN
-         CALL ec_yrlstat(iso18tosnow(1:nlat,1:nlon),
-     &      tosnows18(1:nlat,1:nlon),tosnows218(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Total_Snow18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snow17,IOFlag))) THEN
-         CALL ec_yrlstat(iso17tosnow(1:nlat,1:nlon),
-     &      tosnows17(1:nlat,1:nlon),tosnows217(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Total_Snow17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Total_Snowd,IOFlag))) THEN
-         CALL ec_yrlstat(isodtosnow(1:nlat,1:nlon),
-     &      tosnowsd(1:nlat,1:nlon),tosnows2d(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Total_Snowd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d18,IOFlag))) THEN
-         CALL ec_yrlstat(rmoisg(1:nlat,1:nlon,iwat18),
-     &        rmoisg18s(1:nlat,1:nlon),rmoisg18s2(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_d18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_d17,IOFlag))) THEN
-         CALL ec_yrlstat(rmoisg(1:nlat,1:nlon,iwat17),
-     &        rmoisg17s(1:nlat,1:nlon),rmoisg17s2(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_d17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-      IF (output(newtotvar(Spec_Hum_dd,IOFlag))) THEN
-         CALL ec_yrlstat(rmoisg(1:nlat,1:nlon,iwat2h),
-     &        rmoisgds(1:nlat,1:nlon),rmoisgds2(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Spec_Hum_dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-
-#endif
-#if ( WISOATM == 1 )
-      IF (output(newtotvar(Land_Snow_D18,IOFlag))) THEN
-         CALL ec_yrlstat(adsnow(1:nlat,1:nlon,iwat18),
-     &        dsnows18(1:nlat,1:nlon),dsnows218(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Land_Snow_D17,IOFlag))) THEN
-         CALL ec_yrlstat(adsnow(1:nlat,1:nlon,iwat17),
-     &        dsnows17(1:nlat,1:nlon),dsnows217(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Land_Snow_Dd,IOFlag))) THEN
-         CALL ec_yrlstat(adsnow(1:nlat,1:nlon,iwat2h),
-     &        dsnowsd(1:nlat,1:nlon),dsnows2d(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Mois18,IOFlag))) THEN
-         CALL ec_yrlstat(abmoisg(1:nlat,1:nlon,iwat18),
-     &        bmoisgs18(1:nlat,1:nlon),bmoisgs218(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D18,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Mois17,IOFlag))) THEN
-         CALL ec_yrlstat(abmoisg(1:nlat,1:nlon,iwat17),
-     &        bmoisgs17(1:nlat,1:nlon),bmoisgs217(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_D17,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
-      IF (output(newtotvar(Bottom_Moisd,IOFlag))) THEN
-         CALL ec_yrlstat(abmoisg(1:nlat,1:nlon,iwat2h),
-     &        bmoisgsd(1:nlat,1:nlon),bmoisgs2d(1:nlat,1:nlon),
-     &        mean (1:nlat,1:nlon,1),   stddev(1:nlat,1:nlon,1),
-     &        need_to_write,samples)
-         IF (need_to_write) THEN
-            CALL write(Land_Snow_Dd,mean(1:nlat,1:nlon,1:1))
-         END IF
-      END IF
+! dmr&clo wiso:2e:0003 isotope yearly means
+      CALL wiso_out_write(WO_YRL, need_to_write)
 #endif
       IF (need_to_write) THEN
          CALL close
@@ -3680,7 +3170,8 @@ c~ #endif
       INTEGER,                INTENT(in)    :: samples
 
 
-      IF (imonth == 1 .AND. iday == 1) THEN
+! dmr&clo wiso:2e:0001 reset at the first step of the year only
+      IF (imonth == 1 .AND. iday == 1 .AND. diag_stepinday == 1) THEN
          sumx1(:,:) = 0.0
          sumy1(:,:) = 0.0
       END IF

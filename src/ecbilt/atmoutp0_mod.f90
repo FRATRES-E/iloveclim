@@ -92,23 +92,6 @@
       PUBLIC :: Surface_Shortwave_Radiation !mohr
       PUBLIC :: Surface_Longwave_Radiation  !mohr
 
-#if ( WISOATM == 1 )
-      PUBLIC :: Total_Precip18
-      PUBLIC :: Total_Snow18
-      PUBLIC :: Total_Precip17
-      PUBLIC :: Total_Snow17
-      PUBLIC :: Total_Precipd
-      PUBLIC :: Total_Snowd
-      PUBLIC :: Bottom_Mois18
-      PUBLIC :: Bottom_Mois17
-      PUBLIC :: Bottom_Moisd
-      PUBLIC :: Land_Snow_D18
-      PUBLIC :: Land_Snow_D17
-      PUBLIC :: Land_Snow_Dd
-      PUBLIC :: Spec_Hum_d18
-      PUBLIC :: Spec_Hum_d17
-      PUBLIC :: Spec_Hum_dd
-#endif
 
 !     Codes for three dimensional fields
       PUBLIC :: Temperature
@@ -237,51 +220,13 @@
       INTEGER, PARAMETER :: Surface_Shortwave_Radiation = 32
       INTEGER, PARAMETER :: Surface_Longwave_Radiation  = 33 !mohr
       INTEGER, PARAMETER :: num_noiso_var               = 33
-#if ( WISOATM == 1 )
-      INTEGER, PARAMETER :: Total_Precip18          = 34
-      INTEGER, PARAMETER :: Total_Snow18            = 35
-      INTEGER, PARAMETER :: Total_Precip17          = 36
-      INTEGER, PARAMETER :: Total_Snow17            = 37
-      INTEGER, PARAMETER :: Total_Precipd           = 38
-      INTEGER, PARAMETER :: Total_Snowd             = 39
-      INTEGER, PARAMETER :: Bottom_Mois18           = 40
-      INTEGER, PARAMETER :: Bottom_Mois17           = 41
-      INTEGER, PARAMETER :: Bottom_Moisd            = 42
-      INTEGER, PARAMETER :: Land_Snow_D18           = 43
-      INTEGER, PARAMETER :: Land_Snow_D17           = 44
-      INTEGER, PARAMETER :: Land_Snow_Dd            = 45
-      INTEGER, PARAMETER :: Spec_Hum_d18            = 46
-      INTEGER, PARAMETER :: Spec_Hum_d17            = 47
-      INTEGER, PARAMETER :: Spec_Hum_dd             = 48
-#endif
 
-#if ( WISOATM == 1 )
-      INTEGER, PARAMETER :: Number_of_2D_Fields     = 48
-#else
+! dmr&clo   wiso:2e:0002 one numbering with and without WISOATM; the isotope variables are read from their own file
+!           (outp_wisoatm.param) and numbered after these
       INTEGER, PARAMETER :: Number_of_2D_Fields     = 33
-#endif
 
 !dmr ###     INTEGER, PARAMETER :: Number_of_2D_Fields       = 31
 
-#if ( WISOATM == 1 )
-!     Three dimensional fields
-      INTEGER, PARAMETER :: Temperature                 =  49
-      INTEGER, PARAMETER :: Wind_U                      =  50
-      INTEGER, PARAMETER :: Wind_V                      =  51
-      INTEGER, PARAMETER :: Vertical_Pressure_Wind      =  52
-      INTEGER, PARAMETER :: Stream_Function             =  53
-      INTEGER, PARAMETER :: Velocity_Potential          =  54
-      INTEGER, PARAMETER :: Heating_Force               =  55
-      INTEGER, PARAMETER :: Potential_Vorticity_Forcing =  56
-      INTEGER, PARAMETER :: Ageostrophic_Wind_U         =  57
-      INTEGER, PARAMETER :: Ageostrophic_Wind_V         = 58
-      INTEGER, PARAMETER :: QG_Potential_Vorticity      = 59
-      INTEGER, PARAMETER :: Geopotential_Height         = 60
-      INTEGER, PARAMETER :: User_Assigned_T1            = 61
-      INTEGER, PARAMETER :: User_Assigned_T2            = 62
-      INTEGER, PARAMETER :: User_Assigned_U1            = 63
-      INTEGER, PARAMETER :: User_Assigned_U2            = 64
-#else
 !     Three dimensional fields
       INTEGER, PARAMETER :: Temperature                 =  34
       INTEGER, PARAMETER :: Wind_U                      =  35
@@ -300,7 +245,6 @@
       INTEGER, PARAMETER :: User_Assigned_U1            = 48
       INTEGER, PARAMETER :: User_Assigned_U2            = 49
 
-#endif
 
       INTEGER, PARAMETER :: Number_of_3D_Fields = 16
 

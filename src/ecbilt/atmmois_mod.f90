@@ -1,3 +1,4 @@
+#include "choixcomposantes.h"
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !
 !>      VUA and IPSL/LSCE by the iLOVECLIM / LUDUS coding group / Within the LUDUS code environement
@@ -317,11 +318,14 @@
       use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use atm_fvmois_mod, only: atm_fvmois_is_on, atm_fvmois_step     ! dmr&clo wiso:1e:0002
       use atm_wbudget_mod, only: atm_wb_transport, atm_wb_moisbalance_pre, atm_wb_moisbalance_post   ! dmr&clo wiso:1e:0003
+#if ( WISOATM == 1 )
+      use wiso_vap_mod, only: wiso_vap_transport, wiso_vap_keep_water, wiso_vap_sources   ! dmr&clo wiso:2c:0001, 0004
+#endif
       use global_constants_mod, only: dblp=>dp, ip
       use comatm, only: nlat, nlon, nsh, nsh2, nvl, dtime, grav, nm, ntl, plevel, iwater, nwisos
       use comdyn, only: omegg,pp
       use comphys,only: rmoisg, rowat, tzero, rmoiss, relhum, rlatsub, rlatvap, cormois, vhforg1, thforg1, dysnow, dyrain    &
-                      , cpair, dp1, ihavm, ivavm, imsink
+                      , cpair, dp1, ihavm, ivavm, imsink, temp2g, temp4g                     ! temp2g, temp4g: wiso:2d:0003
 
        use comsurf_mod, only: tsurf, evap
 
@@ -499,7 +503,12 @@
 
         cormois(:,:,iwater) = 0.0_dblp
         hdivmg(:,:,iwater)  = 0.0_dblp
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0001 all species: water exactly as below, isotopologues in ratio mode (D30), iwat16 as a density (D32)
+        if (ihavm /= 0) call wiso_vap_transport(rmoisg)
+#else
         if (ihavm /= 0) call atm_fvmois_step(rmoisg(:,:,iwater))
+#endif
 
       else
 
@@ -533,8 +542,13 @@
       endif
 !~ #endif /* On ISOATM >= 1 */
 
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue transport goes here: FV ratio mode on the water fluxes (D30),
-!           iwat16 in density mode (D32). The legacy per-isotope spectral loop was removed (D3, D29).
+! dmr&clo   wiso:2c:0001 isotopologue transport: in the FV branch above (wiso_vap_transport). The legacy per-isotope
+!           spectral loop was removed (D3, D29).
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0004 water vapour, rain and snow before the sources of the step (isotopologues: after ec_moisbalance)
+      call wiso_vap_keep_water(rmoisg, dyrain, dysnow)
+#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr  2.0) Vertical advection of moisture
@@ -802,8 +816,9 @@
       call atm_wb_transport(hdivmg(:,:,iwater), hdmoisg(:,:,iwater))
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologue sources and sinks go here: evaporation, then large-scale condensation
-!           in the before/after (Rayleigh) form of ROADMAP 3.2, order D36; limiters ratio-consistent (D7).
+! dmr&clo   wiso:2c:0004 isotopologue evaporation and large-scale condensation: after ec_moisbalance below
+!           (wiso_vap_sources: both over the step in continuous time; limiters ratio-consistent, D7); alpha of the
+!           condensate from wiso:2d:0003 (frac_lsc, wiso_cond_mod).
 !           The legacy Rayleigh code (dmr, 2016) was removed: reference in git history (a3c0881) and the legacy zip.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -836,6 +851,13 @@
         call atm_wb_moisbalance_pre
         call ec_moisbalance(iwater)
         call atm_wb_moisbalance_post
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0004 evaporation and large-scale condensation (rain, snow) of the isotopologues; the other water
+!           changes above at the resulting ratio
+        call wiso_vap_sources(rmoisg, evap, dtime*imsink, dtime*ivavm*vemoisg(:,:,iwater), dyrain, dysnow,           &
+                              temp2g, temp4g, tsurf)                       ! wiso:2d:0003 condensation temperature, phase
+#endif
 !~ #endif
 
         returnValue = .true.

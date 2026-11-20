@@ -109,23 +109,16 @@
 
 !
 ! 0 do not compute water isotopes in the atmosphere
-! 1 water isotopes are advected in the atmosphere without fractionnation
-! 2 water isotopes computed following MJ79's methodology and definitions
-! 3 water isotopes computed according to the full definition of Roche (2011)
+! 1 compute water isotopes in the atmosphere (tracer dimension nwisos = 5)
+!   (replaces the legacy ISOATM = 0/1/2/3, removed in wiso:2a:0001; physics options become runtime settings)
 !
-!#define ISOATM 0
-! New iso switches should be 0/1
 #define WISOATM 0
-#define WISOATM_RESTART 0
-!
-! 0 use equilibrium solid vapor fractionnation
-! 1 use Jouzel & Merlivat (1984) formulation for effective kinetic SV fractionnation
-!   requires ISOATM == 2
-#define FRAC_KINETIK 0
+!   (WISOATM_RESTART and FRAC_KINETIK removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml)
 
 !
 ! 0 do not link surface isotopic content of land to atmosphere (fixed values for rmoisg)
 ! 1 water isotopes are computed in surface water content (bmoisg prognostic)
+!   (legacy land isotope coupling, not available until its migration, ROADMAP step 3)
 !
 #define ISOLBM 0
 ! New iso switches should be 0/1

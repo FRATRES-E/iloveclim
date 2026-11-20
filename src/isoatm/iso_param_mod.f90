@@ -90,40 +90,9 @@
                                       , M19 = MH + M2H + MO16, M32 = MO16 + MO16, M33 = MO16 + MO17, M34 = MO16 + MO18
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      For kinetic fractionation, use diffusivity coefficient as defined
-!      in reference document. Please note that the coefficient is in the
-!      form [Di/D]^n, the coefficients given here are the Di/D
-!      Given the formulation used (cf. ref. document), there is no such
-!      coefficient for ieau or ieau16. Thus, they are set to 1.0
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!      Values are coming from Merlivat, 1978 & Barkan and Luz, 2007
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER :: Diff = [1.0d0, 1.0d0, 0.9855d0, 0.9723d0, 0.9755d0]
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!      For the special case of the ocean, we want the formulation to be
-!      still in the type of [Di/D], though it is fixed in Merlivat and
-!      Jouzel, 1979 that epsilon_k = alpha_k + 1 = 6 per mil for 18O.
-!      Thus, n_ka_oc is fixed to ca. 0.214
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-!      However, it is also fixed in Merlivat and Jouzel, 1979 that
-!      epsilon_k = alpha_k + 1 = 6 *0.88 per mil for D. 
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER, PRIVATE ::                                                                 &
-         n_ka_oc = [1.0_dblp,1.0_dblp,LOG(1.0_dblp-6.0E-3_dblp)/LOG(Diff(iwat18)),  LOG(1.0_dblp-6.0E-3_dblp)/LOG(Diff(iwat18)), &
-                                      LOG(1.0_dblp-6.0E-3_dblp)/LOG(Diff(iwat18))]
-
-!      From these considerations, it naturally folows that the kinetic
-!      fractionation coefficients are, for the ocean:
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER :: alpha_diff_oc = Diff**n_ka_oc
-
-!      Kinetic fractionnation coefficient for the land surface
-!      evaporation
-
-!      First guess
-       REAL(kind=dblp), PARAMETER, PRIVATE           :: n_ka_lnd = 0.57_dblp
-
-       REAL(kind=dblp), DIMENSION(nwisos), PARAMETER :: alpha_diff_lnd = Diff**n_ka_lnd
+! dmr&clo   wiso:2b:0002 the diffusivity ratios (Diff) moved to iso_alphas (diff_ratio, selectable, D35). The kinetic
+!           evaporation coefficients alpha_diff_oc (MJ79, epsilon_k = 6 permil for 18O, n_ka_oc applied to all species)
+!           and alpha_diff_lnd (n_ka_lnd = 0.57) were unused and are removed: they come back with MJ79 in ROADMAP 2d (O4).
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr   Moved here the remnants of isoatm_mod ...
@@ -132,15 +101,13 @@
        REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_oceanatm
        REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_evap_ocean, ratio_evap_land, ratio_evap_snow
 
-       REAL(kind=dblp), PARAMETER                     :: fac_17Oexc = 0.528_dblp
 
-       REAL(kind=dblp), PARAMETER :: d18atmini = -12.E-3_dblp,                                            &
-                        datmini(nwisos) = [0._dblp,0._dblp,(d18atmini+1._dblp)**fac_17Oexc-1.0_dblp, d18atmini,d18atmini*8._dblp]
-
+! dmr&clo   wiso:2b:0001 the initial vapour deltas (datmini) are in wisoatm.nml (iso_nml_mod, r_vap_init)
+! dmr&clo   dlbmini: initial land isotopes, used only by the legacy land code parked under ISOLBM >= 1 (step 3)
        REAL(kind=dblp), PARAMETER :: d18lbmini = -30.E-3_dblp,                                            &
                         dlbmini(nwisos) = [0.d0,0.d0,(d18lbmini+1.0d0)**0.528d0-1.0, d18lbmini,d18lbmini*8._dblp]
 
-       INTEGER(kind=ip),PARAMETER :: isoatm_restart = WISOATM_RESTART
+! dmr&clo   wiso:2b:0001 isoatm_restart (cpp WISOATM_RESTART) replaced by restart_read in wisoatm.nml (D34)
        
 ! dmr --- [TODO] isolbm_restart should be moved in an other, more logical place!       
        INTEGER(kind=ip),PARAMETER :: isolbm_restart = WISOLND_RESTART
@@ -151,6 +118,8 @@
 
           CONTAINS
 
+! dmr&clo   wiso:2b:0001 convention: deltas and excesses below are plain fractions (order 1e-3), never multiplied by 1000;
+!           permil and per meg appear only at the input/output boundary (namelist, input files, outputs).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       Routine pour le calcul du deuterium-excess
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -172,7 +141,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-          h2excess=(d/rsmow(iwat2h)-1.0_dblp)*1000._dblp-8.0_dblp*(o/rsmow(iwat18)-1.0_dblp)*1000._dblp
+          h2excess=(d/rsmow(iwat2h)-1.0_dblp)-8.0_dblp*(o/rsmow(iwat18)-1.0_dblp)   ! dmr&clo wiso:2b:0001 fraction, not permil
 
         end function dexcess
 
@@ -202,7 +171,7 @@
        delta_val = 0._dblp
 
        if (rwat.gt.epsilon(rwat)) then
-         delta_val = (riso/rwat/rsmow(n) - 1._dblp) * 1000._dblp
+         delta_val = (riso/rwat/rsmow(n) - 1._dblp)   ! dmr&clo wiso:2b:0001 fraction, not permil
        endif
 
        end function delta
@@ -231,7 +200,7 @@
 !      Variables locales
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 
-       riso_val = rwat * rsmow(n) * (diso/1000._dblp + 1._dblp) 
+       riso_val = rwat * rsmow(n) * (diso + 1._dblp)   ! dmr&clo wiso:2b:0001 diso is a fraction, not permil
 
        end function delta_inv
        
@@ -261,7 +230,7 @@
        delta_val = 0._dblp
 
 !~        if (rwat.gt.epsilon(rwat)) then
-         delta_val = (riso/rsmow(n) - 1._dblp) * 1000._dblp
+         delta_val = (riso/rsmow(n) - 1._dblp)   ! dmr&clo wiso:2b:0001 fraction, not permil
 !~        endif
 
        end function deltaR

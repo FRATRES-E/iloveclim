@@ -57,9 +57,6 @@
        real(dblp), dimension(nlat,nlon) ::  tsurf1, temp4g1, temp2g1, tempsg1, albep, temp0g1, dyrain1, corain1, torain1, evap1    &
                                            ,eminp1, hesw, nlrads, runofl1, runofo1, winstu1, winstv1, snow1, swrs1, lwrs1
 
-#if ( WISOATM == 1 )
-       real(dblp), dimension(nlat,nlon) :: iso18torain, iso18tosnow, iso17torain, iso17tosnow, isodtorain, isodtosnow
-#endif
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      End of the module here

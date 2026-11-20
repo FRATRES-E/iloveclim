@@ -1,0 +1,58 @@
+! Water isotopes in the ECBilt atmosphere (WISOATM = 1): runtime settings, read by iso_nml_mod (ROADMAP D6, step 2b).
+! Deltas: d18o_* and dexc_* in permil (dD = 8 d18O + dexc), o17exc_* in per meg
+!         (ln(d17O + 1) = 0.528 ln(d18O + 1) + o17exc).
+! Requires adv_mode = 'fv' in namelist group moipar (namelistecbilt).
+&wisoatm_nml
+  frac_mode        = 0                      ! 0 none (passive), 1 equilibrium, 2 + kinetic, for every process;
+                                            ! -1: per process below (ROADMAP 2d)
+  frac_evap        = 0                      ! ocean evaporation: 1 equilibrium with the ocean, 2 Craig-Gordon;
+                                            ! fractionation requires EVAPSI = 1
+  frac_lsc         = 0                      ! large-scale condensation: 1 equilibrium, 2 + kinetic effect for snow
+  frac_conv        = 0                      ! convection: idem
+
+  d18o_vap_init    = -12.0                  ! initial vapour
+  dexc_vap_init    =   0.0
+  o17exc_vap_init  =   0.0
+
+  d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (until step 3)
+  dexc_land_evap   =   0.0
+  o17exc_land_evap =   0.0
+  d18o_snow_evap   = -12.0                  ! idem over snow
+  dexc_snow_evap   =   0.0
+  o17exc_snow_evap =   0.0
+
+  ocean_ratio_mode = 'file'                 ! 'file' (d18O map below) or 'fixed' (d18o_ocean everywhere)
+  ocean_d18o_file  = 'inputdata/isoatm/calculated_d18O_v1_1-T21.nc'
+  d18o_ocean       =   0.0                  ! 'fixed' only
+  dexc_ocean       =   0.0                  ! both modes
+  o17exc_ocean     =   0.0                  ! both modes
+
+  restart_read     = .false.                ! netCDF isotope restart, written as restartdata/resYYYYYY/wisoatm_restartYYYYYY.nc
+  restart_file     = 'startdata/wisoatm_restart.nc'
+
+  alpha_lv_form    = 'majoube71'            ! liquid-vapour equilibrium: majoube71 | horita94
+  alpha_sv_form    = 'majoube70_mn67'       ! ice-vapour equilibrium: majoube70_mn67 | ellehoj13
+  diff_form        = 'merlivat78'           ! diffusivity ratios: merlivat78 | cappa03
+  theta_lv17       = 0.529                  ! alpha17 = alpha18**theta, liquid-vapour
+  theta_sv17       = 0.528                  ! idem, ice-vapour
+  theta_diff17     = 0.518                  ! D17/D = (D18/D)**theta
+  ss_s0            = 1.0                    ! supersaturation over ice for snow: S = ss_s0 - ss_s1 * T(degC)
+  ss_s1            = 0.002                  ! 0.002 to 0.004 (Jouzel and Merlivat 1984); 0.002 since 2f (polar d-excess)
+
+  d18o_check_min   = -100.0                 ! plausibility window of the delta-bound diagnostic (wisobounds_*.txt)
+  d18o_check_max   =   50.0
+  dd_check_min     = -800.0
+  dd_check_max     =  400.0
+  kin_form         = 'mj79'                 ! kinetic fractionation of ocean evaporation (frac_evap = 2): mj79
+  kin_wind         = .false.                ! .true.: MJ79 rough regime above 7 m/s (k18 = 0.285 u10 + 0.82 permil)
+  kin_k18          = 6.0                    ! permil, k18 (MJ79 smooth regime, fig. 2; 5.2 in Zannoni et al. 2022)
+  kin_kd_ratio     = -1.0                   ! kD / k18; < 0: eps_D/eps_18 from diff_form (0.88 with merlivat78, MJ79)
+  cg_rv_gamma      = 0.0                    ! Craig-Gordon: vapour ratio = column ratio * alpha_lv(SST)**gamma (0: column)
+  bc_eq_lsc        = 0.0                    ! below-cloud re-equilibration of large-scale rain with the vapour (0-1)
+  bc_eq_conv       = 0.0                    ! idem, convective rain (0-1)
+  cond_temp        = 't500'                 ! condensation temperature (frac_lsc, frac_conv): 't500' or 'temp4g' (650 hPa)
+  cond_phase       = 'ramp'                 ! condensate phase: 'ramp' (liquid fraction from cond_tice to cond_tliq) or
+                                            ! 'water' (rain/snow of the water by tsurf, Roche 2013)
+  cond_tliq        =   0.0                  ! degC, all liquid above ('ramp')
+  cond_tice        = -20.0                  ! degC, all ice below ('ramp')
+/

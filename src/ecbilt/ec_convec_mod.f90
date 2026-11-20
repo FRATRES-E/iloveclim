@@ -33,8 +33,11 @@
                          tzero, rmoisg, temp2g, temp4g, dyrain, dysnow, &
                          corain, cosnow, thforg2, vhforg1, vhforg2, tetacr, &
                          gams, teta, torain, tosnow
+#if ( WISOATM == 1 )
+      use wiso_vap_mod, only: wiso_vap_conv_begin, wiso_vap_conv_end, wiso_vap_conv_total   ! dmr&clo wiso:2c:0005
+#endif
       use comrunlabel_mod, only: irunlabelf
-      use comsurf_mod, only: tsurf
+      use comsurf_mod, only: tsurf, tempsg                                                 ! tempsg: wiso:2f:0004
       use atm_wbudget_mod, only: wb_clip_conv     ! dmr&clo wiso:1e:0003
       use atm_thermo_mod, only: ec_qsat
       use atmphys_mod, only: ec_ptmoisgp
@@ -241,6 +244,13 @@
 #endif
 
           do while (iconvn.le.10) !afq -- 10 continue
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0005 cell water vapour and precipitation at the start of the iteration;
+!           wiso:2d:0004 and its condensation temperature and phase (frac_conv)
+          call wiso_vap_conv_begin(rmoisg(i,j,iwater), dyrain(i,j,iwater), dysnow(i,j,iwater),                       &
+                                   corain(i,j,iwater), cosnow(i,j,iwater), temp2g(i,j), temp4g(i,j), tsurf(i,j))
+#endif
 
 #if ( DOWNSTS == 1 )
 
@@ -848,6 +858,12 @@
             endif ! on sub_grid being flat or not ...
 #endif /* on DOWNSCALING == 2 */
 
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0005 condensation of the iteration (both branches): Rayleigh step of the isotopologues, condensate to
+!           the precipitation as the water
+            call wiso_vap_conv_end(i, j, rmoisg(i,j,iwater), dyrain(i,j,:), dysnow(i,j,:), corain(i,j,:), cosnow(i,j,:))
+#endif
+
             if (teta(i,j) .lt. (tetacr(i,j)-0.1)) then
 
 
@@ -946,7 +962,10 @@
 
 
 !
-! dmr&clo   wiso:2a:0002 [wiso:2c] isotopologues in convective rain and snow go here (ratio-consistent, D7, D36)
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:2c:0005 isotopologue total precipitation; vapour amounts from the ratios of the convection steps
+      call wiso_vap_conv_total(rmoisg, torain, tosnow, dyrain, dysnow, corain, cosnow, tempsg, dtime)   ! 2f:0004
+#endif
       return
       end subroutine ec_convec_two
    
