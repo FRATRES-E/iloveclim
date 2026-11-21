@@ -10,6 +10,11 @@
 
       public
 
+        ! Fate of the snow above dsnm in lbm_landprecip (wiso:3a:0000)
+      integer, parameter :: snow_excess_bucket = 1 ! into the soil water (bmoisg), the heat counted in heatsnown/s
+      integer, parameter :: snow_excess_out    = 2 ! removed from the snow only (icebergs, ICEBERG == 2)
+      integer, parameter :: snow_excess_keep   = 0 ! no cap (ICEBERG == 2 with ISM == 2)
+
       contains
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -453,18 +458,10 @@
       use comemic_mod, only: iatm
       use comland_mod, only: iscenland
 
-! add use statements for call of subroutine ec_landcoverupdate, ec_landtemp, ec_landprecip
-      use comland_mod, only: albland, forestfr, fractl, albsnow,meltheat,tland,nethfxland,landheat,dsnow,evapl,bmoisg,snowf  &
-                     , rainf,dareas,alblbm
-
-      ! TEMPORARY ADD ON
-      use comland_mod, only: betam, heatsnown, heatsnows, dareas
+! add use statements for call of subroutine ec_landcoverupdate, ec_landalbedo
+      use comland_mod, only: albland, forestfr, albsnow, dsnow, alblbm, fractl
 
       use input_icemask, only: icemask
-
-#if (IMSK == 1)
-      USE input_icemask
-#endif
 
 #if ( F_PALAEO_FWF ==2 )
       use comsurf_mod, only: thi_chge
@@ -479,8 +476,6 @@
       integer ist,jst,kst,istep,longit
 
       integer :: i,j
-
-      real(kind=dblp), dimension(nlat,nlon) :: snowdiff
 
       istep=(ist-1)*iatm+jst
 
@@ -505,34 +500,7 @@
 
       if (iscenland.eq.1) call ec_landcoverupdate(istep,kst,fractl,albland,forestfr,albsnow)
 
-      call ec_landtemp(fractl,meltheat,icemask,tland,nethfxland,landheat,dsnow)
-      call ec_landprecip(istep,landheat,evapl,bmoisg,dsnow,snowf,rainf,meltheat,dareas,fractl)
-
-! dmr --- Updated the code to bring the loop outside and be point independent
-
-!~       heatsnown = 0.0_dblp
-!~       heatsnows = 0.0_dblp
-
-!~       do j=1,nlon
-!~         do i=1,nlat
-!~           ![NOTA] for now, implementation is not taking downscaling into account outside unused OPTIONALS
-!~           !       in the long run, this will be useless: only a list of points, no need to specify
-!~           call lbm_landtemp(fractl(i,j),meltheat(i,j),icemask(i,j),tland(i,j),nethfxland(i,j),landheat(i,j),dsnow(i,j,:))
-!~           call lbm_landprecip(landheat(i,j),evapl(i,j,:),bmoisg(i,j,:),dsnow(i,j,:),snowf(i,j,:),rainf(i,j,:),meltheat(i,j) &
-!~                             ,dareas(i),fractl(i,j), snowdiff(i,j))
-
-!~           ! TEMPORARY ADD ON, TO BE MOVED ELSEWHERE
-!~           if (i.gt.15) then
-!~             heatsnown=heatsnown+(snowdiff(i,j))*dareas(i)*fractl(i,j)/betam
-!~           else
-!~             heatsnows=heatsnows+(snowdiff(i,j))*dareas(i)*fractl(i,j)/betam
-!~           endif
-
-!~         enddo
-!~       enddo
-
-
-
+      call lbm_landsurface(istep)
 
 #if ( ROUTEAU == 0 )
       call ec_runoff(istep)
@@ -565,104 +533,103 @@
       end
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE ec_landtemp(fractl,meltheat,icemask,tland,nethfxland,landheat,dsnow)
+      SUBROUTINE lbm_landsurface(istep)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-        !! computes surface land temperature given the heat fluxes provided
+        !! Land surface temperature and water of every grid point, one point at a time (lbm_landtemp, lbm_landprecip),
+        !!   and the grid-wide sums that go with them (heat of the snow removed above dsnm, snow sent to icebergs).
+        !! Replaces the whole-field ec_landtemp and ec_landprecip (wiso:3a:0000, dmr&clo).
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! dmr   Downscaling input variables for the sub-grid computations
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+      use comatm,        only: nlat, nlon
+      use comland_mod,   only: fractl, meltheat, tland, nethfxland, landheat, dsnow, evapl, bmoisg, snowf, rainf, dareas  &
+                             , betam, heatsnown, heatsnows
+      use input_icemask, only: icemask
 
 #if ( DOWNSTS == 1 )
       use vertDownsc_mod, only: tland_d, nethfxland_d, meltheat_d
-      use ecbilt_topography, only: rmount_virt
 #endif
 
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater
+#if ( ICEBERG == 2 && ISM != 2 )
+      use comland_mod,   only: iceb_totl, sntoicebl
+      use comemic_mod,   only: nstpyear
+      use iceberg_mod,   only: iceberg_info_out_id
 #endif
-
-      use comatm, only: nlat, nlon, iwater, nwisos
-      use comland_mod, only: dtland, epsl, lhcap, rdtland, rlatfus, rlhcap, rowat, tzero, betam
-
 
       implicit none
 
-      integer  i,j,k
-!~       real*8 betam
+        !> Time step number in the year
+      integer, intent(in) :: istep
 
-        !> Land fraction [1]
-      double precision, dimension(nlat,nlon), intent(in)    :: fractl
-        !> Net heat flux over land [?]
-      double precision, dimension(nlat,nlon), intent(in)    :: nethfxland
+      integer         :: i, j
+      integer         :: snow_excess
+      real(kind=dblp) :: snowdiff
 
-#if ( IMSK == 1 )
-        !> Is this an icesheet (0/1)? [1]
-      double precision, dimension(nlat,nlon), intent(in)    :: icemask
-#endif
+      heatsnown = 0.0_dblp
+      heatsnows = 0.0_dblp
 
-        !> Landheat flux [?]
-      double precision, dimension(nlat,nlon), intent(inout) :: landheat
-
-        !> Heat availability to melt snow [?]
-      double precision, dimension(nlat,nlon), intent(out)   :: meltheat
-        !> Computed temperature over the land surface [K]
-      double precision, dimension(nlat,nlon), intent(out)   :: tland
-        !> New snow pack (thickness?) [?]
-      double precision, dimension(nlat,nlon,nwisos), intent(out) :: dsnow
-
-#if ( IMSK == 1 )
-        !> Heat availability to melt ice [?]
-      double precision :: iceheat
+#if ( ICEBERG == 2 && ISM != 2 )
+      if (mod(istep,nstpyear).eq.1) then ! first timestep of the year
+         sntoicebl = 0.
+         iceb_totl = 0.
+      endif
 #endif
 
       do j=1,nlon
         do i=1,nlat
 
-          meltheat(i,j)=0d0
 #if ( DOWNSTS == 1 )
-          meltheat_d(i,j,:) = 0.0d0
-#endif
-          ! If there is a significant land surface
-          if (fractl(i,j).gt.epsl) then
-
-             ! New temperature over land is netheatflux times landheatcapacity times timestep
-             tland(i,j)=tland(i,j)+dtland*rlhcap*(nethfxland(i,j)+landheat(i,j))
-
-#if ( DOWNSTS == 1 )
-            tland_d(i,j,:) = tland_d(i,j,:) + dtland * rlhcap * (nethfxland_d(i,j,:)+landheat(i,j))
+          call lbm_landtemp(fractl(i,j),meltheat(i,j),icemask(i,j),tland(i,j),nethfxland(i,j),landheat(i,j),dsnow(i,j,:)     &
+                          , tland_d(i,j,:), nethfxland_d(i,j,:), meltheat_d(i,j,:))
+#else
+          call lbm_landtemp(fractl(i,j),meltheat(i,j),icemask(i,j),tland(i,j),nethfxland(i,j),landheat(i,j),dsnow(i,j,:))
 #endif
 
-            if (dsnow(i,j,iwater).gt.0d0.and.tland(i,j).gt.tzero) then
-              meltheat(i,j)= min(dsnow(i,j,iwater)/betam,lhcap*(tland(i,j)-tzero))
-              tland(i,j)=tland(i,j)-meltheat(i,j)/lhcap
-              meltheat(i,j)=meltheat(i,j)*rdtland
-
-#if ( DOWNSTS == 1 )
-              meltheat_d(i,j,:)= min(dsnow(i,j,iwater)/betam,lhcap*(tland_d(i,j,:)-tzero))
-              tland_d(i,j,:)=tland_d(i,j,:)-meltheat_d(i,j,:)/lhcap
-              meltheat_d(i,j,:)=meltheat_d(i,j,:)*rdtland
+            ! fate of the snow above dsnm
+#if ( ICEBERG < 2 )
+          snow_excess = snow_excess_bucket
+#elif ( ICEBERG == 2 && ISM != 2 )
+          if (icemask(i,j).gt.0.9) then ! only grid cells with ice cover of more than 90%
+            snow_excess = snow_excess_out
+          else
+            snow_excess = snow_excess_bucket
+          endif
+#else
+          snow_excess = snow_excess_keep
 #endif
 
-#if ( IMSK == 1 )
-           ! dmr&afq
-           ! in the case where there is an ice-sheet below the snow ...
-           ! dmr&afq
-           if ( icemask(i,j).gt.0.9 .and. tland(i,j).gt.tzero ) then
-             iceheat    = lhcap*(tland(i,j)-tzero)
-             tland(i,j) = tzero
-           endif
-#endif
+          call lbm_landprecip(landheat(i,j),evapl(i,j,:),bmoisg(i,j,:),dsnow(i,j,:),snowf(i,j,:),rainf(i,j,:),meltheat(i,j)  &
+                            , fractl(i,j), snow_excess, snowdiff)
 
+          if (snowdiff.gt.0.0_dblp) then
+            if (snow_excess.eq.snow_excess_bucket) then
+              if (i.gt.15) then
+                heatsnown=heatsnown+snowdiff*dareas(i)*fractl(i,j)/betam
+              else
+                heatsnows=heatsnows+snowdiff*dareas(i)*fractl(i,j)/betam
+              endif
+#if ( ICEBERG == 2 && ISM != 2 )
+            else
+              sntoicebl(i,j)=sntoicebl(i,j) + snowdiff ! accumulate excess snow over ice sheets [m]
+#endif
             endif
+          endif
 
-          endif ! on fractl > epsl
+        enddo
+      enddo
 
-        enddo   ! on nlat
-      enddo     ! on nlon
+#if ( ICEBERG == 2 && ISM != 2 )
+      if (mod(istep,nstpyear).eq.0) then ! last timestep of the year
+        do i=1,nlat
+          do j=1,nlon
+            iceb_totl = iceb_totl + sntoicebl(i,j)*dareas(i)*fractl(i,j)
+          end do
+        end do
+        WRITE(iceberg_info_out_id,*) "yearly sum iceberg flux land-grid [m3]",iceb_totl,istep
+      endif
+#endif
 
       return
-      end
+      end subroutine lbm_landsurface
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       SUBROUTINE lbm_landtemp(fractl,meltheat,icemask,tland,nethfxland,landheat,dsnow,tland_d, nethfxland_d, meltheat_d)
@@ -685,8 +652,6 @@
 
       implicit none
 
-      integer  i,j,k
-
         !> Land fraction [1]
       real(kind=dblp), intent(in)    :: fractl
         !> Net heat flux over land [?]
@@ -708,8 +673,9 @@
       real(kind=dblp), dimension(:), optional, intent(inout)   :: meltheat_d
 
 
-        !> New snow pack (thickness?) [?]
-      real(kind=dblp), dimension(nwisos), intent(out) :: dsnow
+        !> Snow pack [m water equivalent], all species; read only (intent(in): with intent(out) and a strided actual
+        !>   argument, gfortran -O3 does not copy the values in, wiso:3a:0000)
+      real(kind=dblp), dimension(nwisos), intent(in) :: dsnow
 
         !> Heat availability to melt ice [?]
       real(kind=dblp) :: iceheat
@@ -741,6 +707,7 @@
               meltheat_d(:) = meltheat_d(:)*rdtland
             endif
 
+#if ( IMSK == 1 )
               ! dmr&afq
               ! in the case where there is an ice-sheet below the snow ...
               ! dmr&afq
@@ -748,6 +715,7 @@
               iceheat    = lhcap*(tland-tzero)
               tland      = tzero
             endif
+#endif
 
 
           endif ! on snow
@@ -758,114 +726,51 @@
       end subroutine lbm_landtemp
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE lbm_landprecip(landheat,evapl,bmoisg,dsnow,snowf,rainf,meltheat,dareas,fractl, snowdiff)
+      SUBROUTINE lbm_landprecip(landheat,evapl,bmoisg,dsnow,snowf,rainf,meltheat,fractl,snow_excess,snowdiff)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-       !! Revamped routine from ec_landprecip
-       !! Computes the fate of precipitation on land
+       !! Revamped routine from ec_landprecip, for one grid point
+       !! Computes the fate of precipitation on land: evaporation, snow fall and rain, snow melt, snow above dsnm
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       use comatm, only: iwater, nwisos
-!~       use comunit, only: iuo
 
-! [TODO] :: water isotopes treatment is not done anymore on land ... this needs to be done !!!
-!~ #if ( ISOATM >= 2 )
-!~       USE iso_param_mod, ONLY : ieau, neauiso, ieau18, rsmow, delta
-!~       USE isoatm_mod, ONLY : ratio_evap_land, ratio_evap_snow
-!~       USE iso_alphas, ONLY : alpha_lv, alpha_sv
-!~ #if ( ISOLBM == 0 )
-!~       USE isoatm_mod, ONLY: datmini
-!~ #endif
-!~ #endif
-      use comland_mod, only:  dsnm, betam, dtland, epsl, rlatfus, rowat ! heatsnown, heatsnows,
-
-! dmr [TODO] Temporary removed the iceb_totl computation. We are cell based now, no need to do that here
-!~ #if ( ICEBERG == 2 && ISM != 2 )
-!~       use comland_mod, only: iceb_totl
-!~       use input_icemask, only: icemask
-!~       use comemic_mod, only: nstpyear
-!~ #endif
+      use comland_mod, only:  dsnm, betam, dtland, epsl
 
       use newunit_mod, only: info_id
 
-! dmr [TODO] Temporary removed the iceb_totl computation. We are cell based now, no need to do that here
-!~ #if (ICEBERG == 2 && ISM != 2 )
-!~       use comland_mod, only:  sntoicebl
-!~ #endif
-
       implicit none
 
-      ! mjv,lha added variables here:   [NOTA] who are mjv and lha ???
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
         !> Land heat [?]
       real(kind=dblp),                   intent(out) :: landheat
-        !> Height of snow removed through excess snow removal [m]
+        !> Height of snow removed above dsnm [m]
       real(kind=dblp),                   intent(out) :: snowdiff
-        !> Evaporation over land [?]
-      real(kind=dblp), dimension(nwisos),intent(in) ::  evapl
-        !> Precipitation over land, liquid and solid [?]
-      real(kind=dblp), dimension(nwisos),intent(in) :: rainf, snowf
+        !> Fate of the snow above dsnm: snow_excess_bucket (into bmoisg), snow_excess_out (removed, returned in snowdiff
+        !>   only) or snow_excess_keep (no cap)
+      integer,                           intent(in)  :: snow_excess
+        !> Evaporation over land [m/s]
+      real(kind=dblp), dimension(nwisos),intent(in)  :: evapl
+        !> Precipitation over land, liquid and solid [m/s]
+      real(kind=dblp), dimension(nwisos),intent(in)  :: rainf, snowf
         !> Heat from melting snow/ice [?]
-      real(kind=dblp),                   intent(in) :: meltheat
-        !> Area of the grid cell [m**2]
-      real(kind=dblp),                   intent(in) :: dareas
+      real(kind=dblp),                   intent(in)  :: meltheat
         !> Fraction of land in the grid cell [1]
-      real(kind=dblp),                   intent(in) :: fractl
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+      real(kind=dblp),                   intent(in)  :: fractl
 
         !> "bottom moisture" ergo water on land [m]
-      real(kind=dblp), dimension(nwisos),intent(inout) :: bmoisg ! add decription here
-        !> Thickness of snow on land [m]
-      real(kind=dblp), dimension(nwisos),intent(inout) :: dsnow !
+      real(kind=dblp), dimension(nwisos),intent(inout) :: bmoisg
+        !> Thickness of snow on land [m water equivalent]
+      real(kind=dblp), dimension(nwisos),intent(inout) :: dsnow
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !       LOCAL VARIABLES
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!~       integer ::  i,j,istep
-
-! [TODO] :: water isotopes treatment is not done anymore on land ... this needs to be done !!!
-!~ #if ( ISOATM >= 2 )
-!~       REAL, DIMENSION(neauiso) :: dsnomel
-!~       real(kind=dblp)          :: dsnovap
-!~ #if ( ISOLBM == 0 )
-!~       REAL, DIMENSION(nlat,nlon,neauiso) :: rationsl
-!~ #endif
-!~ #else
       real(kind=dblp) ::  dsnomel,dsnovap
-!~ #endif
-
-! dmr --- Apparently unused
-!~       real(kind=dblp) :: qsat
-
-
-! [TODO] :: water isotopes treatment is not done anymore on land ... this needs to be done !!!
-!~ #if ( ISOATM >= 2 )
-!~       INTEGER :: k
-!~       REAL, DIMENSION(neauiso) :: variso
-!~       REAL, DIMENSION(neauiso) :: dsnowbef
-!~       REAL :: rien0, rien1, rien2, rien3, rien4, rien5, rien6
-!~       character(len=10)        :: varisonm
-!~       common /isofix/ dsnowbef
-!~ #endif
-
-!~       ! [TBRMD] Probably not a good idea to do a summation in an internal routine, have to re-think that.
-!~       heatsnown=0.0_dblp
-!~       heatsnows=0.0_dblp
 
       snowdiff = 0.0_dblp
-
-!~       ! [UPDATE] What is the fate of the snow to iceberg is none of concern of this routine, have to re-think that
-!~ #if ( ICEBERG == 2 && ISM != 2 )
-!~       if (mod(istep,nstpyear).eq.1) then ! first timestep of the year
-!~          sntoicebl = 0._dblp
-!~          iceb_totl = 0._dblp
-!~       endif
-!~ #endif
+      dsnovap  = 0.0_dblp
 
       landheat = 0d0
 
@@ -906,59 +811,17 @@
 
         endif ! on meltheat > 0.0
 
+! *** if snowdepth above a thresshold, remove excessive snow
+! *** artificially through the bottom moisture (or to icebergs: snow_excess, set by the caller).
+! *** the heat involved is accounted for by the caller (heatsnown, heatsnows)
 
-
-!dmr [NOTA] Kept a minimal version of snow removal here.
-
-        if (dsnow(iwater).gt.dsnm) then
-!               landheat(i,j)=landheat(i,j)-
-!    *          (dsnow(i,j)-dsnm)/(dtland*betam)
-!~                 if (i.gt.15) then
-!~                   heatsnown=heatsnown+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-!~                 else
-!~                   heatsnows=heatsnows+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-!~                 endif
+        if ((snow_excess.ne.snow_excess_keep).and.(dsnow(iwater).gt.dsnm)) then
           snowdiff=dsnow(iwater)-dsnm
-          bmoisg(iwater)=bmoisg(iwater)+ dsnow(iwater)-dsnm
+          if (snow_excess.eq.snow_excess_bucket) then
+            bmoisg(iwater)=bmoisg(iwater)+ dsnow(iwater)-dsnm
+          endif
           dsnow(iwater) = dsnm
         endif
-
-
-! dmr [TODO] Temporary removed the excess snow removal. Has nothing to do here. Will have to deal with it later on.
-
-! *** if snowdepth above a thresshold, remove excessive snow
-! *** artificially through the bottom moisture.
-! *** account for the heat involved in landheat or in the ocean...
-
-!~ #if ( ICEBERG < 2 )
-!~               if (dsnow(i,j,iwater).gt.dsnm) then
-!~ !               landheat(i,j)=landheat(i,j)-
-!~ !    *          (dsnow(i,j)-dsnm)/(dtland*betam)
-!~                 if (i.gt.15) then
-!~                   heatsnown=heatsnown+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-!~                 else
-!~                   heatsnows=heatsnows+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-!~                 endif
-
-!~                 bmoisg(i,j,iwater)=bmoisg(i,j,iwater)+ dsnow(i,j,iwater)-dsnm
-!~                 dsnow(i,j,iwater) = dsnm
-!~               endif
-!~ #elif ( ICEBERG == 2 && ISM != 2 )
-!~               if (dsnow(i,j,iwater).gt.dsnm) then
-!~                 if (icemask(i,j).gt.0.9) then ! only grid cells with ice cover of more than 90%
-!~                  sntoicebl(i,j)=sntoicebl(i,j) + dsnow(i,j,iwater)-dsnm ! accumulate excess snow over ice sheets [m]
-!~                 else
-!~                   if (i.gt.15) then
-!~                     heatsnown=heatsnown+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-!~                   else
-!~                     heatsnows=heatsnows+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-!~                   endif
-!~                   bmoisg(i,j,iwater)=bmoisg(i,j,iwater)+ dsnow(i,j,iwater)-dsnm
-!~                 endif
-!~                 dsnow(i,j,iwater) = dsnm
-!~               endif
-
-!~ #endif
 
 ! [WARNING] This bit is not water conservative. This need to be fixed!!! dmr 2025-07-02
         if (bmoisg(iwater).lt.0d0) then
@@ -976,200 +839,11 @@
 
       endif ! on land ...
 
-! dmr [TODO] Temporary removed the iceb_totl computation. We are cell based now, no need to do that here
-!~ #if ( ICEBERG == 2 && ISM != 2 )
-!~       if (mod(istep,nstpyear).eq.0) then ! last timestep of the year
-!~         do i=1,nlat
-!~           do j=1,nlon
-!~             iceb_totl = iceb_totl + sntoicebl(i,j)*dareas(i)*fractl(i,j)
-!~           end do
-!~         end do
-!~         WRITE(iceberg_info_out_id,*) "yearly sum iceberg flux land-grid [m3]",iceb_totl,istep
-!~       endif
-!~ #endif
-
       return
-      end subroutine lbm_landprecip ! of subroutine ec_landprecip
+      end subroutine lbm_landprecip
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE ec_landprecip(istep,landheat,evapl,bmoisg,dsnow, snowf,rainf,meltheat,dareas,fractl)
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! *** computes snow coverage and bottom moisture
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      use comatm, only: nlat, nlon, iwater,nwisos
-      use comunit, only: iuo
-
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater, nwisos, iwat18
-      use iso_param_mod, only: rsmow, delta
-      USE iso_param_mod, ONLY : ratio_evap_land, ratio_evap_snow
-      USE iso_alphas, ONLY : alpha_lv, alpha_sv
-#if ( ISOLBM == 0 )
-      USE iso_param_mod, ONLY: datmini
-#endif
-#endif
-      use comland_mod, only:  dsnm, betam, dtland, epsl, heatsnown, heatsnows, rlatfus, rowat
-
-#if ( ICEBERG == 2 && ISM != 2 )
-      use comland_mod, only: iceb_totl
-      use input_icemask, only: icemask
-      use comemic_mod, only: nstpyear
-#endif
-
-      use newunit_mod, only: info_id
-
-#if (ICEBERG == 2 && ISM != 2 )
-      use comland_mod, only:  sntoicebl
-#endif
-
-      implicit none
-
-      ! mjv,lha added variables here:
-      double precision,dimension(nlat,nlon),intent(out) :: landheat ! add description here
-
-      double precision, dimension(nlat,nlon,nwisos),intent(in) ::  evapl ! add description here
-      double precision, dimension(nlat,nlon,nwisos),intent(in) :: rainf, snowf!
-      double precision, dimension(nlat,nlon),intent(in) :: meltheat !
-      double precision, dimension(nlat),intent(in) :: dareas !
-      double precision, dimension(nlat,nlon),intent(in) :: fractl !
-
-      double precision, dimension(nlat,nlon,nwisos),intent(inout) :: bmoisg ! add decription here
-      double precision, dimension(nlat,nlon,nwisos),intent(inout) :: dsnow !
-
-      integer i,j,istep
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      REAL, DIMENSION(nwisos) :: dsnomel
-      real*8  dsnovap
-#if ( ISOLBM == 0 )
-      REAL, DIMENSION(nlat,nlon,nwisos) :: rationsl
-#endif
-#else
-      real*8  dsnomel,dsnovap
-#endif
-      real*8  qsat
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      INTEGER :: k
-      REAL, DIMENSION(nwisos) :: variso
-      REAL, DIMENSION(nlat,nlon,nwisos) :: dsnowbef
-      REAL :: rien0, rien1, rien2, rien3, rien4, rien5, rien6
-      character*10 varisonm
-      common /isofix/ dsnowbef
-#endif
-
-!~       betam=1./(rlatfus*rowat)
-      heatsnown=0.0
-      heatsnows=0.0
-
-#if ( ICEBERG == 2 && ISM != 2 )
-      if (mod(istep,nstpyear).eq.1) then ! first timestep of the year
-         sntoicebl = 0.
-         iceb_totl = 0.
-      endif
-#endif
-
-      do j=1,nlon
-        do i=1,nlat
-          landheat(i,j)=0d0
-
-          if (fractl(i,j).gt.epsl) then
-
-! ***       sublimation or evaporation
-
-            if (dsnow(i,j,iwater).le.0.) then
-              bmoisg(i,j,iwater)=bmoisg(i,j,iwater)-dtland*evapl(i,j,iwater)
-            else
-              dsnovap=dtland*evapl(i,j,iwater)
-
-              if (dsnovap.gt.dsnow(i,j,iwater)) then
-                bmoisg(i,j,iwater)=bmoisg(i,j,iwater)-(dsnovap-dsnow(i,j,iwater))
-                dsnow(i,j,iwater)=0.
-              else
-                dsnow(i,j,iwater)=dsnow(i,j,iwater)-dsnovap
-              endif
-            endif
-
-            dsnow(i,j,iwater) =dsnow(i,j,iwater)+ dtland*snowf(i,j,iwater)
-            bmoisg(i,j,iwater)=bmoisg(i,j,iwater)+ dtland*rainf(i,j,iwater)
-
-
-            if (meltheat(i,j).gt.0d0) then
-
-              dsnomel=dtland*betam*meltheat(i,j)
-              if (dsnomel.gt.dsnow(i,j,iwater)) then
-                landheat(i,j)=landheat(i,j)+(dsnomel-dsnow(i,j,iwater))/(dtland*betam)
-                  dsnomel=dsnow(i,j,iwater)
-              endif
-              dsnow(i,j,iwater) = dsnow(i,j,iwater)-dsnomel
-              bmoisg(i,j,iwater)=bmoisg(i,j,iwater)+dsnomel
-
-            endif ! on meltheat > 0.0
-
-! *** if snowdepth above a thresshold, remove excessive snow
-! *** artificially through the bottom moisture.
-! *** account for the heat involved in landheat or in the ocean...
-
-#if ( ICEBERG < 2 )
-              if (dsnow(i,j,iwater).gt.dsnm) then
-!               landheat(i,j)=landheat(i,j)-
-!    *          (dsnow(i,j)-dsnm)/(dtland*betam)
-                if (i.gt.15) then
-                  heatsnown=heatsnown+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-                else
-                  heatsnows=heatsnows+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-                endif
-
-                bmoisg(i,j,iwater)=bmoisg(i,j,iwater)+ dsnow(i,j,iwater)-dsnm
-                dsnow(i,j,iwater) = dsnm
-              endif
-#elif ( ICEBERG == 2 && ISM != 2 )
-              if (dsnow(i,j,iwater).gt.dsnm) then
-                if (icemask(i,j).gt.0.9) then ! only grid cells with ice cover of more than 90%
-                 sntoicebl(i,j)=sntoicebl(i,j) + dsnow(i,j,iwater)-dsnm ! accumulate excess snow over ice sheets [m]
-                else
-                  if (i.gt.15) then
-                    heatsnown=heatsnown+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-                  else
-                    heatsnows=heatsnows+(dsnow(i,j,iwater)-dsnm)*dareas(i)*fractl(i,j)/betam
-                  endif
-                  bmoisg(i,j,iwater)=bmoisg(i,j,iwater)+ dsnow(i,j,iwater)-dsnm
-                endif
-                dsnow(i,j,iwater) = dsnm
-              endif
-
-#endif
-
-            if (bmoisg(i,j,iwater).lt.0d0) then
-              if (bmoisg(i,j,iwater).lt.-1e-10) then
-                write(info_id,*) 'bottom moisture less than zero '
-                write(info_id,*) i,j,bmoisg(i,j,iwater)
-                write(info_id,*) dtland*betam*meltheat(i,j)
-                write(info_id,*) dtland*snowf(i,j,iwater)
-                write(info_id,*) dtland*rainf(i,j,iwater)
-                write(info_id,*) dtland*evapl(i,j,iwater)
-                write(info_id,*) dsnow(i,j,iwater),dsnovap
-              endif
-              bmoisg(i,j,iwater)=0d0
-            endif
-
-          endif
-        enddo
-      enddo
-
-#if ( ICEBERG == 2 && ISM != 2 )
-      if (mod(istep,nstpyear).eq.0) then ! last timestep of the year
-        do i=1,nlat
-          do j=1,nlon
-            iceb_totl = iceb_totl + sntoicebl(i,j)*dareas(i)*fractl(i,j)
-          end do
-        end do
-        WRITE(iceberg_info_out_id,*) "yearly sum iceberg flux land-grid [m3]",iceb_totl,istep
-      endif
-#endif
-
-      return
-      end ! of subroutine ec_landprecip
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       SUBROUTINE ec_runoff(istep)
