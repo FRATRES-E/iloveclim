@@ -33,7 +33,7 @@
 
 !
 ! 0 LOVECLIM standard version
-! 1 include d18Oatm of O2 (requires CARAIB > 0 and ISOATM>=2)
+! 1 include d18Oatm of O2 (requires CARAIB > 0 and WISOATM == 1)
 !
 #define OXYISO 0
 
@@ -45,7 +45,7 @@
 
 !
 ! 0 LOVECLIM standard version
-! 1 include dDwax isotopes (requires CARAIB > 0, OXYISO > 0 and ISOATM>=2)
+! 1 include dDwax isotopes (requires CARAIB > 0, OXYISO > 0 and WISOATM == 1)
 !
 #define WAXISO 0
 
@@ -127,14 +127,9 @@
 
 !
 ! 0 do not link surface oceanic isotopic content to atmosphere (fixed values for ratio_oceanatm)
-! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires ISOATM >= 2
-#define WISOLND 0
-#define WISOLND_RESTART 0
-
-!
-! 0 do not link surface oceanic isotopic content to atmosphere (fixed values for ratio_oceanatm)
-! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires ISOATM >= 2
-! 2 water isotopes are computed in ocean ("ratio_ocean" prognostic) Requires ISOATM >= 2
+! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires WISOATM == 1
+! 2 water isotopes are computed in ocean ("ratio_ocean" prognostic) Requires WISOATM == 1
+!   (legacy ocean isotope coupling, not available until its migration, ROADMAP step 3)
 !
 #define ISOOCN 0
 ! New iso switches should be 0/1
@@ -187,18 +182,6 @@
 ! 0 use GRISLI basal melting rate (depends on module_choix in GRISLI)
 ! 1 use CLIO basal melting rate (make sure GRISLI is compiled with bmelt_clio_coupl)
 !
-
-#define GRIDS_DOWN 0
-!allow to change the area of donwscalling
-! 0 no downscalling
-! 1 for downscalling global
-! 2 for downscalling NH (for GRISLI north)
-! 3 for downscalling SH (for GRISLI south)
-! 4 for downscalling Europe
-
-
-
-
 #define SHELFMELT 0
 
 
@@ -391,6 +374,12 @@
 ! 1 wih 3D remineralisation profile
 !
 #define REMIN_CACO3 0
+
+!
+! O without aragonite (only calcite for CaCO3)
+! 1 wih aragonite in addition to calcite
+!
+#define ARAG 0
 
 !
 ! O no biogenic silica

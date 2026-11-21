@@ -18,52 +18,37 @@
 !       Variables de sortie :
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-       use taillesGrilles,      only: sgd,sgnx,sgny,iEcb,jEcb
-       use input_subgrid2L,     only: latEcb,lonEcb,latSG,lonSG,iEg,   &
-                                      jEg,distlat,distlon,nbpointssg,  &
-                                      topoSG,epaisSG,areaSG
-
+       use taillesGrilles,  only: sgd,sgnx,sgny,iEcb,jEcb
+       use input_subgrid2L, only: latEcb,lonEcb,latSG,lonSG,iEg,jEg,distlat,distlon,nbpointssg,topoSG,epaisSG,areaSG
 #if ( DOWNSCALING == 2 || ISM >= 2 )
-       use input_subgrid2L,     only: max_nb_points, nneigh, nexted,   &
-                                      coords_subgrid_in_ECB,           &
-                                      coords_ECB_in_subgrid, e_lat_low,&
-                                      e_lat_hig, e_lon_low, e_lon_hig, &
-                                      index_interpL2G,weights_interpL2G&
-                                      , sumweights_interpL2G
+       use input_subgrid2L, only: max_nb_points,                                                                                  &
+            coords_subgrid_in_ECB, coords_ECB_in_subgrid, e_lat_low, e_lat_hig, e_lon_low, e_lon_hig,                             &
+            nneigh, nexted, index_interpL2G,weights_interpL2G, sumweights_interpL2G
 #endif
-
-       use input_fichs_subgrid, only: file_lonlat_subgrid,             &
-                                     ! file_topo_subgrid,               &
-                                     ! file_epais_subgrid,              &
-                                     ! file_area_subgrid,               &
-                                     ! file_bias_subgrid,               & 
-                                      file_downscal
-
-       use comdyn,              only: rmount
-       use output_ecbilt,       only: topoECB
-       use ncio,                only: nc_read
+       use input_fichs_subgrid, only: file_lonlat_subgrid, file_topo_subgrid, file_epais_subgrid, file_area_subgrid,              &
+            file_bias_subgrid
+       use comdyn, only: rmount
+       use output_ecbilt, only: topoECB
 
 #if ( ISM >= 2 )
-       use input_subgrid2L,     only: CNX,CNY,latClio,lonClio,icliog,  &
-                                      jcliog
+       use input_subgrid2L, only: CNX,CNY,latClio,lonClio,icliog,jcliog
 #if ( SHELFMELT == 1 )
-       use input_subgrid2L,     only: bmshelf_CLIOnord
+       use bmelt_clio_coupl_mod, only: bmshelf_CLIO
 #endif
 #endif
 
 #if ( DOWNSCALING == 2 )
-       use input_subgrid2L,     only: cluster_subgrid_in_ecbilt,       &
-                                      sub_grid_notflat
+       use input_subgrid2L, only: cluster_subgrid_in_ecbilt,sub_grid_notflat
 #if ( SMB_TYP == 2)
-       use input_subgrid2L,     only: annbiasSG
+       use input_subgrid2L, only: annbiasSG
 #endif
 #endif
 !afq -- outdated 11/2022       use interpol_ecb_subgrid_mod, only: init_interpol 
-       use interpolate_mod,     only: interpolate_init
+       use interpolate_mod, only: interpolate_init
        use transfer_ecb_subgrid_mod, only: init_subgrid_writing
 #if ( CARAIB > 0 || CARAIB_FORC_W > 0 )
-       use input_subgrid2L,     only: cluster_var_subgrid_in_ecbilt_dble
-       use input_subgrid2L,     only: lat_sg, lon_sg, max_nb_points
+       use input_subgrid2L, only: cluster_var_subgrid_in_ecbilt_dble
+       use input_subgrid2L, only: lat_sg, lon_sg, max_nb_points
 #endif
 
        implicit none
@@ -75,35 +60,16 @@
        logical :: success
 
        integer i,j,nbd,ios
-       integer           :: Topo_id,IceThickness_id,Area_id,           &
-                            Bias_id,CoordT21_id
-       real              :: tmp_topo(sgnx(sgd),sgny(sgd)),             &
-                            tmp_is_mask(sgnx(sgd),sgny(sgd)),          &
-                            tmp_area(sgnx(sgd),sgny(sgd))
-
+       integer :: Topo_id,IceThickness_id,Area_id,Bias_id,CoordT21_id
        character(len=80) :: filin
 
 #if ( DOWNSCALING == 2 )
        integer,dimension(iEcb,jEcb) :: nbpointssg_loc
 #endif
 #if ( CARAIB > 0 || CARAIB_FORC_W > 0 )
-       double precision, dimension(iEcb,jEcb,max_nb_points) ::         &
-              lon_sgloc,lat_sgloc
+       double precision, dimension(iEcb,jEcb,max_nb_points) :: lon_sgloc,lat_sgloc
 #endif
 
-!--- #if ( DOWNSTS == 1 )
-!---       character(len=256) :: file_nm
-!--- #endif
-
-#if ( ISM >= 2 )
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!       Associe les pointeurs des variables L2G aux variables cibles
-!        dans GRISLI : a terme le module input_GRISLI doit etre
-!        remplace par un autre coherent avec le vrai modele GRISLI
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-       call faitPointer
-#endif
 
 ! afq -- we need to init the topo outside the subgrid:
        topoECB(:,:) = rmount(:,:)
@@ -116,39 +82,54 @@
 
 ! afq TODO pour l'instant on laisse tout en ASCII avec les trucs de GRISLI, a mettre en netcdf un jour
 ! note : distlat, distlon ne servent à rien
-          call readGrilleGRISLI(sgnx(nbd),sgny(nbd),                   & 
-                                distlat(1:sgnx(nbd),1:sgny(nbd),nbd),  &
-                                distlon(1:sgnx(nbd),1:sgny(nbd),nbd),  &
-                                latSG(1:sgnx(nbd),1:sgny(nbd),nbd),    &
-                                lonSG(1:sgnx(nbd),1:sgny(nbd),nbd),    &
-                                file_lonlat_subgrid(nbd),10)
+          call readGrilleGRISLI(sgnx(nbd),sgny(nbd),distlat(1:sgnx(nbd),1:sgny(nbd),nbd),distlon(1:sgnx(nbd),1:sgny(nbd),nbd), &
+               latSG(1:sgnx(nbd),1:sgny(nbd),nbd),lonSG(1:sgnx(nbd),1:sgny(nbd),nbd),file_lonlat_subgrid(nbd),10)
 
-! read topo
-          filin=file_downscal(nbd)
-          call nc_read(filin,"z_topo", tmp_topo)
-          topoSG(:,:,nbd) = tmp_topo
-
-! read IS mask
-          filin=file_downscal(nbd)
-          call nc_read(filin,"IS_mask", tmp_is_mask)
-          epaisSG(:,:,nbd) = tmp_is_mask
-             
+! lecture du fichier topo           
+          filin=file_topo_subgrid(nbd)
+          open(newunit=Topo_id,file=filin,iostat=ios)
+          do j=1,sgny(nbd)
+             do i=1, sgnx(nbd)
+                read(Topo_id,*) topoSG(i,j,nbd)
+             enddo
+          enddo
+          close(Topo_id)
+          
+! lecture du fichier epaisseur glace
+          filin=file_epais_subgrid(nbd)
+          open(newunit=IceThickness_id,file=filin,iostat=ios)
+          do j=1,sgny(nbd)
+             do i=1, sgnx(nbd)
+                read(IceThickness_id,*) epaisSG(i,j,nbd)
+             enddo
+          enddo
+          close(IceThickness_id)
+              
 ! lecture du fichier aire des pixels
 #if ( ISM >= 2 )
           areaSG(:,:,nbd) = 1.
 #else
-           filin=file_downscal(nbd)
-           call nc_read(filin,"area",tmp_area)
-           areaSG(:,:,nbd) = tmp_area
-
+          filin=file_area_subgrid(nbd)
+          open(newunit=Area_id,file=filin,iostat=ios)
+          do j=1,sgny(nbd)
+             do i=1, sgnx(nbd)
+                read(Area_id,*) areaSG(i,j,nbd)
+             enddo
+          enddo
+          close(Area_id)
 #endif
           
 ! lecture du fichier de biais
 
 #if ( SMB_TYP == 2 )
-          filin=file_downscal(nbd)
-          call nc_read(filin,"bias", Bias_id)
-          annbiasSG(:,:,nbd) = Bias_id
+          filin=file_bias_subgrid(nbd)
+          open(newunit=Bias_id,file=filin,iostat=ios)
+          do j=1,sgny(nbd)
+             do i=1, sgnx(nbd)
+                read(Bias_id,*) annbiasSG(i,j,nbd)
+             enddo
+          enddo
+          close(Bias_id)
 #endif
        
        enddo
@@ -267,6 +248,6 @@
 #endif
 
 #if ( SHELFMELT == 1 )
-       bmshelf_clionord(:,:,:) = 0.
+       bmshelf_clio(:,:,:) = 0.
 #endif
        end subroutine Init_subgrid
