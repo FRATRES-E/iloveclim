@@ -47,3 +47,10 @@ wkdir
 inputs
 inputs_cpl
 std-data
+tools/bin/evo2*
+tools/bin/procev*
+tools/src/evolu/*.options
+tools/src/evolu/.cleanable
+scenarios
+exps
+temps

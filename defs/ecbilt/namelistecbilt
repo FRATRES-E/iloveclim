@@ -30,7 +30,7 @@
  hmoisr = 0.5d0
  umoisr = 0.6
  rainmax= 1e-5
- adv_mode= 'fv'
+ adv_mode= 'spectral'
  $end
 
  $cloudpar
