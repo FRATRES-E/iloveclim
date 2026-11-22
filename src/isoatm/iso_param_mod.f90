@@ -99,18 +99,15 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
        REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_oceanatm
-       REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_evap_ocean, ratio_evap_land, ratio_evap_snow
+       REAL(kind=dblp), DIMENSION(nlat, nlon, nwisos) :: ratio_evap_ocean
 
 
 ! dmr&clo   wiso:2b:0001 the initial vapour deltas (datmini) are in wisoatm.nml (iso_nml_mod, r_vap_init)
-! dmr&clo   dlbmini: initial land isotopes, used only by the legacy land code parked under ISOLBM >= 1 (step 3)
-       REAL(kind=dblp), PARAMETER :: d18lbmini = -30.E-3_dblp,                                            &
-                        dlbmini(nwisos) = [0.d0,0.d0,(d18lbmini+1.0d0)**0.528d0-1.0, d18lbmini,d18lbmini*8._dblp]
 
 ! dmr&clo   wiso:2b:0001 isoatm_restart (cpp WISOATM_RESTART) replaced by restart_read in wisoatm.nml (D34)
        
-! dmr --- [TODO] isolbm_restart should be moved in an other, more logical place!       
-       INTEGER(kind=ip),PARAMETER :: isolbm_restart = WISOLND_RESTART
+! dmr&clo   wiso:3a:0001 dlbmini and isolbm_restart (WISOLND_RESTART) removed: land isotopes set by land_iso_mode in
+!           wisoatm.nml (iso_nml_mod); the parked ISOOCN code (coupling0, thersf) still names them (ROADMAP step 3)
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

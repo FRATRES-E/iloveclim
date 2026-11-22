@@ -51,6 +51,8 @@ tools/bin/evo2*
 tools/bin/procev*
 tools/src/evolu/*.options
 tools/src/evolu/.cleanable
+tools/src/evolu/make.macros.new
+*__genmod.f90
 scenarios
 exps
 temps

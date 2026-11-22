@@ -65,7 +65,7 @@
 
         public :: ISO_NML_FILE, iso_nml_read, iso_nml_write, iso_ratios
         public :: frac_mode, frac_evap, frac_lsc, frac_conv, iso_passive
-        public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file
+        public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file, land_iso_mode
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: delta_check_min, delta_check_max
         public :: kin_wind, kin_k18_frac, kin_kd_ratio, cg_rv_gamma, bc_eq_lsc, bc_eq_conv
@@ -114,6 +114,10 @@
         real(dblp)             :: d18o_ocean       =   0.0_dblp      !< permil, 'fixed' only
         real(dblp)             :: dexc_ocean       =   0.0_dblp      !< permil, both modes
         real(dblp)             :: o17exc_ocean     =   0.0_dblp      !< per meg, both modes
+
+! dmr&clo   wiso:3a:0001 Land isotopes: 'fixed' (evaporation over land and snow at the compositions above, the LBM
+!           carries water only) or 'bucket' (isotopes in the soil water and the snow of the LBM, ROADMAP step 3a)
+        character(len=str_len) :: land_iso_mode    = 'fixed'
 
 ! dmr&clo   Restart of the isotopologues (netCDF, D34; available from ROADMAP 2c)
         logical                :: restart_read     = .false.
@@ -173,6 +177,7 @@
                                d18o_land_evap, dexc_land_evap, o17exc_land_evap,                                      &
                                d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap,                                      &
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
+                               land_iso_mode,                                                                         &
                                restart_read, restart_file,                                                            &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
@@ -280,6 +285,16 @@
             stop 1
           end select
 
+          select case (trim(land_iso_mode))
+          case ('fixed')
+          case ('bucket')
+            write(*,*) "iso_nml_read: land_iso_mode = 'bucket' is not available yet (ROADMAP 3a)"
+            stop 1
+          case default
+            write(*,*) "iso_nml_read: unknown land_iso_mode = ", trim(land_iso_mode), " (fixed | bucket)"
+            stop 1
+          end select
+
 ! dmr&clo   wiso:2c:0002 restart_read: read by wiso_restart_mod at the end of ec_iatmphys
 
 ! dmr&clo   wiso:2d:0002 kinetic settings of the ocean evaporation
@@ -347,7 +362,7 @@
           delta_check_max(iwat2h) = dd_check_max * ISO_PERMIL
 
           write(*,*) "iso_nml_read: water isotopes, frac_evap, frac_lsc, frac_conv = ", frac_evap, frac_lsc, frac_conv,  &
-                     ", ocean_ratio_mode = ", trim(ocean_ratio_mode)
+                     ", ocean_ratio_mode = ", trim(ocean_ratio_mode), ", land_iso_mode = ", trim(land_iso_mode)
 
         contains
 
@@ -395,6 +410,7 @@
           write(unit_chk, '(a,a)')       'ocean_d18o_file  = ', trim(ocean_d18o_file)
           write(unit_chk, '(a,3f12.4)')  'ocean     d18o (fixed only), dexc (permil), o17exc (per meg) = ',             &
                                          d18o_ocean, dexc_ocean, o17exc_ocean
+          write(unit_chk, '(a,a)')       'land_iso_mode    = ', trim(land_iso_mode)
           write(unit_chk, '(a,l1)')      'restart_read     = ', restart_read
           write(unit_chk, '(a,a)')       'restart_file     = ', trim(restart_file)
           write(unit_chk, '(a,a)')       'alpha_lv_form    = ', trim(alpha_lv_form)

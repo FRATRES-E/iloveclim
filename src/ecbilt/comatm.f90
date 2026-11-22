@@ -96,8 +96,11 @@
 #if defined(WISOATM_RESTART) || defined(FRAC_KINETIK)
 #error "WISOATM_RESTART and FRAC_KINETIK were removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml"
 #endif
-#if ( ISOLBM != 0 || ISOOCN != 0 )
-#error "ISOLBM / ISOOCN: the legacy land and ocean isotope coupling is not migrated yet (ROADMAP step 3)"
+#if defined(ISOLBM) || defined(WISOLND) || defined(WISOLND_RESTART)
+#error "ISOLBM, WISOLND and WISOLND_RESTART were removed in wiso:3a:0001: land_iso_mode in wisoatm.nml"
+#endif
+#if ( ISOOCN != 0 )
+#error "ISOOCN: the legacy ocean isotope coupling is not migrated yet (ROADMAP step 3)"
 #endif
 #if ( WISOATM == 1 && ( DOWNSTS != 0 || DOWNSCALING != 0 ) )
 #error "WISOATM = 1 is not available with downscaling (DOWNSTS, DOWNSCALING), ROADMAP step 2"

@@ -233,32 +233,6 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
             call ec_wrendland
             close(newunit_id)
 
-!dmr --- water isotopes on land, just need to copy a file
-
-#if ( ISOLBM >= 1 )
-          COMMANDE='cp '//'wisolbm_restart.dat '//TRIM(REPERTOIRE)//'/.'
-
-!dmr --- intel fortran version
-#if ( IFORT_USAGE == 1 )
-            WRITE(*,*) "test ", TRIM(COMMANDE)
-            ETAT = SYSTEMQQ(TRIM(COMMANDE))
-            WRITE(*,*) 'Resultat du cp : ', ETAT
-#else
-
-!dmr --- pgi fortran version
-#if ( PGIFORTRAN == 1 )
-            call system(TRIM(COMMANDE))
-#else
-
-!dmr --- gnu fortran version
-            call EXECUTE_COMMAND_LINE(TRIM(COMMANDE), wait=.TRUE., exitstat=resultat)
-            if ( resultat .ne. 0 ) then
-              WRITE(*,*) 'Resultat du cp : ', resultat
-            endif
-#endif /* on PGI FORTRAN */
-#endif /* on IFORT_USAGE */
-
-#endif /* ISOLBM */
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

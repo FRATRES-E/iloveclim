@@ -1708,11 +1708,7 @@ contains
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !       Evaporating from a snowy surface
 !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ #if ( ISOATM >= 2 )
-!~               if (adsnow(i,j,ieau).gt.0.) then
-!~ #else
               if (adsnow(i,j,iwater).gt.0.) then
-!~ #endif
 
                 evfacan(i,j,nld)=evfac
                 edum=cdragvn(i,j,nld)*uv10(i,j)* &
@@ -1723,13 +1719,8 @@ contains
 !-----|--1--------2---------3---------4---------5---------6---------7-|
                 esubf=alphas*edum
                 evapf=alphav*edum
-!~ #if ( ISOATM >= 2 )
-!~                 esnow=min(rowat*adsnow(i,j,ieau)*rlatsub/dtime,
-!~      &                  esubf)
-!~ #else
                 esnow=min(rowat*adsnow(i,j,iwater)*rlatsub/dtime, &
                        esubf)
-!~ #endif
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !       esnow == energy needed to evaporate all snow in adsnow
 !       emois == same, from moisture layer ...
@@ -1739,21 +1730,7 @@ contains
 !-----|--1--------2---------3---------4---------5---------6---------7-|
                 if (esnow.lt.esubf) then ! all possible snow is sublimated!
                   sfrac=(esubf-esnow)/esubf
-!~ #if ( ISOATM >= 2 )
-!~ ! [TODO] == update this !!!!
-!~ ! ## TAG FIX AURELIEN ##
-!~                 if (abmoisg(i,j,ieau).LT.0d0) then
-!~ !                   WRITE(*,*) "fixed abmoisg, i,j, in l.1930 atmphys0.f"
-!~ !     & ,i,j
-!~                   abmoisg(i,j,ieau) = 0d0
-!~                 endif
-!~ ! ## TAG FIX AURELIEN ##
-!~ ! [TODO] == update this !!!!
-!~                 emois=min(rowat*abmoisg(i,j,ieau)*rlatvap/dtime
-!~      &                        ,sfrac*evapf)
-!~ #else
                 emois=min(rowat*abmoisg(i,j,iwater)*rlatvap/dtime,sfrac*evapf)
-!~ #endif
 
 #if ( IMSK == 1 )
 
@@ -1776,70 +1753,11 @@ contains
                   efluxn(i,j,nld)=efluxn(i,j,nld)+esice
 #endif
 
-!~ #if ( ISOATM >= 1 )
-!~                   evapn(i,j,nld,ieau)=esnow/(rowat*rlatsub)+
-!~      &                                           emois/(rowat*rlatvap)
-
-!~ #else
                   evapn(i,j,nld,iwater)=esnow/(rowat*rlatsub)+ &
                                                 emois/(rowat*rlatvap)
-!~ #endif
-#if ( WISOATM == 1 && ISOLBM < 1 )
+#if ( WISOATM == 1 )
 ! dmr&clo   wiso:2c:0003 snow sublimated (r_snow_evap) and bucket (r_land_evap), fixed until step 3 (D10, D42)
                   call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, esnow/(rowat*rlatsub), emois/(rowat*rlatvap))
-#endif
-#if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!      Computation of sublimation for the water isotopes
-!     == Version with isotopic fractionnation as in MJ79==
-!       ... first version with equilibrium fractionnation, no kinetic
-!      This is the case where all snow is "sublimated"
-!      And possibly part of the land moisture evaporated
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-       ! beware: in ISOATM==2, alpha_lv is undefined for ieau16
-       DO k=iwater+2, nwisos
-
-!dmr --- Here all snow is evaporated, no complicated scheme for the
-!         ratio of isotopes in snow: take all isotopes!
-!         ratio_evap_snow(i,j,k) = adsnow(i,j,k)/adsnow(i,j,ieau)
-!
-!         esnowiso = min(
-!     &  esnow/(rowat*rlatsub) * ratio_evap_snow(i,j,k)
-!     & ,(adsnow(i,j,k)/dtime)
-!     &                 )
-         esnowiso = (adsnow(i,j,k)/dtime)
-!!
-         if (abmoisg(i,j,k).LT.0.0e0_dblp) then
-           emoisiso = 0.0e0_dblp
-!           WRITE(*,*) "WARN @@@ : ", abmoisg(i,j,k), i,j,k
-         else
-         if (emois.GT.0.e0_dblp) then
-          ratio_evap_land(i,j,k) = abmoisg(i,j,k)/abmoisg(i,j,iwater)
-! temporarily no knietic fractionnation for moisture evap from land
-!     &           /alpha_lv(tsurfn(i,j,nld),k)
-
-         emoisiso = min( &
-       emois/(rowat*rlatvap)*ratio_evap_land(i,j,k)
-      ,(abmoisg(i,j,k)/dtime)
-                      )
-         else
-           emoisiso = 0.0e0_dblp
-         endif
-
-        endif ! on abmoisg < 0
-
-!      dmr here we take all possible snow and part of the moisture ...
-!!         evapn(i,j,nld,k) =
-!!     &      esnow/(rowat*rlatsub) * ratio_evap_snow(i,j,k)
-!!     &    +
-!!     &      emois/(rowat*rlatvap)*ratio_evap_land(i,j,k)
-
-!dmr --- Beware, I did not compute esnowiso as esnow in unit, hence the
-!        different formulation hereafter
-           evapn(i,j,nld,k) = esnowiso + emoisiso
-
-       ENDDO ! on isotopes
-
 #endif
 !-----|--1--------2---------3---------4---------5---------6---------7-|
 !       Case where there is some snow left after sublimation
@@ -1848,51 +1766,12 @@ contains
 
                   efluxn(i,j,nld)=esubf
 
-!~ #if ( ISOATM >= 1 )
-!~                   evapn(i,j,nld,ieau)=esubf/(rowat*rlatsub)
-!~ #else
                   evapn(i,j,nld,iwater)=esubf/(rowat*rlatsub)
-!~ #endif
-#if ( WISOATM == 1 && ISOLBM < 1 )
+#if ( WISOATM == 1 )
 ! dmr&clo   wiso:2c:0003 snow only
                   call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, evapn(i,j,nld,iwater), 0.0_dblp)
 #endif
 
-#if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!      Computation of sublimation for the water isotopes
-!     == Version with isotopic fractionnation as in MJ79==
-!       ... first version with equilibrium fractionnation, no kinetic
-!      This is the case where there is some snow left after sublimation
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-        ! beware: in ISOATM==2, alpha_lv is undefined for ieau16
-       DO k=iwater+2, nwisos
-         ratio_evap_snow(i,j,k) = adsnow(i,j,k)/adsnow(i,j,iwater)
-! temporarily no knietic fractionnation for snow evap from land
-! should it be some
-!     &           /alpha_sv(tsurfn(i,j,nld),k)
-
-        if ((evapn(i,j,nld,iwater) * ratio_evap_snow(i,j,k)).GT. &
-      (adsnow(i,j,k)/dtime)) then
-          WRITE(*,*) 'Error: non conservative issue in evapn from dsnow'
-          WRITE(*,*) 'atmphys0.f, line 2095'
-          WRITE(*,*) '(1)', i,j,k
-          WRITE(*,*) '(2)', evapn(i,j,nld,iwater), adsnow(i,j,iwater)/dtime
-          WRITE(*,*) '(3)', adsnow(i,j,k)
-!          READ(*,*)
-        endif
-
-        evapn(i,j,nld,k) = evapn(i,j,nld,iwater) * ratio_evap_snow(i,j,k)
-#if ( 0 )
-        if ((k.EQ.iwat18).and.(adsnow(i,j,iwater).GT.0.0e0_dblp)) THEN
-          WRITE(*,*) "Test evap snow: some snow left!" &
-         ,(ratio_evap_snow(i,j,k)/rsmow(k)-1.0e0_dblp)*1000.0e0_dblp
-        ENDIF
-#endif
-
-       ENDDO
-
-#endif
                 endif
 
 !-----|--1--------2---------3---------4---------5---------6---------7-|
@@ -1901,13 +1780,8 @@ contains
               else
 #if ( EVAPTRS == 1 )
 
-!~ #if ( ISOATM >= 2 )
-!~                 evfacan(i,j,nld)=evfac*min(1d0,abmoisg(i,j,ieau)
-!~      > /max(1.0E-10,abmoism(i,j)))
-!~ #else
                 evfacan(i,j,nld)=evfac*min(1e0_dblp,abmoisg(i,j,iwater) &
       /max(1.0E-10,abmoism(i,j)))
-!~ #endif
                 efluxn(i,j,nld)=alphav*cdragvn(i,j,nld)*uv10(i,j)* &
                         (qsurfn(i,j,nld)-q10n(i,j,nld))
 #elif ( EVAPTRS == 0 )
@@ -1948,55 +1822,14 @@ contains
 
                 efluxn(i,j,nld)=evfacan(i,j,nld)* &
                                max(efluxn(i,j,nld),0e0_dblp)
-!~ #if ( ISOATM >= 2 )
-!~                efluxn(i,j,nld)=min(abmoisg(i,j,ieau)*rowat*rlatvap/dtime
-!~      &                       ,efluxn(i,j,nld))
-!~ #else
             efluxn(i,j,nld)=min(abmoisg(i,j,iwater)*rowat*rlatvap/dtime &
                             ,efluxn(i,j,nld))
-!~ #endif
-!~ #if ( ISOATM >= 1 )
-!~                 evapn(i,j,nld,ieau)=efluxn(i,j,nld)/(rowat*rlatvap)
-!~ #else
             evapn(i,j,nld,iwater)=efluxn(i,j,nld)/(rowat*rlatvap)
-!~ #endif
-#if ( WISOATM == 1 && ISOLBM < 1 )
+#if ( WISOATM == 1 )
 ! dmr&clo   wiso:2c:0003 bucket only
             call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, 0.0_dblp, evapn(i,j,nld,iwater))
 #endif
 
-#if ( WISOATM == 1 && ISOLBM >= 1 ) /* wiso:2a:0002 legacy land-coupled isotope evaporation, parked for ROADMAP step 3 (D31) */
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-!      Computation of evaporation for the water isotopes
-!       ... case where all water is evaporated from "land water"
-!     == Version with isotopic fractionnation as in MJ79==
-!       ... first version with equilibrium fractionnation, no kinetic
-!-----|--1--------2---------3---------4---------5---------6---------7-|
-            ! beware: in ISOATM==2, alpha_lv is undefined for ieau16
-       DO k=iwater+2, nwisos
-
-
-            if (abmoisg(i,j,k).LT.0.0e0_dblp) then
-              emoisiso = 0.0e0_dblp
-            else
-            if (efluxn(i,j,nld).GT.0.e0_dblp) then
-            ratio_evap_land(i,j,k) = abmoisg(i,j,k)/abmoisg(i,j,iwater)
-! temporarily no kinetic fractionnation for moisture evap from land
-!     &           /alpha_lv(tsurfn(i,j,nld),k)
-
-            emoisiso = min( &
-          efluxn(i,j,nld)/(rowat*rlatvap)*ratio_evap_land(i,j,k)
-         ,(abmoisg(i,j,k)/dtime)
-                      )
-            else
-              emoisiso = 0.0e0_dblp
-            endif
-           endif ! on abmoisg < 0
-
-           evapn(i,j,nld,k) = emoisiso
-           ENDDO
-
-#endif
               endif
 
             endif

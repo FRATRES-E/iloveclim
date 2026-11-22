@@ -115,15 +115,7 @@
 #define WISOATM 0
 !   (WISOATM_RESTART and FRAC_KINETIK removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml)
 
-!
-! 0 do not link surface isotopic content of land to atmosphere (fixed values for rmoisg)
-! 1 water isotopes are computed in surface water content (bmoisg prognostic)
-!   (legacy land isotope coupling, not available until its migration, ROADMAP step 3)
-!
-#define ISOLBM 0
-! New iso switches should be 0/1
-#define WISOLND 0
-#define WISOLND_RESTART 0
+!   (ISOLBM, WISOLND and WISOLND_RESTART removed in wiso:3a:0001: land_iso_mode in wisoatm.nml)
 
 !
 ! 0 do not link surface oceanic isotopic content to atmosphere (fixed values for ratio_oceanatm)

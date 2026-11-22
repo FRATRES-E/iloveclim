@@ -48,13 +48,6 @@
 #if ( ROUTEAU == 1 )
       USE routageEAU_mod
 #endif
-! dmr&clo   wiso:2a:0002 the land isotope state is parked under ISOLBM >= 1 (ROADMAP step 3, D31):
-!           with WISOATM = 1 and fixed surface ratios (D10) the LBM carries water only
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater, iwat17, iwat18, iwat2h, nwisos
-      use iso_param_mod, only: rsmow
-      USE iso_param_mod, ONLY: dlbmini, isolbm_restart
-#endif
 
       use comland_mod, only: fractl, dareas, dsnow, bmoisg, runofo, tland, albsnow, bmoismfix, dsnm, dtland, epsl, heatsnown &
                      , heatsnows, iscenland, islndstrt, lhcap, pi, radius, rdtland, rlatfus, rlatsub, rlatvap, rlhcap, rowat &
@@ -85,14 +78,7 @@
 #if ( DOWNSTS == 1 )
       INTEGER :: nb_down
 #endif
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      REAL, DIMENSION(nlat,nlon,nwisos) :: rationsl
-      INTEGER :: k
-#endif
 
-#if ( ISOLBM >= 1 )
-      integer(kind=ip):: wisolbm_restart_dat_id
-#endif
 
       integer(kind=ip):: albsnow_dat_id, namelistland_id
 
@@ -163,34 +149,13 @@
 
 ! *** initialisation of evaporation, soil moisture, snow cover, & land temp
 
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-! dmr
-! Initialization to fixed initial values for the version with "R" in MJ79
-! 17O and deuterium are initialized with d-excess and 17Oexcess to zero
-! w.r.t. 18O
-! dmr
-        DO k=iwater+1, nwisos
-        rationsl(:,:,k) = ( dlbmini(k) + 1.0D0 ) * rsmow(k)
-        ENDDO
-#endif
 
       if (irunlabel.eq.0) then
         do j=1,nlon
           do i=1,nlat
-!~ #if ( ISOATM >= 2 )
-!~             bmoisg(i,j,ieau)=bmoismfix
-
-!~             DO k=ieau+1,neauiso
-!~              bmoisg(i,j,k) = bmoisg(i,j,ieau) * rationsl(i,j,k)
-!~             ENDDO
-
-!~             dsnow(i,j,:)=0d0
-!~             runofo(i,j,:)=0d0
-!~ #else
             bmoisg(i,j,iwater)=bmoismfix
             dsnow(i,j,iwater)=0d0
             runofo(i,j,iwater)=0d0
-!~ #endif
             tland(i,j)=tzero+10.
           enddo
         enddo
@@ -198,27 +163,11 @@
         heatsnows=0.0
       else
         open(newunit=inlanddat_id,file='startdata/inland'//fini//'.dat', form='unformatted')
-!~ #if ( ISOATM >= 2 )
-!~         read(inlanddat_id) bmoisg(:,:,ieau),runofo(:,:,ieau),dsnow(:,:,ieau)
-!~      & ,tland
-
-!~ #else
         read(inlanddat_id) bmoisg(:,:,iwater),runofo(:,:,iwater), dsnow(:,:,iwater),tland
-!~ #endif
          close(inlanddat_id)
         do j=1,nlon
           do i=1,nlat
-!~ #if ( ISOATM >= 2 )
-!~             dsnow(i,j,ieau)=min(dsnow(i,j,ieau),dsnm)
-!~ !dmr --- let's initialise them brutally (no restart)
-!~         DO k=ieau+1,neauiso
-!~           bmoisg(i,j,k) = bmoisg(i,j,ieau) * rationsl(i,j,k)
-!~           runofo(i,j,k) = runofo(i,j,ieau) * rationsl(i,j,k)
-!~           dsnow(i,j,k) = dsnow(i,j,ieau) * rationsl(i,j,k)
-!~         ENDDO
-!~ #else
             dsnow(i,j,iwater)=min(dsnow(i,j,iwater),dsnm)
-!~ #endif
           enddo
         enddo
 
@@ -226,21 +175,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
 
-#if ( ISOLBM >= 1 )
-        if ( isolbm_restart.NE.0 ) then !read restart from file
-           OPEN(newunit=wisolbm_restart_dat_id,FILE='startdata/wisolbm_restart.dat',STATUS='old',FORM='unformatted')
-           READ(wisolbm_restart_dat_id) bmoisg(:,:,iwater+1:nwisos),runofo(:,:,iwater+1:nwisos), dsnow(:,:,iwater+1:nwisos)
-           CLOSE(wisolbm_restart_dat_id)
-        endif
-
-#if ( CARAIB > 0 )
-       WHERE (bmoisg(:,:,iwater).le.1.0E-10)
-            bmoisg(:,:,iwater)=bmoismfix
-            bmoisg(:,:,iwat18) = bmoisg(:,:,iwater)*rationsl(:,:,iwat18)
-       ENDWHERE
-#endif
-
-#endif
 
         heatsnown=0.0
         heatsnows=0.0
@@ -855,10 +789,6 @@
       use comemic_mod, only:
       use comunit, only: iuo
 
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater, nwisos, iwat18
-      use iso_param_mod, only: delta
-#endif
 
       use comland_mod, only: runofl, bmoisg, runofo, dtland, epsl, nbasins, fractl, bmoism, ilabas, dareas, iocbas, rlatfus &
                      , arocbas
@@ -1366,9 +1296,6 @@
       use newunit_mod, only: info_id
 
 
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater
-#endif
 
       use comland_mod, only: dtland, epsl, lhcap, tareas, fractl, evapl, snowf, runofl, rainf, dsnow, dareas, bmoisg, runofo, tland
 #if ( ICEBERG == 2 && ISM != 2 )
@@ -1597,9 +1524,6 @@
       use vertDownsc_mod, only: nethfxland_d, hfluxn_d, efluxn_d
 #endif
 
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater, iwat18
-#endif
 
       use comland_mod, only: evapoc, nethfxland, evapl, rainf, snowf, rlatfus, rowat
 
@@ -1637,14 +1561,6 @@
 ! *** communicate land data to coupler
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater, nwisos, iwat18
-      use iso_param_mod, only: rsmow
-#if ( ISOLBM == 0 )
-      USE iso_param_mod, ONLY : rsmow
-      USE iso_param_mod, ONLY: datmini
-#endif
-#endif
 
       use comcoup_mod
       use comsurf_mod
@@ -1716,9 +1632,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! *** communicate land data to coupler
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater
-#endif
 
       use comcoup_mod
       use comsurf_mod
@@ -1772,9 +1685,6 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! *** output land for start new run
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-#if ( WISOATM == 1 && ISOLBM >= 1 )
-      use comatm, only: iwater
-#endif
 
       use comland_mod, only: bmoisg, dsnow, runofo, tland
       use newunit_mod, only: newunit_id
@@ -1789,9 +1699,6 @@
 !~ #else
 !~       write(newunit_id) bmoisg,runofo,dsnow,tland
 !~ #endif
-#if ( ISOLBM >=1 )
-      call write_isolbm
-#endif
 
       return
       end

@@ -14,7 +14,9 @@
   dexc_vap_init    =   0.0
   o17exc_vap_init  =   0.0
 
-  d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (until step 3)
+  land_iso_mode    = 'fixed'                ! 'fixed': land and snow evaporation at the compositions below;
+                                            ! 'bucket': isotopes in the LBM soil water and snow (ROADMAP 3a)
+  d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (land_iso_mode = 'fixed')
   dexc_land_evap   =   0.0
   o17exc_land_evap =   0.0
   d18o_snow_evap   = -12.0                  ! idem over snow
