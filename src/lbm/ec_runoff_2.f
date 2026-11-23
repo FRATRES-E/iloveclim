@@ -46,7 +46,7 @@ c~ #endif
 #if ( WISOATM == 1 )
       use comatm, only: iwat16, nwisos
       use comland_mod, only: lbm_wiso
-      use landmodel_mod, only: lbm_wiso_ratio
+      use lbm_point_mod, only: lbm_wiso_ratio
 #endif
 
       IMPLICIT NONE
