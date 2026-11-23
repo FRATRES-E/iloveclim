@@ -85,6 +85,10 @@
 
        real(kind=dblp), dimension(nlat,nlon)   :: meltheat, evapoc,tland
        real(kind=dblp)                         :: dsnm
+
+! dmr&clo   wiso:3a:0002 the LBM stores (bmoisg, dsnow) and the runoff carry the water isotopes (land_iso_mode = 'bucket'
+!           in wisoatm.nml, set in ec_initlbm); .false.: water only, the isotope slices are not used
+       logical                                 :: lbm_wiso = .false.
        integer, dimension(nlat,nlon)            :: ilabas,iocbas
        integer                                  :: iscenland,islndstrt
 

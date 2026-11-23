@@ -67,6 +67,7 @@
         public :: frac_mode, frac_evap, frac_lsc, frac_conv, iso_passive
         public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file, land_iso_mode
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
+        public :: land_bucket, r_soil_init, r_snow_init
         public :: delta_check_min, delta_check_max
         public :: kin_wind, kin_k18_frac, kin_kd_ratio, cg_rv_gamma, bc_eq_lsc, bc_eq_conv
         public :: cond_temp, cond_phase, cond_tliq_k, cond_tice_k
@@ -118,6 +119,14 @@
 ! dmr&clo   wiso:3a:0001 Land isotopes: 'fixed' (evaporation over land and snow at the compositions above, the LBM
 !           carries water only) or 'bucket' (isotopes in the soil water and the snow of the LBM, ROADMAP step 3a)
         character(len=str_len) :: land_iso_mode    = 'fixed'
+!           wiso:3a:0002 'bucket': composition of the soil water and the snow at a cold start of the land isotopes (no
+!           land isotope restart): the isotopes are set to these ratios times the water of the stores
+        real(dblp)             :: d18o_soil_init   =  -8.0_dblp      !< permil
+        real(dblp)             :: dexc_soil_init   =  10.0_dblp      !< permil
+        real(dblp)             :: o17exc_soil_init =   0.0_dblp      !< per meg
+        real(dblp)             :: d18o_snow_init   = -25.0_dblp      !< permil
+        real(dblp)             :: dexc_snow_init   =  10.0_dblp      !< permil
+        real(dblp)             :: o17exc_snow_init =   0.0_dblp      !< per meg
 
 ! dmr&clo   Restart of the isotopologues (netCDF, D34; available from ROADMAP 2c)
         logical                :: restart_read     = .false.
@@ -177,7 +186,8 @@
                                d18o_land_evap, dexc_land_evap, o17exc_land_evap,                                      &
                                d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap,                                      &
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
-                               land_iso_mode,                                                                         &
+                               land_iso_mode, d18o_soil_init, dexc_soil_init, o17exc_soil_init,                       &
+                               d18o_snow_init, dexc_snow_init, o17exc_snow_init,                                      &
                                restart_read, restart_file,                                                            &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
@@ -192,6 +202,9 @@
         real(dblp), dimension(nwisos) :: r_land_evap   = 1.0_dblp     !< evaporation flux over land
         real(dblp), dimension(nwisos) :: r_snow_evap   = 1.0_dblp     !< evaporation (sublimation) flux over snow
         real(dblp), dimension(nwisos) :: r_ocean_fixed = 1.0_dblp     !< surface ocean, ocean_ratio_mode = 'fixed'
+        logical                       :: land_bucket   = .false.      !< land_iso_mode = 'bucket' (wiso:3a:0002)
+        real(dblp), dimension(nwisos) :: r_soil_init   = 1.0_dblp     !< soil water, cold start ('bucket')
+        real(dblp), dimension(nwisos) :: r_snow_init   = 1.0_dblp     !< snow, cold start ('bucket')
         real(dblp)                    :: dexc_ocean_frac   = 0.0_dblp  !< dexc_ocean as a fraction ('file' mode)
         real(dblp)                    :: o17exc_ocean_frac = 0.0_dblp  !< o17exc_ocean as a fraction ('file' mode)
         real(dblp), dimension(nwisos) :: delta_check_min = -1.0_dblp  !< plausibility window, delta as a fraction
@@ -288,8 +301,7 @@
           select case (trim(land_iso_mode))
           case ('fixed')
           case ('bucket')
-            write(*,*) "iso_nml_read: land_iso_mode = 'bucket' is not available yet (ROADMAP 3a)"
-            stop 1
+            land_bucket = .true.
           case default
             write(*,*) "iso_nml_read: unknown land_iso_mode = ", trim(land_iso_mode), " (fixed | bucket)"
             stop 1
@@ -349,6 +361,8 @@
           r_vap_init    = iso_ratios(d18o_vap_init  * ISO_PERMIL, dexc_vap_init  * ISO_PERMIL, o17exc_vap_init  * ISO_PERMEG)
           r_land_evap   = iso_ratios(d18o_land_evap * ISO_PERMIL, dexc_land_evap * ISO_PERMIL, o17exc_land_evap * ISO_PERMEG)
           r_snow_evap   = iso_ratios(d18o_snow_evap * ISO_PERMIL, dexc_snow_evap * ISO_PERMIL, o17exc_snow_evap * ISO_PERMEG)
+          r_soil_init   = iso_ratios(d18o_soil_init * ISO_PERMIL, dexc_soil_init * ISO_PERMIL, o17exc_soil_init * ISO_PERMEG)
+          r_snow_init   = iso_ratios(d18o_snow_init * ISO_PERMIL, dexc_snow_init * ISO_PERMIL, o17exc_snow_init * ISO_PERMEG)
           r_ocean_fixed = iso_ratios(d18o_ocean     * ISO_PERMIL, dexc_ocean     * ISO_PERMIL, o17exc_ocean     * ISO_PERMEG)
           dexc_ocean_frac   = dexc_ocean   * ISO_PERMIL
           o17exc_ocean_frac = o17exc_ocean * ISO_PERMEG
@@ -411,6 +425,10 @@
           write(unit_chk, '(a,3f12.4)')  'ocean     d18o (fixed only), dexc (permil), o17exc (per meg) = ',             &
                                          d18o_ocean, dexc_ocean, o17exc_ocean
           write(unit_chk, '(a,a)')       'land_iso_mode    = ', trim(land_iso_mode)
+          write(unit_chk, '(a,3f12.4)')  'soil_init d18o, dexc (permil), o17exc (per meg) = ',                          &
+                                         d18o_soil_init, dexc_soil_init, o17exc_soil_init
+          write(unit_chk, '(a,3f12.4)')  'snow_init d18o, dexc (permil), o17exc (per meg) = ',                          &
+                                         d18o_snow_init, dexc_snow_init, o17exc_snow_init
           write(unit_chk, '(a,l1)')      'restart_read     = ', restart_read
           write(unit_chk, '(a,a)')       'restart_file     = ', trim(restart_file)
           write(unit_chk, '(a,a)')       'alpha_lv_form    = ', trim(alpha_lv_form)

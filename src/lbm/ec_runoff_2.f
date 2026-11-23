@@ -43,6 +43,11 @@ c~ #endif
 #endif
 
       use comatm, only: nlat, nlon, iwater
+#if ( WISOATM == 1 )
+      use comatm, only: iwat16, nwisos
+      use comland_mod, only: lbm_wiso
+      use landmodel_mod, only: lbm_wiso_ratio
+#endif
 
       IMPLICIT NONE
 
@@ -59,6 +64,9 @@ c~ #endif
       integer(kind=ip) ::   i,j
 
       integer(kind=ip) :: runoff_per_basin_txt_id
+#if ( WISOATM == 1 )
+      real(kind=dp) :: rso(nwisos)
+#endif
       
 c~ #if ( ISOATM >= 2 )
 c~       INTEGER(kind=ip) :: k
@@ -155,9 +163,21 @@ c~ #else /* ISOATM < 2  thus no isotopes in runoff */
 ! dmr: input is thus consistent in using m.s-1
      
          if (bmoisg(i,j,iwater).gt.bmoism(i,j)) then
+#if ( WISOATM == 1 )
+              if (lbm_wiso) rso = lbm_wiso_ratio(bmoisg(i,j,:))
+#endif
               runofl(i,j,iwater)=
      >            (bmoisg(i,j,iwater)-bmoism(i,j))/dtland
               bmoisg(i,j,iwater)=bmoism(i,j)
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:3a:0002 overflow at the ratio of the soil water
+              if (lbm_wiso) then
+                runofl(i,j,iwat16:nwisos) = rso(iwat16:nwisos)
+     &                                    * runofl(i,j,iwater)
+                bmoisg(i,j,iwat16:nwisos) = rso(iwat16:nwisos)
+     &                                    * bmoisg(i,j,iwater)
+              endif
+#endif
          endif
 
 c~ #endif
@@ -224,6 +244,15 @@ c~ #else /* ISOATM < 2  thus no isotopes in runoff */
 
             flux_per_basin(river_basin(i,j))=flux_per_basin(river_basin(i,j))
      &      + runofl(i,j,iwater) * fractl(i,j) * dareas(i)
+#if ( WISOATM == 1 )
+            if (lbm_wiso) then
+              runofo(eni(i,j),enj(i,j),iwat16:nwisos)
+     &        = runofo(eni(i,j),enj(i,j),iwat16:nwisos)
+     &        + runofl(i,j,iwat16:nwisos)
+     &        * fractl(i,j)/(1.0-fractl(eni(i,j),enj(i,j)))
+     &        *dareas(i)/dareas(eni(i,j))
+            endif
+#endif
 
 #if ( ICEBERG == 2 && ISM != 2 )
             if (mod(istep,nstpyear).eq.0) then ! only do conversion at the last timestep of the year

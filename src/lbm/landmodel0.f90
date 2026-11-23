@@ -49,6 +49,11 @@
       USE routageEAU_mod
 #endif
 
+#if ( WISOATM == 1 )
+      use comatm,      only: iwat16, nwisos
+      use comland_mod, only: lbm_wiso
+      use iso_nml_mod, only: land_bucket, r_soil_init, r_snow_init
+#endif
       use comland_mod, only: fractl, dareas, dsnow, bmoisg, runofo, tland, albsnow, bmoismfix, dsnm, dtland, epsl, heatsnown &
                      , heatsnows, iscenland, islndstrt, lhcap, pi, radius, rdtland, rlatfus, rlatsub, rlatvap, rlhcap, rowat &
                      , tareas, tzero, alb_dat_id, forfr_dat_id
@@ -71,6 +76,9 @@
 
 
       integer i,j,ija,is
+#if ( WISOATM == 1 )
+      integer k
+#endif
       real*8  ds,db,dumwei
       real*8  phi(nlat)
       real*8  cosfi(nlat),sinfi(nlat),tanfi(nlat)
@@ -194,6 +202,29 @@
           endif
         enddo
       enddo
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:3a:0002 land isotopes in the stores (land_iso_mode = 'bucket'): cold start at the namelist compositions
+!           (no land isotope restart yet); non-fractionating land processes (lbm_landprecip, ec_runoff, ec_runoff_2)
+      lbm_wiso = land_bucket
+      if (lbm_wiso) then
+        if (ilan.ne.1) then
+          write(*,*) "ec_initlbm: land_iso_mode = 'bucket' needs ilan = 1 (the snow / soil split of the land evaporation", &
+                     " is made with the atmospheric time step), ilan = ", ilan
+          stop 1
+        endif
+#if ( ICEBERG == 2 || CARAIB > 0 )
+        write(*,*) "ec_initlbm: land_iso_mode = 'bucket' is not available with ICEBERG = 2 or CARAIB > 0 (ROADMAP 3a)"
+        stop 1
+#endif
+        do k = iwat16, nwisos
+          bmoisg(:,:,k) = r_soil_init(k)*bmoisg(:,:,iwater)
+          runofo(:,:,k) = r_soil_init(k)*runofo(:,:,iwater)
+          dsnow(:,:,k)  = r_snow_init(k)*dsnow(:,:,iwater)
+        enddo
+        write(*,*) "ec_initlbm: land isotopes in the soil water and the snow (land_iso_mode = 'bucket'), cold start"
+      endif
+#endif
 
 ! *** read snow albedos
 
@@ -671,6 +702,10 @@
       use comland_mod, only:  dsnm, betam, dtland, epsl
 
       use newunit_mod, only: info_id
+#if ( WISOATM == 1 )
+      use comatm,      only: iwat16
+      use comland_mod, only: lbm_wiso
+#endif
 
       implicit none
 
@@ -702,6 +737,10 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       real(kind=dblp) ::  dsnomel,dsnovap
+#if ( WISOATM == 1 )
+        ! ratios of the snow and of the soil water (wiso:3a:0002)
+      real(kind=dblp), dimension(nwisos) :: rsn, rso
+#endif
 
       snowdiff = 0.0_dblp
       dsnovap  = 0.0_dblp
@@ -710,6 +749,17 @@
 
           ! if on land then ...
       if (fractl.gt.epsl) then
+
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:3a:0002 land isotopes (lbm_wiso): each store keeps a ratio per species, unchanged by what leaves it
+!           (evaporation, melt, snow above dsnm: non-fractionating), mixed with what enters it (snow fall, rain, melt
+!           water, snow above dsnm); the isotopes are the ratio times the water at the end. The evaporation leaves each
+!           store at the ratio it had when the atmosphere computed the flux (ec_la2co, same step, ilan = 1).
+        if (lbm_wiso) then
+          rsn = lbm_wiso_ratio(dsnow)
+          rso = lbm_wiso_ratio(bmoisg)
+        endif
+#endif
 
 ! dmr --- First deal with evaporation from the landsurface
 
@@ -726,6 +776,12 @@
           endif
         endif
 
+#if ( WISOATM == 1 )
+        if (lbm_wiso) then
+          rsn = lbm_wiso_mix(rsn, dsnow(iwater), dtland*snowf)
+          rso = lbm_wiso_mix(rso, bmoisg(iwater), dtland*rainf)
+        endif
+#endif
         dsnow(iwater) = dsnow(iwater) + dtland*snowf(iwater)                  ! add snow fall
         bmoisg(iwater)= bmoisg(iwater)+ dtland*rainf(iwater)                  ! add rainfall
 
@@ -740,6 +796,9 @@
             dsnomel  = dsnow(iwater)                                     ! potential melting the whole layer
           endif
 
+#if ( WISOATM == 1 )
+          if (lbm_wiso) rso = lbm_wiso_mix(rso, bmoisg(iwater), rsn*dsnomel)
+#endif
           dsnow(iwater) = dsnow(iwater)-dsnomel ! actually melting the snow
           bmoisg(iwater)=bmoisg(iwater)+dsnomel ! acutally adding the snow melt to the water layer
 
@@ -752,6 +811,9 @@
         if ((snow_excess.ne.snow_excess_keep).and.(dsnow(iwater).gt.dsnm)) then
           snowdiff=dsnow(iwater)-dsnm
           if (snow_excess.eq.snow_excess_bucket) then
+#if ( WISOATM == 1 )
+            if (lbm_wiso) rso = lbm_wiso_mix(rso, bmoisg(iwater), rsn*snowdiff)
+#endif
             bmoisg(iwater)=bmoisg(iwater)+ dsnow(iwater)-dsnm
           endif
           dsnow(iwater) = dsnm
@@ -771,10 +833,52 @@
           bmoisg(iwater)=0d0
         endif
 
+#if ( WISOATM == 1 )
+        if (lbm_wiso) then
+          dsnow(iwat16:nwisos)  = rsn(iwat16:nwisos)*dsnow(iwater)
+          bmoisg(iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(iwater)
+        endif
+#endif
+
       endif ! on land ...
 
       return
       end subroutine lbm_landprecip
+
+#if ( WISOATM == 1 )
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+      pure function lbm_wiso_ratio(store) result(r)
+        !! Isotope ratios of a land store (amounts / water); 0 for an empty store (its ratio does not matter: no weight)
+        !!   wiso:3a:0002
+      use comatm, only: iwater, nwisos
+      real(kind=dblp), dimension(nwisos), intent(in) :: store
+      real(kind=dblp), dimension(nwisos)             :: r
+      if (store(iwater).gt.0.0_dblp) then
+        r(:) = store(:)/store(iwater)
+      else
+        r(:) = 0.0_dblp
+      endif
+      r(iwater) = 1.0_dblp
+      end function lbm_wiso_ratio
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+      pure function lbm_wiso_mix(r_old, w_old, a_in) result(r)
+        !! Ratios of a land store of water w_old (taken as 0 if negative) and ratios r_old after the inflow a_in (amounts
+        !!   of all species, a_in(iwater) the water); unchanged without inflow. wiso:3a:0002
+      use comatm, only: iwater, nwisos
+      real(kind=dblp), dimension(nwisos), intent(in) :: r_old, a_in
+      real(kind=dblp),                    intent(in) :: w_old
+      real(kind=dblp), dimension(nwisos)             :: r
+      real(kind=dblp) :: wp
+      wp = max(w_old, 0.0_dblp)
+      if (wp + a_in(iwater).gt.0.0_dblp) then
+        r(:) = (r_old(:)*wp + a_in(:))/(wp + a_in(iwater))
+      else
+        r(:) = r_old(:)
+      endif
+      r(iwater) = 1.0_dblp
+      end function lbm_wiso_mix
+#endif
 
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
@@ -792,6 +896,10 @@
 
       use comland_mod, only: runofl, bmoisg, runofo, dtland, epsl, nbasins, fractl, bmoism, ilabas, dareas, iocbas, rlatfus &
                      , arocbas
+#if ( WISOATM == 1 )
+      use comatm,      only: iwat16
+      use comland_mod, only: lbm_wiso
+#endif
       use newunit_mod, only: runoff_id
 
       implicit none
@@ -802,87 +910,48 @@
 #include "ismecv.com"
 #endif
 
-!~ #if ( ISOATM >= 2 )
-!~       real*8    runo(nbasins,neauiso)
-!~ #else
       real*8    runo(nbasins,nwisos)
-!~ #endif
       integer   i,j,ibas,istep
-!~ #if ( ISOATM >= 2 )
-!~       INTEGER :: k
-!~       real, dimension(neauiso) :: variso
-!~       character*10 varisonm
-!~ #endif
+#if ( WISOATM == 1 )
+      real(kind=dblp) :: rso(nwisos)
+#endif
 
 
 
 ! ***  total runoff for each land basin
 
-!~ #if ( ISOATM >= 2 )
-!~       do ibas=1,nbasins
-!~         runo(ibas,:)=0d0
-!~       enddo
-!~ #else
       do ibas=1,nbasins
         runo(ibas,:)=0d0
       enddo
-!~ #endif
 
       do i=1,nlat
         do j=1,nlon
 
-!~ #if ( ISOATM >= 2 )
-!~           runofl(i,j,:)=0.
-!~ #else
           runofl(i,j,:)=0.
-!~ #endif
 
           if (fractl(i,j).gt.epsl) then
 
-!~ #if ( ISOATM >= 2 )
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~ !      Computation of isotopic runoff
-!~ !     == No isotopic fractionation is considered here ==
-!~ !-----|--1--------2---------3---------4---------5---------6---------7-|
-!~             if (bmoisg(i,j,ieau).gt.bmoism(i,j)) then
-!~ #if ( ISOATM == 2 )
-!~            DO k=ieau+1,neauiso
-!~              bmoisg(i,j,k) = bmoisg(i,j,k) -
-!~      &((bmoisg(i,j,ieau)-bmoism(i,j))/bmoisg(i,j,ieau))*bmoisg(i,j,k)
-!~              runofl(i,j,k)=(
-!~      &((bmoisg(i,j,ieau)-bmoism(i,j))/bmoisg(i,j,ieau))*bmoisg(i,j,k)
-!~ !     &(bmoisg(i,j,ieau)-bmoism(i,j))*(bmoisg(i,j,k)/bmoisg(i,j,ieau))
-!~      &)/dtland
 
-!~            ENDDO
-!~ #if ( ISOATM >= 2 )
-!~           DO k=1, neauiso
-!~           if (bmoisg(i,j,k).LT.0.0d0) then
-!~           WRITE(*,*) "WARN {{{: ",bmoisg(i,j,k),bmoisg(i,j,ieau),i,j,k
-!~           WRITE(*,*) "bmoism: ", bmoism(i,j)
-!~           endif
-!~           ENDDO
-!~ #endif
-!~ #elif ( ISOATM == 3)
-!~            WRITE(*,*) "OPTION non implementee, ec_runoff"
-!~ #endif
-!~ ! mab: dtland = 3600*24/(iatm*ilan)
-!~ ! mab: the unit of bmois = cm/yr
-!~               runofl(i,j,ieau)=(bmoisg(i,j,ieau)-bmoism(i,j))/dtland
-!~               bmoisg(i,j,ieau)=bmoism(i,j)
 
-!~             endif ! (bmoisg(i,j,ieau).gt.bmoism(i,j))
 
-!~ #else
 !     MB   bmoism : Max value of bottom moisture [m]
             if (bmoisg(i,j,iwater).gt.bmoism(i,j)) then
+#if ( WISOATM == 1 )
+              if (lbm_wiso) rso = lbm_wiso_ratio(bmoisg(i,j,:))
+#endif
 !     MB dtland = 14400 [s/step]
 !     MB   [m step/s]  = ( [m] - [m] ) / [s/step]
               runofl(i,j,iwater)=(bmoisg(i,j,iwater)-bmoism(i,j))/dtland
               bmoisg(i,j,iwater)=bmoism(i,j)
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:3a:0002 overflow at the ratio of the soil water
+              if (lbm_wiso) then
+                runofl(i,j,iwat16:nwisos) = rso(iwat16:nwisos)*runofl(i,j,iwater)
+                bmoisg(i,j,iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(i,j,iwater)
+              endif
+#endif
             endif ! on (bmoisg(i,j).gt.bmoism(i,j))
 
-!~ #endif
 #if  ( ISM == 1 )
             if (flgism) then
               if(rmount_ism(i,j).LT.0.) then
@@ -890,16 +959,13 @@
               endif
             else
 #endif
-!~ #if ( ISOATM >= 2 )
-!~               DO k=ieau, neauiso
-!~               runo(ilabas(i,j),k)=runo(ilabas(i,j),k) + dareas(i)*
-!~      *             runofl(i,j,k)*fractl(i,j)
-!~               ENDDO
-!~ #else
 !     MB land runoff to runoff, meridional convergence, fraction of land per box
 !     MB  [m3 step/s] = [m3 step/s] + [m2] [m step/s] [1]
               runo(ilabas(i,j),iwater)=runo(ilabas(i,j),iwater) + dareas(i)*runofl(i,j,iwater)*fractl(i,j)
-!~ #endif
+#if ( WISOATM == 1 )
+              if (lbm_wiso) runo(ilabas(i,j),iwat16:nwisos)=runo(ilabas(i,j),iwat16:nwisos)                            &
+                                                          + dareas(i)*runofl(i,j,iwat16:nwisos)*fractl(i,j)
+#endif
 
 #if  ( ISM == 1 )
             endif
@@ -921,19 +987,7 @@
 !     runo(5)=runo(5)*0.80
 !     runo(23)=runo(23)*0.80
 !     MB runo is in [m3 step/s]... means m3/s per timestep!
-!~ #if ( ISOATM >= 2 )
-!~       DO k=ieau, neauiso
-!~       do i=1,nlat
-!~          do j=1,nlon
-!~             runofo(i,j,k)=0.
-!~             if (iocbas(i,j).gt.0) then
-!~                runofo(i,j,k)=runo(iocbas(i,j),k)/arocbas(iocbas(i,j))
-!~             endif
-!~          enddo
-!~       enddo
-!~       ENDDO
 
-!~ #else
       do i=1,nlat
         do j=1,nlon
           runofo(i,j,iwater)=0.
@@ -941,9 +995,14 @@
 !     MB   [m step/s] = [m3 step/s]/[m2]
              runofo(i,j,iwater)= runo(iocbas(i,j),iwater)/arocbas(iocbas(i,j))
           endif
+#if ( WISOATM == 1 )
+          if (lbm_wiso) then
+            runofo(i,j,iwat16:nwisos)=0.
+            if (iocbas(i,j).gt.0) runofo(i,j,iwat16:nwisos)= runo(iocbas(i,j),iwat16:nwisos)/arocbas(iocbas(i,j))
+          endif
+#endif
         enddo
       enddo
-!~ #endif /* ! on ISOATM >= 2 */
 ! outputs for Greenland and Antarctica
 !     write(runoff_id,*) runo(5),runo(23)
 ! MBEDIT
@@ -1571,6 +1630,10 @@
 
       use comatm, only: nlat, nlon, iwater
       use comland_mod, only: alblbm, tland, bmoisg, bmoism, dsnow
+#if ( WISOATM == 1 )
+      use comatm, only: iwat16, nwisos
+      use comland_mod, only: lbm_wiso
+#endif
 
 
       implicit none
@@ -1587,41 +1650,16 @@
           tsurfn_d(i,j,nld,:) = tland_d(i,j,:)
 #endif
 
-!~ #if ( ISOATM >= 2 )
-
-!~ #if ( ISOLBM == 0 )
-
-!~           abmoisg(i,j,ieau)=bmoisg(i,j,ieau)
-!~           abmoism(i,j)=bmoism(i,j)
-!~           adsnow(i,j,ieau)=dsnow(i,j,ieau)
-
-!~           FORALL (k=ieau+1:neauiso)
-!~             abmoisg(i,j,k) = abmoisg(i,j,ieau)*(datmini(k)+1.0d0)*rsmow(k)
-!~             adsnow(i,j,k) = adsnow(i,j,ieau)*(datmini(k)+1.0d0)*rsmow(k)
-!~           ENDFORALL
-!~ #else
-!~           abmoisg(i,j,:)=bmoisg(i,j,:)
-!~           abmoism(i,j)=bmoism(i,j)
-!~           adsnow(i,j,:)=dsnow(i,j,:)
-
-!~           IF ((adsnow(i,j,ieau).GT.EPSILON(adsnow(i,j,ieau)))
-!~      &        .and.(adsnow(i,j,ieau18).EQ.0.d0))then
-!~            WRITE(*,*) "PB ADSNOW !! ", adsnow(i,j,ieau), adsnow(i,j,ieau18),i,j
-!~ !           read(*,*)
-!~           endif
-
-!~           IF ((abmoisg(i,j,ieau).GT.EPSILON(abmoisg(i,j,ieau)))
-!~      &        .and.(abmoisg(i,j,ieau18).EQ.0.d0))then
-!~            WRITE(*,*) "PB ABMOISG !! ",abmoisg(i,j,ieau),abmoisg(i,j,ieau18),i,j
-!~ !           read(*,*)
-!~           endif
-
-!~ #endif
-
-!~ #else
           abmoisg(i,j,iwater)= bmoisg(i,j,iwater)
           abmoism(i,j)       = bmoism(i,j)
           adsnow(i,j,iwater) = dsnow(i,j,iwater)
+#if ( WISOATM == 1 )
+! dmr&clo   wiso:3a:0002 isotopes of the stores, for the composition of the land evaporation (land_iso_mode = 'bucket')
+          if (lbm_wiso) then
+            abmoisg(i,j,iwat16:nwisos) = bmoisg(i,j,iwat16:nwisos)
+            adsnow(i,j,iwat16:nwisos)  = dsnow(i,j,iwat16:nwisos)
+          endif
+#endif
 !~ #endif
         enddo
       enddo
@@ -1673,7 +1711,6 @@
 
         enddo
       enddo
-!~ #endif
 
       couphsnn=heatsnown
       couphsns=heatsnows

@@ -16,6 +16,12 @@
 
   land_iso_mode    = 'fixed'                ! 'fixed': land and snow evaporation at the compositions below;
                                             ! 'bucket': isotopes in the LBM soil water and snow (ROADMAP 3a)
+  d18o_soil_init   =  -8.0                  ! 'bucket', cold start of the land isotopes: soil water
+  dexc_soil_init   =  10.0
+  o17exc_soil_init =   0.0
+  d18o_snow_init   = -25.0                  ! idem, snow
+  dexc_snow_init   =  10.0
+  o17exc_snow_init =   0.0
   d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (land_iso_mode = 'fixed')
   dexc_land_evap   =   0.0
   o17exc_land_evap =   0.0

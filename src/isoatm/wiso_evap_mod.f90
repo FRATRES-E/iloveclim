@@ -40,9 +40,10 @@
 !!         E/(1 - h) (1 - k)(R_oc/alpha - h R_v), finite as h -> 1; a negative
 !!         isotopologue flux (h R_v > R_oc/alpha) is set to 0 and counted (wisobounds_*, neclip); iwat16 follows
 !!         the water. Fractionation is refused with EVAPSI = 0 (iso_nml_mod);
-!!       - land (D10, D42): sublimation of snow at r_snow_evap, evaporation of the bucket at r_land_evap, fixed in
-!!         wisoatm.nml until the land isotopes (step 3). The heat flux esice over the ice mask carries no water, hence
-!!         no isotopologues.
+!!       - land (D10, D42): sublimation of snow and evaporation of the bucket, at r_snow_evap and r_land_evap of
+!!         wisoatm.nml (land_iso_mode = 'fixed'), or at the ratios of the snow and of the soil water of the cell
+!!         (land_iso_mode = 'bucket', wiso:3a:0002: adsnow, abmoisg, passed by ec_la2co; non-fractionating). The heat
+!!         flux esice over the ice mask carries no water, hence no isotopologues.
 !!
 !!     Contract
 !!       - wiso_evap_split(ev, i, j, e_ocean, e_snow, e_land[, t_ocean, q_s, q_a, u10]): ev(iwat16:iwat2h) of cell
@@ -80,7 +81,9 @@
         subroutine wiso_evap_split(ev, i, j, e_ocean, e_snow, e_land, t_ocean, q_s, q_a, u10)
 
           use iso_param_mod,   only: ratio_oceanatm
-          use iso_nml_mod,     only: r_snow_evap, r_land_evap, frac_evap, cg_rv_gamma
+          use iso_nml_mod,     only: r_snow_evap, r_land_evap, frac_evap, cg_rv_gamma, land_bucket
+          use comsurf_mod,     only: adsnow, abmoisg
+          use comatm,          only: iwater, nwisos
           use iso_alphas,      only: alpha_lv
           use wiso_vap_mod,    only: wiso_vap_ratio_at
           use wiso_budget_mod, only: wiso_bud_count_eclip
@@ -97,11 +100,19 @@
 
           integer(ip) :: k
           real(dblp)  :: h, ecg, eo, rv
+          real(dblp), dimension(nwisos) :: rsn, rso     !< ratios of the snow and soil-water fluxes
+          ! dmr&clo   wiso:3a:0002 land ratios: fixed, or those of the stores of the cell (no flux from an empty store)
+          rsn = r_snow_evap
+          rso = r_land_evap
+          if (land_bucket) then
+            if (adsnow(i, j, iwater) > 0.0_dblp)  rsn = adsnow(i, j, :)/adsnow(i, j, iwater)
+            if (abmoisg(i, j, iwater) > 0.0_dblp) rso = abmoisg(i, j, :)/abmoisg(i, j, iwater)
+          endif
 
           if (frac_evap == 0 .or. e_ocean == 0.0_dblp) then
             ! passive: the flux at the composition of each source (wiso:2c:0003)
             do k = iwat16, iwat2h
-              ev(k) = e_ocean*ratio_oceanatm(i, j, k) + e_snow*r_snow_evap(k) + e_land*r_land_evap(k)
+              ev(k) = e_ocean*ratio_oceanatm(i, j, k) + e_snow*rsn(k) + e_land*rso(k)
             enddo
           else if (frac_evap == 2) then
             ! dmr&clo   wiso:2d:0002 Craig-Gordon / MJ79; e_ocean > 0 implies q_s > q_a, so h < 1
@@ -109,7 +120,7 @@
               error stop "wiso_evap_split: t_ocean, q_s, q_a, u10 needed for frac_evap = 2"
             h   = q_a/q_s
             ecg = e_ocean*q_s/(q_s - q_a)                       ! E/(1 - h)
-            ev(iwat16) = e_ocean*ratio_oceanatm(i, j, iwat16) + e_snow*r_snow_evap(iwat16) + e_land*r_land_evap(iwat16)
+            ev(iwat16) = e_ocean*ratio_oceanatm(i, j, iwat16) + e_snow*rsn(iwat16) + e_land*rso(iwat16)
             do k = iwat17, iwat2h
               rv = wiso_vap_ratio_at(i, j, k)
               if (cg_rv_gamma /= 0.0_dblp) rv = rv*alpha_lv(t_ocean, k)**cg_rv_gamma    ! wiso:2f:0002 (O52)
@@ -118,14 +129,14 @@
                 eo = 0.0_dblp
                 call wiso_bud_count_eclip(k)
               endif
-              ev(k) = eo + e_snow*r_snow_evap(k) + e_land*r_land_evap(k)
+              ev(k) = eo + e_snow*rsn(k) + e_land*rso(k)
             enddo
           else
             ! dmr&clo   wiso:2d:0001 frac_evap = 1: ocean flux in equilibrium with the surface ocean (alpha = 1 for iwat16)
             if (.not. present(t_ocean)) error stop "wiso_evap_split: t_ocean needed for frac_evap >= 1"
             do k = iwat16, iwat2h
-              ev(k) = e_ocean*ratio_oceanatm(i, j, k)/alpha_lv(t_ocean, k) + e_snow*r_snow_evap(k)                 &
-                    + e_land*r_land_evap(k)
+              ev(k) = e_ocean*ratio_oceanatm(i, j, k)/alpha_lv(t_ocean, k) + e_snow*rsn(k)                 &
+                    + e_land*rso(k)
             enddo
           endif
 
