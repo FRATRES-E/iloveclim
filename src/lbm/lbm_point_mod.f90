@@ -34,8 +34,8 @@
 !!
 !!     Contract (public entry points):
 !!       lbm_landtemp     : land temperature and melt energy of a point.
-!!       lbm_landprecip   : evaporation, snow fall and rain, melt and snow above dsnm of a point; fate of that snow
-!!                          set by the caller with SNOW_EXCESS_*.
+!!       lbm_landprecip   : evaporation, snow fall and rain, melt and snow above dsnm of a point (fate of that snow
+!!                          set by the caller with SNOW_EXCESS_*), overflow of the soil water (runoff of the point).
 !!       lbm_wiso_ratio, lbm_wiso_mix (WISOATM = 1): ratios of a land store, mixing of an inflow.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -156,10 +156,11 @@
       end subroutine lbm_landtemp
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE lbm_landprecip(landheat,evapl,bmoisg,dsnow,snowf,rainf,meltheat,fractl,snow_excess,snowdiff)
+      SUBROUTINE lbm_landprecip(landheat,evapl,bmoisg,dsnow,snowf,rainf,meltheat,fractl,snow_excess,snowdiff,bmoism,runofl)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
        !! Revamped routine from ec_landprecip, for one grid point
-       !! Computes the fate of precipitation on land: evaporation, snow fall and rain, snow melt, snow above dsnm
+       !! Computes the fate of precipitation on land: evaporation, snow fall and rain, snow melt, snow above dsnm,
+       !!   overflow of the soil water above its capacity (runoff of the point; collected by lbm_runoff, wiso:3a:0004)
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       use comatm, only: iwater, nwisos
@@ -191,6 +192,10 @@
       real(kind=dblp),                   intent(in)  :: meltheat
         !> Fraction of land in the grid cell [1]
       real(kind=dblp),                   intent(in)  :: fractl
+        !> Capacity of the soil water (maximum bottom moisture) [m]
+      real(kind=dblp),                   intent(in)  :: bmoism
+        !> Runoff of the point: overflow of the soil water [m/s], all species (0 off land)
+      real(kind=dblp), dimension(nwisos),intent(out) :: runofl
 
         !> "bottom moisture" ergo water on land [m]
       real(kind=dblp), dimension(nwisos),intent(inout) :: bmoisg
@@ -209,6 +214,7 @@
 
       snowdiff = 0.0_dblp
       dsnovap  = 0.0_dblp
+      runofl(:) = 0.0_dblp
 
       landheat = 0d0
 
@@ -304,6 +310,22 @@
           bmoisg(iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(iwater)
         endif
 #endif
+
+! dmr&clo   wiso:3a:0004 overflow of the soil water above its capacity (moved from ec_runoff_2 / ec_runoff), at the ratio of
+!           the soil water (taken from the store, as before: bitwise identical)
+        if (bmoisg(iwater).gt.bmoism) then
+#if ( WISOATM == 1 )
+          if (lbm_wiso) rso = lbm_wiso_ratio(bmoisg)
+#endif
+          runofl(iwater) = (bmoisg(iwater)-bmoism)/dtland
+          bmoisg(iwater) = bmoism
+#if ( WISOATM == 1 )
+          if (lbm_wiso) then
+            runofl(iwat16:nwisos) = rso(iwat16:nwisos)*runofl(iwater)
+            bmoisg(iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(iwater)
+          endif
+#endif
+        endif
 
       endif ! on land ...
 

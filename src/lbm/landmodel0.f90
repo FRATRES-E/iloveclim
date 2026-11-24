@@ -423,7 +423,7 @@
       use comland_mod, only: albland, forestfr, albsnow, dsnow, alblbm, fractl
 
       use input_icemask, only: icemask
-      use lbm_driver_mod, only: lbm_landsurface
+      use lbm_driver_mod, only: lbm_landsurface, lbm_runoff
 
 #if ( F_PALAEO_FWF ==2 )
       use comsurf_mod, only: thi_chge
@@ -462,13 +462,8 @@
 
       if (iscenland.eq.1) call ec_landcoverupdate(istep,kst,fractl,albland,forestfr,albsnow)
 
-      call lbm_landsurface(istep)
-
-#if ( ROUTEAU == 0 )
-      call ec_runoff(istep)
-#else
-      call ec_runoff_2(istep)
-#endif
+      call lbm_landsurface(istep)   ! every land point, with its runoff
+      call lbm_runoff(istep)        ! runoff collected to the ocean (wiso:3a:0004)
 
 #if ( F_PALAEO_FWF == 2 )
 !nb routage de l eau venant de la fonte de la calotte  partir du
@@ -497,163 +492,6 @@
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-      SUBROUTINE ec_runoff(istep)
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-! *** computes runoff from rivers and distributes it over the ocean
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-      use comatm, only: nlat, nlon, nwisos, iwater
-      use comemic_mod, only:
-      use comunit, only: iuo
-
-
-      use comland_mod, only: runofl, bmoisg, runofo, dtland, epsl, nbasins, fractl, bmoism, ilabas, dareas, iocbas, rlatfus &
-                     , arocbas
-#if ( WISOATM == 1 )
-      use comatm,      only: iwat16
-      use comland_mod, only: lbm_wiso
-      use lbm_point_mod, only: lbm_wiso_ratio
-#endif
-      use newunit_mod, only: runoff_id
-
-      implicit none
-
-
-#if ( ISM == 1 )
-#include "ismecv.com"
-#endif
-
-      real*8    runo(nbasins,nwisos)
-      integer   i,j,ibas,istep
-#if ( WISOATM == 1 )
-      real(kind=dblp) :: rso(nwisos)
-#endif
-
-
-! ***  total runoff for each land basin
-
-      do ibas=1,nbasins
-        runo(ibas,:)=0d0
-      enddo
-
-      do i=1,nlat
-        do j=1,nlon
-
-          runofl(i,j,:)=0.
-
-          if (fractl(i,j).gt.epsl) then
-
-
-!     MB   bmoism : Max value of bottom moisture [m]
-            if (bmoisg(i,j,iwater).gt.bmoism(i,j)) then
-#if ( WISOATM == 1 )
-              if (lbm_wiso) rso = lbm_wiso_ratio(bmoisg(i,j,:))
-#endif
-!     MB dtland = 14400 [s/step]
-!     MB   [m step/s]  = ( [m] - [m] ) / [s/step]
-              runofl(i,j,iwater)=(bmoisg(i,j,iwater)-bmoism(i,j))/dtland
-              bmoisg(i,j,iwater)=bmoism(i,j)
-#if ( WISOATM == 1 )
-! dmr&clo   wiso:3a:0002 overflow at the ratio of the soil water
-              if (lbm_wiso) then
-                runofl(i,j,iwat16:nwisos) = rso(iwat16:nwisos)*runofl(i,j,iwater)
-                bmoisg(i,j,iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(i,j,iwater)
-              endif
-#endif
-            endif ! on (bmoisg(i,j).gt.bmoism(i,j))
-
-#if  ( ISM == 1 )
-            if (flgism) then
-              if(rmount_ism(i,j).LT.0.) then
-              runo(ilabas(i,j))=runo(ilabas(i,j)) + dareas(i)*runofl(i,j)*fractl(i,j)
-              endif
-            else
-#endif
-!     MB land runoff to runoff, meridional convergence, fraction of land per box
-!     MB  [m3 step/s] = [m3 step/s] + [m2] [m step/s] [1]
-              runo(ilabas(i,j),iwater)=runo(ilabas(i,j),iwater) + dareas(i)*runofl(i,j,iwater)*fractl(i,j)
-#if ( WISOATM == 1 )
-              if (lbm_wiso) runo(ilabas(i,j),iwat16:nwisos)=runo(ilabas(i,j),iwat16:nwisos)                            &
-                                                          + dareas(i)*runofl(i,j,iwat16:nwisos)*fractl(i,j)
-#endif
-
-#if  ( ISM == 1 )
-            endif
-#endif
-          endif
-        enddo
-      enddo
-
-#if ( ISM == 1 )
-      if (flgisma) then
-       if(runocorra.ne.0.) runo(23)=runocorra+runo(23)
-      endif
-      if (flgismg) then
-       if(runocorrg.ne.0.) runo(5)=runocorrg+runo(5)
-      endif
-#endif
-! ***  distribution of land runoff over the ocean
-! correction test Greenland, Antartcica
-!     runo(5)=runo(5)*0.80
-!     runo(23)=runo(23)*0.80
-!     MB runo is in [m3 step/s]... means m3/s per timestep!
-
-      do i=1,nlat
-        do j=1,nlon
-          runofo(i,j,iwater)=0.
-          if (iocbas(i,j).gt.0) then
-!     MB   [m step/s] = [m3 step/s]/[m2]
-             runofo(i,j,iwater)= runo(iocbas(i,j),iwater)/arocbas(iocbas(i,j))
-          endif
-#if ( WISOATM == 1 )
-          if (lbm_wiso) then
-            runofo(i,j,iwat16:nwisos)=0.
-            if (iocbas(i,j).gt.0) runofo(i,j,iwat16:nwisos)= runo(iocbas(i,j),iwat16:nwisos)/arocbas(iocbas(i,j))
-          endif
-#endif
-        enddo
-      enddo
-! outputs for Greenland and Antarctica
-!     write(runoff_id,*) runo(5),runo(23)
-! MBEDIT
-! Set to 1 to use runoff output,
-#if ( 0 )
-      if (mod(istep,nstpyear).eq.1) then
-! MBEDIT Every first atmospheric year set it zero
-         runo_yearly=0.
-      endif
-! MBEDIT Sum it up and multiply with dtland (14400) Land timestep
-! MBEDIT [m3] = [m3] + [m3 step/s]*[s/step]
-      do i=1,mbasins
-         runo_yearly(i) = runo_yearly(i) + (runo(i)*dtland)/1e9
-      enddo
-! MBEDIT
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-
-      if (istep.eq.1) then
-         write(runoff_id,'(A)') '# Landmodel Runoff(km**3/y)'
-         write(runoff_id,'(A4,26A16)') 'Year','Sibiria','Gulf.of.Alaska','Beaufort.Sea','Hudson.Bay','Greenland','Europe', &
-                                       'Mediterrean','India','Okhotsk','Philippines','West.NA','Mississippi','St.Lawrence',&
-                                       'West.Africa','Gulf.of.Guinea','SouthEastAfrica','SouthAfrica','Indonesia',         &
-                                       'S.Australia','West.SA','Amazonas','Rio.Plata','Antarctica','Svalbard','Iceland',    &
-                                       'New.Zealand'
-      endif
-      if (mod(istep,nstpyear).eq.0.) then
-         write(runoff_id,'(I4,26E16.6)') iyear,(runo_yearly(i),i=1,mbasins)
-      endif
-! MBEDIT
-#endif
-!      if (mod(istep,nstpyear).eq.0.) then
-!        write(runoff_id,'(A25,I3,2E15.5)')'runoff land (m**3/y)',
-!    &   iyear,runo_yn,runo_ys
-!      endif
-
-      return
-      end
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       SUBROUTINE ec_landcoverupdate(istep,kst,fractl,albland,forestfr,albsnow)

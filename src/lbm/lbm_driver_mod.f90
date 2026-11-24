@@ -32,8 +32,13 @@
 !!     to icebergs (ICEBERG = 2). Everything that knows the grid stays here, so that lbm_point_mod does not
 !!     (wiso:3a:0003; lbm_landsurface moved verbatim from landmodel_mod, wiso:3a:0000).
 !!
+!!     The runoff of each point (overflow of its soil water, lbm_landprecip) is collected by destination (lbm_runoff):
+!!     to the outlet ocean cell (eni, enj) with ROUTEAU = 1, or over the ocean basin of its land basin with ROUTEAU = 0
+!!     (wiso:3a:0004; the destinations are maps read at set-up, ec_inirunoff; only the receiving side needs areas).
+!!
 !!     Contract (public entry points):
-!!       lbm_landsurface(istep) : one land step of the surface (ec_lbm), before the runoff.
+!!       lbm_landsurface(istep) : one land step of the surface of every point, with its runoff (ec_lbm).
+!!       lbm_runoff(istep)      : collection of the runoff to the ocean (runofo), after lbm_landsurface.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module lbm_driver_mod
@@ -43,7 +48,7 @@
         implicit none
         private
 
-        public :: lbm_landsurface
+        public :: lbm_landsurface, lbm_runoff
 
       contains
 
@@ -57,7 +62,7 @@
 
       use comatm,        only: nlat, nlon
       use comland_mod,   only: fractl, meltheat, tland, nethfxland, landheat, dsnow, evapl, bmoisg, snowf, rainf, dareas  &
-                             , betam, heatsnown, heatsnows
+                             , betam, heatsnown, heatsnows, bmoism, runofl
       use input_icemask, only: icemask
       use lbm_point_mod, only: lbm_landtemp, lbm_landprecip, snow_excess_bucket, snow_excess_out, snow_excess_keep
 
@@ -114,7 +119,7 @@
 #endif
 
           call lbm_landprecip(landheat(i,j),evapl(i,j,:),bmoisg(i,j,:),dsnow(i,j,:),snowf(i,j,:),rainf(i,j,:),meltheat(i,j)  &
-                            , fractl(i,j), snow_excess, snowdiff)
+                            , fractl(i,j), snow_excess, snowdiff, bmoism(i,j), runofl(i,j,:))
 
           if (snowdiff.gt.0.0_dblp) then
             if (snow_excess.eq.snow_excess_bucket) then
@@ -146,6 +151,174 @@
 
       return
       end subroutine lbm_landsurface
+
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+      SUBROUTINE lbm_runoff(istep)
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+        !! Collection of the runoff of the land points (runofl, from lbm_landprecip) to the ocean (runofo), all species
+        !!   ROUTEAU = 1 : each point to its outlet ocean cell (eni, enj), scaled by the land area of the point over the
+        !!                 ocean area of the outlet; river-basin sums (flux_per_basin, yearly runoff_per_basin.txt);
+        !!                 snow to icebergs with ICEBERG = 2 (yearly)                     (from ec_runoff_2)
+        !!   ROUTEAU = 0 : sum over each land basin (ilabas), spread over its ocean basin (iocbas, arocbas)
+        !!                                                                                 (from ec_runoff)
+        !! Expressions and summation order of the former routines kept (bitwise). wiso:3a:0004, dmr&clo
+!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
+
+      use comatm,         only: nlat, nlon, nwisos, iwater
+      use comland_mod,    only: runofl, runofo, fractl, dareas, epsl
+#if ( ROUTEAU == 0 )
+      use comland_mod,    only: nbasins, ilabas, iocbas, arocbas
+#else
+      use comemic_mod,    only: nstpyear
+      use routageEAU_mod, only: eni, enj, flux_per_basin, river_basin
+#endif
+#if ( ICEBERG == 2 && ISM != 2 )
+      use comemic_mod,    only: fracto
+      use comland_mod,    only: sntoicebl, sntoicebo, iceb_toto
+      use iceberg_mod,    only: iceberg_info_out_id
+#endif
+#if ( WISOATM == 1 )
+      use comatm,         only: iwat16
+      use comland_mod,    only: lbm_wiso
+#endif
+
+      implicit none
+
+#if ( ISM == 1 )
+#include "ismecv.com"
+#endif
+
+        !> Time step number in the year
+      integer, intent(in) :: istep
+
+      integer :: i, j
+#if ( ROUTEAU == 0 )
+      integer :: ibas
+      real(kind=dblp) :: runo(nbasins,nwisos)
+#else
+      integer :: runoff_per_basin_txt_id
+#endif
+
+#if ( ROUTEAU == 0 )
+! ***  total runoff for each land basin
+      do ibas=1,nbasins
+        runo(ibas,:)=0d0
+      enddo
+
+      do i=1,nlat
+        do j=1,nlon
+          if (fractl(i,j).gt.epsl) then
+#if  ( ISM == 1 )
+            if (flgism) then
+              if(rmount_ism(i,j).LT.0.) then
+              runo(ilabas(i,j))=runo(ilabas(i,j)) + dareas(i)*runofl(i,j)*fractl(i,j)
+              endif
+            else
+#endif
+!     MB land runoff to runoff, meridional convergence, fraction of land per box
+!     MB  [m3 step/s] = [m3 step/s] + [m2] [m step/s] [1]
+              runo(ilabas(i,j),iwater)=runo(ilabas(i,j),iwater) + dareas(i)*runofl(i,j,iwater)*fractl(i,j)
+#if ( WISOATM == 1 )
+              if (lbm_wiso) runo(ilabas(i,j),iwat16:nwisos)=runo(ilabas(i,j),iwat16:nwisos)                            &
+                                                          + dareas(i)*runofl(i,j,iwat16:nwisos)*fractl(i,j)
+#endif
+#if  ( ISM == 1 )
+            endif
+#endif
+          endif
+        enddo
+      enddo
+
+#if ( ISM == 1 )
+      if (flgisma) then
+       if(runocorra.ne.0.) runo(23)=runocorra+runo(23)
+      endif
+      if (flgismg) then
+       if(runocorrg.ne.0.) runo(5)=runocorrg+runo(5)
+      endif
+#endif
+
+! ***  distribution of land runoff over the ocean
+!     MB runo is in [m3 step/s]... means m3/s per timestep!
+      do i=1,nlat
+        do j=1,nlon
+          runofo(i,j,iwater)=0.
+          if (iocbas(i,j).gt.0) then
+!     MB   [m step/s] = [m3 step/s]/[m2]
+             runofo(i,j,iwater)= runo(iocbas(i,j),iwater)/arocbas(iocbas(i,j))
+          endif
+#if ( WISOATM == 1 )
+          if (lbm_wiso) then
+            runofo(i,j,iwat16:nwisos)=0.
+            if (iocbas(i,j).gt.0) runofo(i,j,iwat16:nwisos)= runo(iocbas(i,j),iwat16:nwisos)/arocbas(iocbas(i,j))
+          endif
+#endif
+        enddo
+      enddo
+
+#else
+! ***  ROUTEAU = 1: each land point to its outlet
+
+      runofo = 0.0d0
+#if ( ICEBERG == 2 && ISM != 2)
+      sntoicebo = 0.
+      iceb_toto = 0.
+#endif
+
+      do i=1,nlat
+        do j=1,nlon
+          if ((fractl(i,j).gt.epsl)) then
+            if ((eni(i,j).eq.0).or.(enj(i,j).eq.0)) then
+              write(*,*) "lbm_runoff: no outlet for the land point ", i, j, eni(i,j), enj(i,j)
+              stop 1
+            endif
+            runofo(eni(i,j),enj(i,j),iwater)=runofo(eni(i,j),enj(i,j),iwater)                                         &
+            + runofl(i,j,iwater) * fractl(i,j)/(1.0-fractl(eni(i,j),enj(i,j)))                                         &
+            *dareas(i)/dareas(eni(i,j))
+            flux_per_basin(river_basin(i,j))=flux_per_basin(river_basin(i,j))                                         &
+            + runofl(i,j,iwater) * fractl(i,j) * dareas(i)
+#if ( WISOATM == 1 )
+            if (lbm_wiso) then
+              runofo(eni(i,j),enj(i,j),iwat16:nwisos)                                                                 &
+              = runofo(eni(i,j),enj(i,j),iwat16:nwisos)                                                               &
+              + runofl(i,j,iwat16:nwisos)                                                                             &
+              * fractl(i,j)/(1.0-fractl(eni(i,j),enj(i,j)))                                                           &
+              *dareas(i)/dareas(eni(i,j))
+            endif
+#endif
+#if ( ICEBERG == 2 && ISM != 2 )
+            if (mod(istep,nstpyear).eq.0) then ! only do conversion at the last timestep of the year
+              sntoicebo(eni(i,j),enj(i,j))= sntoicebo(eni(i,j),enj(i,j))                                              &
+              +sntoicebl(i,j) * fractl(i,j)/(1.0-fractl(eni(i,j),enj(i,j)))                                           &
+              *dareas(i)/dareas(eni(i,j))
+            endif
+#endif
+          endif ! on fractl > epsl
+        enddo ! on j, nlon
+      enddo ! on i, nlat
+
+#if ( ICEBERG == 2 && ISM != 2 )
+      if (mod(istep,nstpyear).eq.0) then ! last timestep of the year
+        do i=1,nlat
+          do j=1,nlon
+            iceb_toto = iceb_toto + sntoicebo(i,j)*dareas(i)*fracto(i,j)
+          end do
+        end do
+        WRITE(iceberg_info_out_id,*) "yearly sum iceberg flux ocean-grid [m3]", iceb_toto, istep
+      endif
+#endif
+
+      if (mod(istep,nstpyear).eq.0) then ! end of year
+        open(newunit=runoff_per_basin_txt_id, file='outputdata/land/runoff_per_basin.txt',                            &
+             form='formatted', position='append', status='unknown')
+        write(runoff_per_basin_txt_id,'(13E20.10)') flux_per_basin/nstpyear*31104000.0E0/1.0E9
+        close(runoff_per_basin_txt_id)
+        flux_per_basin = 0.0
+      endif
+#endif
+
+      return
+      end subroutine lbm_runoff
 
       end module lbm_driver_mod
 
