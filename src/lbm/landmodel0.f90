@@ -50,7 +50,8 @@
 #if ( WISOATM == 1 )
       use comatm,      only: iwat16, nwisos
       use comland_mod, only: lbm_wiso
-      use iso_nml_mod, only: land_bucket, r_soil_init, r_snow_init
+      use iso_nml_mod, only: land_bucket, r_soil_init, r_snow_init, lbm_restart_read, lbm_restart_file
+      use wisolbm_restart_mod, only: wlr_read
 #endif
       use comland_mod, only: fractl, dareas, dsnow, bmoisg, runofo, tland, albsnow, bmoismfix, dsnm, dtland, epsl, heatsnown &
                      , heatsnows, iscenland, islndstrt, lhcap, pi, radius, rdtland, rlatfus, rlatsub, rlatvap, rlhcap, rowat &
@@ -200,8 +201,9 @@
       enddo
 
 #if ( WISOATM == 1 )
-! dmr&clo   wiso:3a:0002 land isotopes in the stores (land_iso_mode = 'bucket'): cold start at the namelist compositions
-!           (no land isotope restart yet); non-fractionating land processes (lbm_landprecip, ec_runoff, ec_runoff_2)
+! dmr&clo   wiso:3a:0002 land isotopes in the stores (land_iso_mode = 'bucket'): from the land isotope restart
+!           (lbm_restart_read, wiso:3a:0006) or a cold start at the namelist compositions; non-fractionating land
+!           processes (lbm_point_mod)
       lbm_wiso = land_bucket
       if (lbm_wiso) then
         if (ilan.ne.1) then
@@ -213,12 +215,16 @@
         write(*,*) "ec_initlbm: land_iso_mode = 'bucket' is not available with ICEBERG = 2 or CARAIB > 0 (ROADMAP 3a)"
         stop 1
 #endif
-        do k = iwat16, nwisos
-          bmoisg(:,:,k) = r_soil_init(k)*bmoisg(:,:,iwater)
-          runofo(:,:,k) = r_soil_init(k)*runofo(:,:,iwater)
-          dsnow(:,:,k)  = r_snow_init(k)*dsnow(:,:,iwater)
-        enddo
-        write(*,*) "ec_initlbm: land isotopes in the soil water and the snow (land_iso_mode = 'bucket'), cold start"
+        if (lbm_restart_read) then
+          call wlr_read(lbm_restart_file, r_soil_init, r_snow_init)
+        else
+          do k = iwat16, nwisos
+            bmoisg(:,:,k) = r_soil_init(k)*bmoisg(:,:,iwater)
+            runofo(:,:,k) = r_soil_init(k)*runofo(:,:,iwater)
+            dsnow(:,:,k)  = r_snow_init(k)*dsnow(:,:,iwater)
+          enddo
+          write(*,*) "ec_initlbm: land isotopes in the soil water and the snow (land_iso_mode = 'bucket'), cold start"
+        endif
       endif
 #endif
 

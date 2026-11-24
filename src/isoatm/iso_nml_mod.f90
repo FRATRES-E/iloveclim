@@ -66,6 +66,7 @@
         public :: ISO_NML_FILE, iso_nml_read, iso_nml_write, iso_ratios
         public :: frac_mode, frac_evap, frac_lsc, frac_conv, iso_passive
         public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file, land_iso_mode
+        public :: lbm_restart_read, lbm_restart_file
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: land_bucket, r_soil_init, r_snow_init
         public :: delta_check_min, delta_check_max
@@ -131,6 +132,9 @@
 ! dmr&clo   Restart of the isotopologues (netCDF, D34; available from ROADMAP 2c)
         logical                :: restart_read     = .false.
         character(len=str_len) :: restart_file     = 'startdata/wisoatm_restart.nc'
+! dmr&clo   wiso:3a:0006 Restart of the land isotopes (land_iso_mode = 'bucket'; netCDF, D65), independent of the above
+        logical                :: lbm_restart_read = .false.
+        character(len=str_len) :: lbm_restart_file = 'startdata/wisolbm_restart.nc'
 
 ! dmr&clo   Fractionation factors (D35, iso_alphas): formulations by name, 17O exponents, snow supersaturation
         character(len=ISO_FORM_LEN) :: alpha_lv_form = 'majoube71'      !< liquid-vapour: majoube71 | horita94
@@ -188,7 +192,7 @@
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
                                land_iso_mode, d18o_soil_init, dexc_soil_init, o17exc_soil_init,                       &
                                d18o_snow_init, dexc_snow_init, o17exc_snow_init,                                      &
-                               restart_read, restart_file,                                                            &
+                               restart_read, restart_file, lbm_restart_read, lbm_restart_file,                        &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
                                kin_form, kin_wind, kin_k18, kin_kd_ratio, cond_temp, cond_phase, cond_tliq, cond_tice, &
@@ -300,6 +304,10 @@
 
           select case (trim(land_iso_mode))
           case ('fixed')
+            if (lbm_restart_read) then
+              write(*,*) "iso_nml_read: lbm_restart_read = .true. needs land_iso_mode = 'bucket'"
+              stop 1
+            endif
           case ('bucket')
             land_bucket = .true.
           case default
@@ -431,6 +439,8 @@
                                          d18o_snow_init, dexc_snow_init, o17exc_snow_init
           write(unit_chk, '(a,l1)')      'restart_read     = ', restart_read
           write(unit_chk, '(a,a)')       'restart_file     = ', trim(restart_file)
+          write(unit_chk, '(a,l1)')      'lbm_restart_read = ', lbm_restart_read
+          write(unit_chk, '(a,a)')       'lbm_restart_file = ', trim(lbm_restart_file)
           write(unit_chk, '(a,a)')       'alpha_lv_form    = ', trim(alpha_lv_form)
           write(unit_chk, '(a,a)')       'alpha_sv_form    = ', trim(alpha_sv_form)
           write(unit_chk, '(a,a)')       'diff_form        = ', trim(diff_form)
