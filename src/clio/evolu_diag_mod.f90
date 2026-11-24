@@ -26,6 +26,12 @@
 #define EVOLU_NETCDF 0
 #endif
 
+! NANGUARD --- 1 (default): stop the run at the first non-finite value in an evolu record (see nan_guard in inforun).
+!              0 = legacy behaviour (run on, writing NaN records until the walltime).
+#ifndef EVOLU_NAN_GUARD
+#define EVOLU_NAN_GUARD 1
+#endif
+
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [evolu_diag_mod]
 !
@@ -68,6 +74,8 @@
 
        use global_constants_mod, only: dblp=>dp, ip
        use para_mod,             only: nchsep_p => nchsep
+       use, intrinsic :: iso_fortran_env, only: int64
+       use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 #if ( EVOLU_NETCDF == 1 )
        use evolu_netcdf_mod,     only: evolu_nc_init, evolu_nc_write, evolu_nc_close
 #endif
@@ -1312,6 +1320,9 @@
 ! dmr&clo --- write the SAME already-averaged vinfor to the NetCDF companion (one time record).
          call evolu_nc_write(vinfor(1:nvinfo), nvinfo)
 #endif
+#if ( EVOLU_NAN_GUARD == 1 )
+         call nan_guard()
+#endif
          if (numit == nferme) then
            write(clio3_out_id,*) ' evolu (in inforun), numit,nferme "', numit, nferme
            write(evolu_id,*)
@@ -1353,6 +1364,74 @@
            if (ns_in == 1) vinfor(i_to_lvl(mlev)) = val
            if (ns_in == 2) vinfor(i_so_lvl(mlev)) = val
          end subroutine put_level_family
+
+#if ( EVOLU_NAN_GUARD == 1 )
+! NANGUARD --- nan_guard (internal to inforun): called once per evolu record, right after the record is written.
+!   If any column is NaN/Inf, report (iteration, model year, offending columns, first offending cell of the prognostic
+!   fields), close evolu / evolu.nc cleanly (flushes to disk) and terminate with a non-zero exit status.
+!   Detection is done on the IEEE bit pattern (exponent field all ones), NOT with x /= x or ieee_is_finite, because
+!   those can be folded away under -ffast-math / -ffinite-math-only. The localisation of the first bad cell below does
+!   use ieee_is_finite: it is purely informative and the stop does not depend on it.
+!   The offending record itself IS in evolu (the last one), so its columns can be inspected.
+         subroutine nan_guard()
+           integer(int64), parameter :: expo = int(z'7FF0000000000000', int64)
+           integer(ip)  :: nbad, nvb, ns_g, ib(3)
+           integer(ip)  :: badcol(8)
+           logical, allocatable :: bad3(:,:,:), bad2(:,:)   ! allocatable: keep ~1 MB off the stack
+
+           nbad = 0
+           do nvb = 1, nvinfo
+             if (iand(transfer(real(vinfor(nvb),8), 0_int64), expo) == expo) then
+               nbad = nbad + 1
+               if (nbad <= 8) badcol(nbad) = nvb
+             endif
+           enddo
+           if (nbad == 0) return
+
+           write(clio3_out_id,*) '*********************************************************************'
+           write(clio3_out_id,*) 'STOP evolu_diag NAN GUARD: non-finite value(s) in the evolu record'
+           write(clio3_out_id,*) '  numit =', numit, '  tpstot =', tpstot
+           write(clio3_out_id,*) '  columns affected =', nbad, ' of ', nvinfo
+           do nvb = 1, min(nbad, 8)
+             write(clio3_out_id,*) '   col', badcol(nvb), ' ', trim(titvar(badcol(nvb))), vinfor(badcol(nvb))
+           enddo
+! first non-finite cell of the prognostic fields (informative only)
+           bad2 = .not. ieee_is_finite(eta)
+           if (any(bad2)) then
+             ib(1:2) = maxloc(merge(1,0,bad2))
+             write(clio3_out_id,*) '  first non-finite eta   at i,j   =', ib(1:2)
+           endif
+           do ns_g = 1, nsmax
+             bad3 = .not. ieee_is_finite(scal(:,:,:,ns_g))
+             if (any(bad3)) then
+               ib = maxloc(merge(1,0,bad3))
+               write(clio3_out_id,*) '  first non-finite scal  ns,i,j,k =', ns_g, ib
+             endif
+           enddo
+           bad3 = .not. ieee_is_finite(u)
+           if (any(bad3)) then
+             ib = maxloc(merge(1,0,bad3))
+             write(clio3_out_id,*) '  first non-finite u     i,j,k    =', ib
+           endif
+           bad3 = .not. ieee_is_finite(v)
+           if (any(bad3)) then
+             ib = maxloc(merge(1,0,bad3))
+             write(clio3_out_id,*) '  first non-finite v     i,j,k    =', ib
+           endif
+           write(clio3_out_id,*) '*********************************************************************'
+           flush(clio3_out_id)
+
+           write(evolu_id,*)
+           close(evolu_id)
+#if ( ISM >= 2 )
+           close(testevolu_id)
+#endif
+#if ( EVOLU_NETCDF == 1 )
+           call evolu_nc_close()
+#endif
+           error stop 'evolu_diag: NaN/Inf in evolu record (NAN GUARD)'
+         end subroutine nan_guard
+#endif
 
        end subroutine inforun
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
