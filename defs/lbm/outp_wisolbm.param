@@ -1,0 +1,56 @@
+Parameters for land water isotope outputs (WISOATM = 1, land_iso_mode = 'bucket'; read after outp_wisoatm.param) : (WARNING: '/' character forbidden)
+
+long_name
+name, standard_name(WARNING: never change it), units, kind of pressure
+
+number, Instantaneous, Monthly_Means,
+Total_Monthly_Means, Yearly_Means
+multiplicative constant (units), additive constant
+--------------------------------------------------------------------------
+15
+
+Soil water delta 18O (amount weighted)
+d18bm	Soil_water_d18O		permil	N
+1	0	0	0	1	1.	0.
+Soil water delta 17O (amount weighted)
+d17bm	Soil_water_d17O		permil	N
+2	0	0	0	1	1.	0.
+Soil water delta D (amount weighted)
+ddbm	Soil_water_dD		permil	N
+3	0	0	0	1	1.	0.
+Soil water deuterium excess (amount weighted)
+dxbm	Soil_water_dexcess		permil	N
+4	0	0	0	1	1.	0.
+Soil water 17O excess (amount weighted)
+e17bm	Soil_water_17Oexcess		per_meg	N
+5	0	0	0	1	1.	0.
+Snow on land delta 18O (amount weighted)
+d18sl	Land_snow_d18O		permil	N
+6	0	0	0	1	1.	0.
+Snow on land delta 17O (amount weighted)
+d17sl	Land_snow_d17O		permil	N
+7	0	0	0	1	1.	0.
+Snow on land delta D (amount weighted)
+ddsl	Land_snow_dD		permil	N
+8	0	0	0	1	1.	0.
+Snow on land deuterium excess (amount weighted)
+dxsl	Land_snow_dexcess		permil	N
+9	0	0	0	1	1.	0.
+Snow on land 17O excess (amount weighted)
+e17sl	Land_snow_17Oexcess		per_meg	N
+10	0	0	0	1	1.	0.
+Runoff of the land delta 18O (amount weighted)
+d18rl	Land_runoff_d18O		permil	N
+11	0	0	0	1	1.	0.
+Runoff of the land delta 17O (amount weighted)
+d17rl	Land_runoff_d17O		permil	N
+12	0	0	0	1	1.	0.
+Runoff of the land delta D (amount weighted)
+ddrl	Land_runoff_dD		permil	N
+13	0	0	0	1	1.	0.
+Runoff of the land deuterium excess (amount weighted)
+dxrl	Land_runoff_dexcess		permil	N
+14	0	0	0	1	1.	0.
+Runoff of the land 17O excess (amount weighted)
+e17rl	Land_runoff_17Oexcess		per_meg	N
+15	0	0	0	1	1.	0.

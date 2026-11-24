@@ -34,4 +34,4 @@ files = ["albedos/albsnow.dat"]
 [[lbm.data]]
 from  = "${emic_dir}/defs/lbm"
 to    = ""                       # "" = run_dir directement
-files = ["namelistlbm"]
+files = ["namelistlbm", "outp_wisolbm.param"]   # outp_wisolbm.param: land isotope outputs, read with WISOATM = 1 (wiso:3a:0005)

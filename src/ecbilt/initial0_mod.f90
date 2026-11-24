@@ -1093,6 +1093,22 @@ contains
         numtotvar = numtotvar + nwiso_var
         close(outp_atmosparam_id)
       endif
+! dmr&clo   wiso:3a:0005 land isotope output variables (D68: own file, installed by the lbm component), same format,
+!           appended after those of outp_wisoatm.param; no file: no land isotope output
+      inquire(file='outp_wisolbm.param', exist=wiso_par)
+      if (wiso_par) then
+        open(newunit=outp_atmosparam_id,file='outp_wisolbm.param')
+        read(outp_atmosparam_id,'(/,/,/,/,/,/,/,/)')
+        read(outp_atmosparam_id,*) nwiso_var
+        read(outp_atmosparam_id,*)
+        if (numtotvar + nwiso_var > MAX_OUT_VAR) then
+          write(*,*) "ec_inioutparat2: more than ", MAX_OUT_VAR, " output variables"
+          call ec_error(123)
+        endif
+        call read_entries(outp_atmosparam_id, numtotvar+1, numtotvar+nwiso_var)
+        numtotvar = numtotvar + nwiso_var
+        close(outp_atmosparam_id)
+      endif
 #endif
 
       return

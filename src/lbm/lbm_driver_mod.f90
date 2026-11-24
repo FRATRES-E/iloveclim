@@ -37,7 +37,8 @@
 !!     (wiso:3a:0004; the destinations are maps read at set-up, ec_inirunoff; only the receiving side needs areas).
 !!
 !!     Contract (public entry points):
-!!       lbm_landsurface(istep) : one land step of the surface of every point, with its runoff (ec_lbm).
+!!       lbm_landsurface(istep) : one land step of the surface of every point, with its runoff (ec_lbm); land isotope
+!!                                budget around it (wisolbm_budget_mod, WISOATM = 1, wiso:3a:0005).
 !!       lbm_runoff(istep)      : collection of the runoff to the ocean (runofo), after lbm_landsurface.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -75,6 +76,9 @@
       use comemic_mod,   only: nstpyear
       use iceberg_mod,   only: iceberg_info_out_id
 #endif
+#if ( WISOATM == 1 )
+      use wisolbm_budget_mod, only: wlb_step_begin, wlb_step_end
+#endif
 
       implicit none
 
@@ -84,6 +88,10 @@
       integer         :: i, j
       integer         :: snow_excess
       real(kind=dblp) :: snowdiff
+
+#if ( WISOATM == 1 )
+      call wlb_step_begin()          ! land isotope budget (land_iso_mode = 'bucket'), wiso:3a:0005
+#endif
 
       heatsnown = 0.0_dblp
       heatsnows = 0.0_dblp
@@ -137,6 +145,10 @@
 
         enddo
       enddo
+
+#if ( WISOATM == 1 )
+      call wlb_step_end()
+#endif
 
 #if ( ICEBERG == 2 && ISM != 2 )
       if (mod(istep,nstpyear).eq.0) then ! last timestep of the year
