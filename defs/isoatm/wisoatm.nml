@@ -1,4 +1,4 @@
-! Water isotopes in the ECBilt atmosphere (WISOATM = 1): runtime settings, read by iso_nml_mod (ROADMAP D6, step 2b).
+! Water isotopes in the ECBilt atmosphere (WISO = 1): runtime settings, read by iso_nml_mod (ROADMAP D6, step 2b).
 ! Deltas: d18o_* and dexc_* in permil (dD = 8 d18O + dexc), o17exc_* in per meg
 !         (ln(d17O + 1) = 0.528 ln(d18O + 1) + o17exc).
 ! Requires adv_mode = 'fv' in namelist group moipar (namelistecbilt).

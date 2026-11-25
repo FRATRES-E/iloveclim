@@ -53,7 +53,7 @@
 
       module iso_nml_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: str_len, ip, dblp=>dp, tK_zero_C
         use comatm,               only: nwisos, iwater, iwat16, iwat17, iwat18, iwat2h
@@ -259,7 +259,7 @@
 
           inquire(file=ISO_NML_FILE, exist=exists)
           if (.not. exists) then
-            write(*,*) "iso_nml_read: ", ISO_NML_FILE, " not found in the run directory (needed with WISOATM = 1)"
+            write(*,*) "iso_nml_read: ", ISO_NML_FILE, " not found in the run directory (needed with WISO = 1)"
             stop 1
           endif
 
@@ -277,7 +277,7 @@
 
           ! dmr&clo   isotope runs use the FV water transport (D30, O31)
           if (trim(adv_mode) /= 'fv') then
-            write(*,*) "iso_nml_read: WISOATM = 1 requires adv_mode = 'fv' in namelist group moipar (found '",          &
+            write(*,*) "iso_nml_read: WISO = 1 requires adv_mode = 'fv' in namelist group moipar (found '",          &
                        trim(adv_mode), "')"
             stop 1
           endif

@@ -33,14 +33,14 @@
 
 
        use global_constants_mod, only: ip, dblp=>dp
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
        use comatm, only: nlat, nlon, nwisos, iwat18, iwat2h
 #endif
 
        implicit none
 
        private ip, dblp
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
        private nlat, nlon, nwisos, iwat18, iwat2h
 #endif
 
@@ -75,7 +75,7 @@
         REAL(KIND=dblp), PARAMETER :: r17smow = 379.9D-6
         REAL(KIND=dblp), PARAMETER :: r2hsmow = 155.76D-6
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 !--- dmr  In practice in version 21, we will use 1.0 for any one of the isotopes
         REAL(KIND=dblp), PARAMETER :: rsmow(nwisos) = [1.0_dblp,1.0_dblp,1.0_dblp,1.0_dblp,1.0_dblp]
 

@@ -34,7 +34,7 @@
 !!
 !!     Transport (D30, D32), in place of the water-only call of ec_moisture:
 !!       1. ratios from the amounts (memory where the water is ~0);
-!!       2. water with atm_fvmois_step, exactly the call made with WISOATM = 0 (D4 by construction);
+!!       2. water with atm_fvmois_step, exactly the call made with WISO = 0 (D4 by construction);
 !!       3. iwat17, iwat18, iwat2h in ratio mode on a copy of the water before the step, with the same fluxes
 !!          (atm_fvmois_ratio: bounded, monotone ratios);
 !!       4. iwat16 in density mode, independent of the water (D32; check of the transport);
@@ -88,7 +88,7 @@
 
       module wiso_vap_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: ip, dblp=>dp
         use comatm,               only: nlat, nlon, nwisos, iwater, iwat16, iwat17, iwat2h

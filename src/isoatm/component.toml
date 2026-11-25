@@ -1,16 +1,16 @@
 # =============================================================================
 # Descripteur de composante : ISOATM (composante isotopique de l'atmosphere ECBILT)
 # =============================================================================
-# Composante optionnelle, activée par le drapeau WISOATM de choixcomposantes.h
+# Composante optionnelle, activée par le drapeau WISO de choixcomposantes.h
 # (wiso:2a:0003, ROADMAP step 2.1). Purement déclarative, sur le modèle d'icebergs :
 # sources + une donnée. Aucun hook.
-# Les sources de src/isoatm ne servent qu'avec WISOATM = 1 ; tout leur code est
-# déjà sous #if ( WISOATM == 1 ).
+# Les sources de src/isoatm ne servent qu'avec WISO = 1 ; tout leur code est
+# déjà sous #if ( WISO == 1 ).
 # =============================================================================
 
 [isoatm]
 description  = "Water isotopes for the ECBILT atmosphere"
-activated_by = "WISOATM"        # flag de choixcomposantes.h
+activated_by = "WISO"        # flag de choixcomposantes.h
 
 # Répertoires créés par setup_directory ; redéclarés ici pour l'autonomie du
 # descripteur (idempotent : mkdir -p ne nuit pas s'ils existent déjà).

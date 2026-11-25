@@ -33,7 +33,7 @@
 
 !
 ! 0 LOVECLIM standard version
-! 1 include d18Oatm of O2 (requires CARAIB > 0 and WISOATM == 1)
+! 1 include d18Oatm of O2 (requires CARAIB > 0 and WISO == 1)
 !
 #define OXYISO 0
 
@@ -45,7 +45,7 @@
 
 !
 ! 0 LOVECLIM standard version
-! 1 include dDwax isotopes (requires CARAIB > 0, OXYISO > 0 and WISOATM == 1)
+! 1 include dDwax isotopes (requires CARAIB > 0, OXYISO > 0 and WISO == 1)
 !
 #define WAXISO 0
 
@@ -108,19 +108,20 @@
 ! ################  WATER ISOTOPES DEFINITIONS  ###############
 
 !
-! 0 do not compute water isotopes in the atmosphere
-! 1 compute water isotopes in the atmosphere (tracer dimension nwisos = 5)
-!   (replaces the legacy ISOATM = 0/1/2/3, removed in wiso:2a:0001; physics options become runtime settings)
+! 0 no water isotopes
+! 1 water isotopes (tracer dimension nwisos = 5): atmosphere, land (land_iso_mode), ocean later (ROADMAP step 3b);
+!   runtime settings in wisoatm.nml
+!   (replaces the legacy ISOATM = 0/1/2/3, removed in wiso:2a:0001; named WISOATM until wiso:R1:0000)
 !
-#define WISOATM 0
+#define WISO 0
 !   (WISOATM_RESTART and FRAC_KINETIK removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml)
 
 !   (ISOLBM, WISOLND and WISOLND_RESTART removed in wiso:3a:0001: land_iso_mode in wisoatm.nml)
 
 !
 ! 0 do not link surface oceanic isotopic content to atmosphere (fixed values for ratio_oceanatm)
-! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires WISOATM == 1
-! 2 water isotopes are computed in ocean ("ratio_ocean" prognostic) Requires WISOATM == 1
+! 1 water isotopes are computed in ocean but not updated in the surface ocean for atmosphere (semi-coupled mode) Requires WISO == 1
+! 2 water isotopes are computed in ocean ("ratio_ocean" prognostic) Requires WISO == 1
 !   (legacy ocean isotope coupling, not available until its migration, ROADMAP step 3)
 !
 #define ISOOCN 0

@@ -21,7 +21,7 @@
 
       module iso_funcs
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
        use global_constants_mod, only: ip, dblp=>dp
        use comatm, only: nlat, nlon, nwisos, iwat18, iwat2h

@@ -17,7 +17,7 @@
 """Make the initial land isotope map of the LBM (land_init_mode = 'file', wisoatm.nml; ROADMAP D69, wiso:3a:0007).
 
 Nothing fractionates on land (D64): a well-mixed snow layer at steady state has the composition of the snowfall that fed
-it, weighted by the snowfall amount. This script takes that composition from the yearly ECBilt output of a run (WISOATM = 1)
+it, weighted by the snowfall amount. This script takes that composition from the yearly ECBilt output of a run (WISO = 1)
 and writes it on the model grid, so that a cold start begins with the snow (and the soil water) near equilibrium instead
 of at uniform namelist values (snow over the ice sheets: decades to centuries of spin-up otherwise, O57).
 
@@ -52,7 +52,7 @@ def read(files, names, last):
                 lat, lon = d['lat'][:].data.copy(), d['lon'][:].data.copy()
             for n in names:
                 if n not in d.variables:
-                    sys.exit(f'{f}: variable {n} not found (yearly output of a WISOATM = 1 run needed)')
+                    sys.exit(f'{f}: variable {n} not found (yearly output of a WISO = 1 run needed)')
                 x = d[n][:]
                 x = np.ma.masked_invalid(np.ma.masked_where(np.abs(np.ma.filled(x, 0.0)) > FILL_IN, x))
                 out[n].append(x if x.ndim == 3 else x[None])

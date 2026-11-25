@@ -115,7 +115,7 @@
 
           ! record / replay are restricted to the standard choixcomposantes.h, clio_switches.h, BC_switches.h and
           ! additional_flags.h: any flag differing from its standard value aborts (strict on purpose, for now)
-          ! dmr&clo   wiso:2a:0001 WISOATM is allowed: atmospheric water isotopes do not touch the ocean -> atmosphere
+          ! dmr&clo   wiso:2a:0001 WISO is allowed: atmospheric water isotopes do not touch the ocean -> atmosphere
           !           interface (fixed surface ratios until ROADMAP step 3)
           std_config = .true.
 #if ( VEGGIE != 0 || FAST_OUTPUT != 0 || CLM_INDICES != 0 || BIOM_GEN != 0 || FROG_EXP != 0 || CARAIB != 0 || \

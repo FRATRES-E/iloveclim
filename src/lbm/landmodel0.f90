@@ -47,7 +47,7 @@
       USE routageEAU_mod
 #endif
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm,      only: iwat16, nwisos
       use comland_mod, only: lbm_wiso
       use iso_nml_mod, only: land_bucket, r_soil_init, r_snow_init, lbm_restart_read, lbm_restart_file
@@ -76,7 +76,7 @@
 
 
       integer i,j,ija,is
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       integer k
 #endif
       real*8  ds,db,dumwei
@@ -201,7 +201,7 @@
         enddo
       enddo
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:3a:0002 land isotopes in the stores (land_iso_mode = 'bucket'): from the land isotope restart
 !           (lbm_restart_read, wiso:3a:0006) or a cold start at the namelist compositions; non-fractionating land
 !           processes (lbm_point_mod)
@@ -1088,7 +1088,7 @@
 
       use comatm, only: nlat, nlon, iwater
       use comland_mod, only: alblbm, tland, bmoisg, bmoism, dsnow
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm, only: iwat16, nwisos
       use comland_mod, only: lbm_wiso
 #endif
@@ -1111,7 +1111,7 @@
           abmoisg(i,j,iwater)= bmoisg(i,j,iwater)
           abmoism(i,j)       = bmoism(i,j)
           adsnow(i,j,iwater) = dsnow(i,j,iwater)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:3a:0002 isotopes of the stores, for the composition of the land evaporation (land_iso_mode = 'bucket')
           if (lbm_wiso) then
             abmoisg(i,j,iwat16:nwisos) = bmoisg(i,j,iwat16:nwisos)

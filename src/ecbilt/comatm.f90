@@ -91,7 +91,11 @@
       
 ! dmr&clo   wiso:2a:0001 compile-time checks of the water-isotope switches
 #ifdef ISOATM
-#error "ISOATM was removed in wiso:2a:0001: use WISOATM = 0/1 (physics options are runtime settings)"
+#error "ISOATM was removed in wiso:2a:0001: use WISO = 0/1 (physics options are runtime settings)"
+#endif
+! dmr&clo   wiso:R1:0000 WISOATM renamed WISO (all the water isotopes: atmosphere, land, then ocean)
+#ifdef WISOATM
+#error "WISOATM was renamed WISO in wiso:R1:0000: replace '#define WISOATM' by '#define WISO' in choixcomposantes.h"
 #endif
 #if defined(WISOATM_RESTART) || defined(FRAC_KINETIK)
 #error "WISOATM_RESTART and FRAC_KINETIK were removed in wiso:2b:0001: restart_read and frac_mode in wisoatm.nml"
@@ -102,14 +106,14 @@
 #if ( ISOOCN != 0 )
 #error "ISOOCN: the legacy ocean isotope coupling is not migrated yet (ROADMAP step 3)"
 #endif
-#if ( WISOATM == 1 && ( DOWNSTS != 0 || DOWNSCALING != 0 ) )
-#error "WISOATM = 1 is not available with downscaling (DOWNSTS, DOWNSCALING), ROADMAP step 2"
+#if ( WISO == 1 && ( DOWNSTS != 0 || DOWNSCALING != 0 ) )
+#error "WISO = 1 is not available with downscaling (DOWNSTS, DOWNSCALING), ROADMAP step 2"
 #endif
 
-#if ( WISOATM == 0 )
+#if ( WISO == 0 )
       INTEGER(ip), parameter      :: nwisos = 1
       INTEGER(ip), parameter      :: iwater = 1
-#elif ( WISOATM == 1 )
+#elif ( WISO == 1 )
       INTEGER(ip), parameter      :: nwisos = 5
       INTEGER(ip), parameter      :: iwater = 1
       INTEGER(ip), parameter      :: iwat16 = 2

@@ -1,4 +1,4 @@
-Parameters for water isotope outputs (WISOATM = 1; read after outp_atmos.param) : (WARNING: '/' character forbidden)
+Parameters for water isotope outputs (WISO = 1; read after outp_atmos.param) : (WARNING: '/' character forbidden)
 
 long_name
 name, standard_name(WARNING: never change it), units, kind of pressure

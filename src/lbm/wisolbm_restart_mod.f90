@@ -61,7 +61,7 @@
 
       module wisolbm_restart_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: ip, dblp=>dp
         use comatm,               only: nlat, nlon, iwater, iwat16, iwat2h, nwisos

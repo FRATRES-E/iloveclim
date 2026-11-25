@@ -318,7 +318,7 @@
       use atmdyn_mod, only: ec_rggtosp, ec_sptogg
       use atm_fvmois_mod, only: atm_fvmois_is_on, atm_fvmois_step     ! dmr&clo wiso:1e:0002
       use atm_wbudget_mod, only: atm_wb_transport, atm_wb_moisbalance_pre, atm_wb_moisbalance_post   ! dmr&clo wiso:1e:0003
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_vap_mod, only: wiso_vap_transport, wiso_vap_keep_water, wiso_vap_sources   ! dmr&clo wiso:2c:0001, 0004
 #endif
       use global_constants_mod, only: dblp=>dp, ip
@@ -503,7 +503,7 @@
 
         cormois(:,:,iwater) = 0.0_dblp
         hdivmg(:,:,iwater)  = 0.0_dblp
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0001 all species: water exactly as below, isotopologues in ratio mode (D30), iwat16 as a density (D32)
         if (ihavm /= 0) call wiso_vap_transport(rmoisg)
 #else
@@ -545,7 +545,7 @@
 ! dmr&clo   wiso:2c:0001 isotopologue transport: in the FV branch above (wiso_vap_transport). The legacy per-isotope
 !           spectral loop was removed (D3, D29).
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0004 water vapour, rain and snow before the sources of the step (isotopologues: after ec_moisbalance)
       call wiso_vap_keep_water(rmoisg, dyrain, dysnow)
 #endif
@@ -852,7 +852,7 @@
         call ec_moisbalance(iwater)
         call atm_wb_moisbalance_post
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0004 evaporation and large-scale condensation (rain, snow) of the isotopologues; the other water
 !           changes above at the resulting ratio
         call wiso_vap_sources(rmoisg, evap, dtime*imsink, dtime*ivavm*vemoisg(:,:,iwater), dyrain, dysnow,           &

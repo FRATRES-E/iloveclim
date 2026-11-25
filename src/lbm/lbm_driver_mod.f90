@@ -38,7 +38,7 @@
 !!
 !!     Contract (public entry points):
 !!       lbm_landsurface(istep) : one land step of the surface of every point, with its runoff (ec_lbm); land isotope
-!!                                budget around it (wisolbm_budget_mod, WISOATM = 1, wiso:3a:0005).
+!!                                budget around it (wisolbm_budget_mod, WISO = 1, wiso:3a:0005).
 !!       lbm_runoff(istep)      : collection of the runoff to the ocean (runofo), after lbm_landsurface.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
@@ -76,7 +76,7 @@
       use comemic_mod,   only: nstpyear
       use iceberg_mod,   only: iceberg_info_out_id
 #endif
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wisolbm_budget_mod, only: wlb_step_begin, wlb_step_end
 #endif
 
@@ -89,7 +89,7 @@
       integer         :: snow_excess
       real(kind=dblp) :: snowdiff
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       call wlb_step_begin()          ! land isotope budget (land_iso_mode = 'bucket'), wiso:3a:0005
 #endif
 
@@ -146,7 +146,7 @@
         enddo
       enddo
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       call wlb_step_end()
 #endif
 
@@ -189,7 +189,7 @@
       use comland_mod,    only: sntoicebl, sntoicebo, iceb_toto
       use iceberg_mod,    only: iceberg_info_out_id
 #endif
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm,         only: iwat16
       use comland_mod,    only: lbm_wiso
 #endif
@@ -230,7 +230,7 @@
 !     MB land runoff to runoff, meridional convergence, fraction of land per box
 !     MB  [m3 step/s] = [m3 step/s] + [m2] [m step/s] [1]
               runo(ilabas(i,j),iwater)=runo(ilabas(i,j),iwater) + dareas(i)*runofl(i,j,iwater)*fractl(i,j)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
               if (lbm_wiso) runo(ilabas(i,j),iwat16:nwisos)=runo(ilabas(i,j),iwat16:nwisos)                            &
                                                           + dareas(i)*runofl(i,j,iwat16:nwisos)*fractl(i,j)
 #endif
@@ -259,7 +259,7 @@
 !     MB   [m step/s] = [m3 step/s]/[m2]
              runofo(i,j,iwater)= runo(iocbas(i,j),iwater)/arocbas(iocbas(i,j))
           endif
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
           if (lbm_wiso) then
             runofo(i,j,iwat16:nwisos)=0.
             if (iocbas(i,j).gt.0) runofo(i,j,iwat16:nwisos)= runo(iocbas(i,j),iwat16:nwisos)/arocbas(iocbas(i,j))
@@ -289,7 +289,7 @@
             *dareas(i)/dareas(eni(i,j))
             flux_per_basin(river_basin(i,j))=flux_per_basin(river_basin(i,j))                                         &
             + runofl(i,j,iwater) * fractl(i,j) * dareas(i)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
             if (lbm_wiso) then
               runofo(eni(i,j),enj(i,j),iwat16:nwisos)                                                                 &
               = runofo(eni(i,j),enj(i,j),iwat16:nwisos)                                                               &

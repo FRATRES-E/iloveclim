@@ -8,7 +8,7 @@
       use comemic_mod, only: iatm
       use comdiag, only: diag_stepinday, diag_dayend
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm, only: iwater
 #endif
       implicit none
@@ -30,7 +30,7 @@
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       subroutine ec_selectout(istep)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_out_mod, only: wiso_out_step
 #endif
 !-----------------------------------------------------------------------
@@ -60,7 +60,7 @@
       use comoutlocal_mod
       use comsurf_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm, only: iwater, iwat18, iwat17, iwat2h
 #endif
 #if ( CLM_INDICES >= 1 )
@@ -138,7 +138,7 @@
         enddo
       enddo
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo wiso:2e:0003 isotope output sums, every step
       call wiso_out_step
 #endif
@@ -204,7 +204,7 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
       SUBROUTINE ec_outputinst
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_out_mod, only: wiso_out_write, WO_INST
 #endif
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8-|
@@ -285,7 +285,7 @@ c~       if (ioutdaily .eq. 1.and.instcount.eq.ixout) then
 
       use comatm, only: nlat, nlon, iwater
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm, only: iwater, iwat18, iwat17, iwat2h
 #endif
 
@@ -579,7 +579,7 @@ c~ #endif
 
 
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo wiso:2e:0003 isotope outputs of the step
       CALL wiso_out_write(WO_INST, .TRUE.)
 #endif
@@ -592,7 +592,7 @@ c~ #endif
 !23456789012345678901234567890123456789012345678901234567890123456789012
 
       SUBROUTINE ec_outputmtl
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_out_mod, only: wiso_out_write, WO_MTL
 #endif
 !-----------------------------------------------------------------------
@@ -626,7 +626,7 @@ c~      &                 , sxvhforg1, sxvhforg2, sxvhforg3
       use comoutlocal_mod
       use comsurf_mod
 
-#if (WISOATM == 1 )
+#if (WISO == 1 )
        use comatm, only: iwater, iwat18, iwat17, iwat2h
 #endif
 
@@ -1321,7 +1321,7 @@ c~ #endif
 
 
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo wiso:2e:0003 isotope whole-run monthly means
       CALL wiso_out_write(WO_MTL, need_to_write)
 #endif
@@ -1400,7 +1400,7 @@ c~ #endif
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_outputmyl
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_out_mod, only: wiso_out_write, WO_MYL
 #endif
 !-----------------------------------------------------------------------
@@ -1420,7 +1420,7 @@ c~ #endif
       use comoutlocal_mod
       use comsurf_mod
 
-#if (WISOATM == 1 )
+#if (WISO == 1 )
        use comatm, only: iwater, iwat17, iwat18, iwat2h
 #endif
 
@@ -2109,7 +2109,7 @@ c~ #endif
       END IF
 
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo wiso:2e:0003 isotope yearly-monthly means
       CALL wiso_out_write(WO_MYL, need_to_write)
 #endif
@@ -2183,7 +2183,7 @@ c~ #endif
       use comunit
       use newunit_mod, only: ocbasin_id
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm, only: iwater
 #endif
 
@@ -2386,7 +2386,7 @@ c~ #endif
 
 !23456789012345678901234567890123456789012345678901234567890123456789012
       SUBROUTINE ec_outputyrl
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_out_mod, only: wiso_out_write, WO_YRL
 #endif
 !-----------------------------------------------------------------------
@@ -2409,7 +2409,7 @@ c~ #endif
      &                     , new_year_atm, current_int_atm
 
 
-#if (WISOATM == 1 )
+#if (WISO == 1 )
        use comatm, only: iwater, iwat17, iwat18, iwat2h
 #endif
 
@@ -3131,7 +3131,7 @@ c~ #endif
          END IF
       END IF
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo wiso:2e:0003 isotope yearly means
       CALL wiso_out_write(WO_YRL, need_to_write)
 #endif

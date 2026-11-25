@@ -55,7 +55,7 @@
 
       module wiso_cond_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: ip, dblp=>dp
         use comatm,               only: iwat16, rlogtl12

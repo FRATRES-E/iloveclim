@@ -185,7 +185,7 @@ contains
       call rad_forc_add(1)
 !dmr --- Ajout pour le forcage de Claquin et al., 2003
 #endif
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       call ec_isoatminit
       ! moved to ec_isoatminit
 !~       call fix_input_field(fractoc,ratio_oceanatm,nlat,nlon,neauiso,
@@ -398,7 +398,7 @@ contains
       use comrunlabel_mod, only: irunlabelf
       use comsurf_mod, only: albocef, emisn, nld, noc, nse
       use atm_fvmois_mod, only: adv_mode, atm_fvmois_check_mode     ! dmr&clo wiso:1e:0001
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use iso_nml_mod, only: iso_nml_read, iso_nml_write             ! dmr&clo wiso:2b:0001
 #endif
 
@@ -633,7 +633,7 @@ contains
       read(namelistecbilt_id, NML = dfmpar)
       read(namelistecbilt_id, NML = moipar)
       call atm_fvmois_check_mode
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2b:0001 isotope settings (wisoatm.nml), read before the isotope fields are initialised (ec_iatmphys)
       call iso_nml_read(adv_mode)
 #endif
@@ -707,7 +707,7 @@ contains
       write(parameterschk_id, 910) 'umoisr   =', umoisr
       write(parameterschk_id, 910) 'rainmax  =', rainmax
       write(parameterschk_id, '(a,a)') 'adv_mode =', trim(adv_mode)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       call iso_nml_write(parameterschk_id)
 #endif
 
@@ -993,7 +993,7 @@ contains
       integer      totvar(80,20)
       integer      i,l
       integer :: outp_atmosparam_id
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       logical :: wiso_par
       integer :: nwiso_var
 #endif
@@ -1076,7 +1076,7 @@ contains
       call read_entries(outp_atmosparam_id, 1, numtotvar)
       close(outp_atmosparam_id)
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2e:0002 isotope output variables, own file (installed by the isoatm component), same format, appended
 !           after the standard ones; no file: no isotope output
       inquire(file='outp_wisoatm.param', exist=wiso_par)

@@ -61,7 +61,7 @@
 
       module wiso_evap_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: ip, dblp=>dp
         use comatm,               only: iwat16, iwat17, iwat18, iwat2h

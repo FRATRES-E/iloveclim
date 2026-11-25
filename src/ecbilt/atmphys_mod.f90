@@ -67,7 +67,7 @@ contains
       USE carbone_co2_mod, only: PA_C
 #endif
 
-#if (WISOATM == 1 )
+#if (WISO == 1 )
        USE comatm, ONLY : iwater, iwat16, iwat2h
        USE iso_nml_mod, only: r_vap_init                          ! dmr&clo wiso:2b:0001
        USE iso_nml_mod, only: restart_read, restart_file          ! dmr&clo wiso:2c:0002
@@ -123,7 +123,7 @@ contains
       real(silp), dimension(7,19,27,4,0:1):: lwrghg_silp
 
 
-#if (WISOATM == 1 )
+#if (WISO == 1 )
 !~       REAL, DIMENSION(nlat,nlon,neauiso) :: rations
 !~       REAL, DIMENSION(nlat,nlon,neauiso) :: ration_qatm
 
@@ -242,7 +242,7 @@ contains
                            ,torain(:,:,iwater),tosnow(:,:,iwater)
      
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2b:0001 initial isotopologues from the initial vapour deltas of wisoatm.nml (ratios r_vap_init, rsmow = 1;
 !           iwat16 = water). Fixes 2a:0002, where datmini (fractions) went into delta_inv (permil): delta18O was -0.012
 !           permil instead of -12. Restart of the isotopologues: netCDF in wiso:2c (D34, restart_read in wisoatm.nml).
@@ -258,7 +258,7 @@ contains
         close(iuo+95)
       endif
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0002 isotopologue restart (netCDF, D34), after the atmospheric one (exact if paired with it)
       if (restart_read) call wiso_restart_read(restart_file)
 #endif
@@ -1581,7 +1581,7 @@ contains
 #if ( IMSK == 1 )
       USE input_icemask, ONLY: icemask
 #endif
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_evap_mod, only: wiso_evap_split                      ! dmr&clo wiso:2c:0003
 #endif
 
@@ -1672,7 +1672,7 @@ contains
 !~ #else
             evapn(i,j,nn,iwater)=efluxn(i,j,nn)/(rowat*rlatvap)
 !~ #endif
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0003 open ocean (and sea ice if EVAPSI = 0, D41): ocean composition (frac_evap = 0);
 !           wiso:2d:0001 frac_evap = 1: in equilibrium with the ocean at tsurfn (open ocean only: EVAPSI = 1 required);
 !           wiso:2d:0002 frac_evap = 2: Craig-Gordon with the humidities and wind of the bulk formula above
@@ -1755,7 +1755,7 @@ contains
 
                   evapn(i,j,nld,iwater)=esnow/(rowat*rlatsub)+ &
                                                 emois/(rowat*rlatvap)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0003 snow sublimated (r_snow_evap) and bucket (r_land_evap), fixed until step 3 (D10, D42)
                   call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, esnow/(rowat*rlatsub), emois/(rowat*rlatvap))
 #endif
@@ -1767,7 +1767,7 @@ contains
                   efluxn(i,j,nld)=esubf
 
                   evapn(i,j,nld,iwater)=esubf/(rowat*rlatsub)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0003 snow only
                   call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, evapn(i,j,nld,iwater), 0.0_dblp)
 #endif
@@ -1825,7 +1825,7 @@ contains
             efluxn(i,j,nld)=min(abmoisg(i,j,iwater)*rowat*rlatvap/dtime &
                             ,efluxn(i,j,nld))
             evapn(i,j,nld,iwater)=efluxn(i,j,nld)/(rowat*rlatvap)
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2c:0003 bucket only
             call wiso_evap_split(evapn(i,j,nld,:), i, j, 0.0_dblp, 0.0_dblp, evapn(i,j,nld,iwater))
 #endif

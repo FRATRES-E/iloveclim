@@ -45,7 +45,7 @@ contains
       use comemic_mod, only: iyear, iatm, day
       use atmphys_mod, only: ec_atmphyszero, ec_sensrad, ec_fortemp, ec_meantemp
       use atm_wbudget_mod, only: atm_wb_step_begin, atm_wb_step_end     ! dmr&clo wiso:1e:0003
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_budget_mod, only: wiso_bud_step_begin, wiso_bud_step_end ! dmr&clo wiso:2c:0006
 #endif
 
@@ -76,13 +76,13 @@ contains
 
 ! dmr&clo   wiso:1e:0003 water budget diagnostic brackets the moisture physics (no effect on the state)
         call atm_wb_step_begin
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
         call wiso_bud_step_begin                                          ! dmr&clo wiso:2c:0006
 #endif
         success = ec_moisture()
         call ec_convec_two
         call atm_wb_step_end
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
         call wiso_bud_step_end                                            ! dmr&clo wiso:2c:0006
 #endif
         call ec_fortemp

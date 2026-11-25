@@ -3,7 +3,7 @@
 #   make          build the test programs
 #   make check    build and run them (exit code 1 on failure)
 #
-# The isotope code is compiled with WISOATM = 1: a copy of choixcomposantes.h with that setting is made in inc/.
+# The isotope code is compiled with WISO = 1: a copy of choixcomposantes.h with that setting is made in inc/.
 # Flags as in ../fvtrans_tests (no double-precision promotion: the modules use explicit kinds).
 
 ifeq ($(origin FC),default)
@@ -29,7 +29,7 @@ all: $(PROGS)
 inc/choixcomposantes.h: $(FLAGDIR)/choixcomposantes.h
 	mkdir -p inc
 	cp $(FLAGDIR)/*.h inc/
-	sed -i 's/^#define WISOATM 0/#define WISOATM 1/' $@
+	sed -i 's/^#define WISO 0/#define WISO 1/' $@
 
 global_constants_mod.o: $(SRC_GC)
 	$(FC) $(FFLAGS) -std=gnu -c $< -o $@

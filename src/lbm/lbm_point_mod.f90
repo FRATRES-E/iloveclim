@@ -30,13 +30,13 @@
 !>     The routines see one point only (no grid, no neighbours): the grid-agnostic part of the LBM (dmr). The loop over
 !!     the grid and the grid sums are in lbm_driver_mod. Routines moved verbatim from landmodel_mod (wiso:3a:0003):
 !!     lbm_landtemp, lbm_landprecip (dmr's point-wise versions of ec_landtemp, ec_landprecip; wiso:3a:0000) and the
-!!     isotope helpers lbm_wiso_ratio, lbm_wiso_mix (wiso:3a:0002, WISOATM = 1).
+!!     isotope helpers lbm_wiso_ratio, lbm_wiso_mix (wiso:3a:0002, WISO = 1).
 !!
 !!     Contract (public entry points):
 !!       lbm_landtemp     : land temperature and melt energy of a point.
 !!       lbm_landprecip   : evaporation, snow fall and rain, melt and snow above dsnm of a point (fate of that snow
 !!                          set by the caller with SNOW_EXCESS_*), overflow of the soil water (runoff of the point).
-!!       lbm_wiso_ratio, lbm_wiso_mix (WISOATM = 1): ratios of a land store, mixing of an inflow.
+!!       lbm_wiso_ratio, lbm_wiso_mix (WISO = 1): ratios of a land store, mixing of an inflow.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module lbm_point_mod
@@ -48,7 +48,7 @@
 
         public :: lbm_landtemp, lbm_landprecip
         public :: SNOW_EXCESS_BUCKET, SNOW_EXCESS_OUT, SNOW_EXCESS_KEEP
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
         public :: lbm_wiso_ratio, lbm_wiso_mix
 #endif
 
@@ -168,7 +168,7 @@
       use comland_mod, only:  dsnm, betam, dtland, epsl
 
       use newunit_mod, only: info_id
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use comatm,      only: iwat16
       use comland_mod, only: lbm_wiso
 #endif
@@ -207,7 +207,7 @@
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       real(kind=dblp) ::  dsnomel,dsnovap
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
         ! ratios of the snow and of the soil water (wiso:3a:0002)
       real(kind=dblp), dimension(nwisos) :: rsn, rso
 #endif
@@ -221,7 +221,7 @@
           ! if on land then ...
       if (fractl.gt.epsl) then
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:3a:0002 land isotopes (lbm_wiso): each store keeps a ratio per species, unchanged by what leaves it
 !           (evaporation, melt, snow above dsnm: non-fractionating), mixed with what enters it (snow fall, rain, melt
 !           water, snow above dsnm); the isotopes are the ratio times the water at the end. The evaporation leaves each
@@ -247,7 +247,7 @@
           endif
         endif
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
         if (lbm_wiso) then
           rsn = lbm_wiso_mix(rsn, dsnow(iwater), dtland*snowf)
           rso = lbm_wiso_mix(rso, bmoisg(iwater), dtland*rainf)
@@ -267,7 +267,7 @@
             dsnomel  = dsnow(iwater)                                     ! potential melting the whole layer
           endif
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
           if (lbm_wiso) rso = lbm_wiso_mix(rso, bmoisg(iwater), rsn*dsnomel)
 #endif
           dsnow(iwater) = dsnow(iwater)-dsnomel ! actually melting the snow
@@ -282,7 +282,7 @@
         if ((snow_excess.ne.snow_excess_keep).and.(dsnow(iwater).gt.dsnm)) then
           snowdiff=dsnow(iwater)-dsnm
           if (snow_excess.eq.snow_excess_bucket) then
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
             if (lbm_wiso) rso = lbm_wiso_mix(rso, bmoisg(iwater), rsn*snowdiff)
 #endif
             bmoisg(iwater)=bmoisg(iwater)+ dsnow(iwater)-dsnm
@@ -304,7 +304,7 @@
           bmoisg(iwater)=0d0
         endif
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
         if (lbm_wiso) then
           dsnow(iwat16:nwisos)  = rsn(iwat16:nwisos)*dsnow(iwater)
           bmoisg(iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(iwater)
@@ -314,12 +314,12 @@
 ! dmr&clo   wiso:3a:0004 overflow of the soil water above its capacity (moved from ec_runoff_2 / ec_runoff), at the ratio of
 !           the soil water (taken from the store, as before: bitwise identical)
         if (bmoisg(iwater).gt.bmoism) then
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
           if (lbm_wiso) rso = lbm_wiso_ratio(bmoisg)
 #endif
           runofl(iwater) = (bmoisg(iwater)-bmoism)/dtland
           bmoisg(iwater) = bmoism
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
           if (lbm_wiso) then
             runofl(iwat16:nwisos) = rso(iwat16:nwisos)*runofl(iwater)
             bmoisg(iwat16:nwisos) = rso(iwat16:nwisos)*bmoisg(iwater)
@@ -332,7 +332,7 @@
       return
       end subroutine lbm_landprecip
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
       pure function lbm_wiso_ratio(store) result(r)
         !! Isotope ratios of a land store (amounts / water); 0 for an empty store (its ratio does not matter: no weight)

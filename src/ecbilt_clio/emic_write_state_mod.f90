@@ -113,7 +113,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
       use ocean_coupling_mod, only: ocean_is_prescribed
       use landmodel_mod, only: ec_wrendland
       use ecbilt0_mod, only: ec_wrenddyn, ec_wrendphy
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
       use wiso_restart_mod, only: wiso_restart_write   ! dmr&clo wiso:2c:0002
       use wisolbm_restart_mod, only: wlr_write         ! dmr&clo wiso:3a:0006
       use comland_mod, only: lbm_wiso
@@ -221,7 +221,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 
 ! dmr&clo   wiso:2c:0002 isotopologue restart of the atmosphere (netCDF, D34); read back with restart_read = .true. and
 !           restart_file in wisoatm.nml
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
             call wiso_restart_write(TRIM(REPERTOIRE)//'/wisoatm_restart'//chf//'.nc')
 #endif
 
@@ -237,7 +237,7 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
 
 ! dmr&clo   wiso:3a:0006 isotope restart of the land stores (netCDF, D65), land_iso_mode = 'bucket'; read back with
 !           lbm_restart_read = .true. and lbm_restart_file in wisoatm.nml
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
             if (lbm_wiso) call wlr_write(TRIM(REPERTOIRE)//'/wisolbm_restart'//chf//'.nc')
 #endif
 
@@ -251,14 +251,14 @@ use WRTE_RESTART_IO_NC, only: WRTE_RESTART_OCYCC
             open(newunit=newunit_id ,file=''//TRIM(REPERTOIRE)//'/incoup'//chf//'.dat',form='unformatted')
 
 !dmr--- For water isotopes variables
-#if ( WISOATM == 1 && ISOOCN >= 1 )
+#if ( WISO == 1 && ISOOCN >= 1 )
             open(newunit=wisocpl_restart_id,file=''//TRIM(REPERTOIRE)//'/wisocpl_restart.dat', form='unformatted')
 #endif
 
             call ec_wrendcoup
 
             close(newunit_id)
-#if ( WISOATM == 1 && ISOOCN >= 1 )
+#if ( WISO == 1 && ISOOCN >= 1 )
             close(wisocpl_restart_id)
 #endif
 

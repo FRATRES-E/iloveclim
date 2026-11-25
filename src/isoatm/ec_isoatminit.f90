@@ -28,7 +28,7 @@
 
        use global_constants_mod, only: ip, dblp=>dp
        
-#if ( WISOATM == 1 )       
+#if ( WISO == 1 )       
 
        use comsurf_mod, only: fractoc
        use iso_param_mod, only: ratio_oceanatm
@@ -60,7 +60,7 @@
        integer    :: nmiss, nfill
 
 ! dmr&clo   wiso:2d:0000 state of the isotope physics (ROADMAP 2c done, 2d in progress)
-       write(*,*) "ec_isoatminit: WISOATM = 1, isotopologues transported, evaporated and condensed; fractionation as",  &
+       write(*,*) "ec_isoatminit: WISO = 1, isotopologues transported, evaporated and condensed; fractionation as",  &
                   " set by frac_mode (iso_nml_read)"
 
 ! dmr&clo   wiso:2b:0001 surface ocean ratios from wisoatm.nml: 'fixed' (uniform) or 'file' (d18O map in permil, converted
@@ -152,7 +152,7 @@
 
       contains
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 ! dmr&clo   wiso:2d:0000 one coordinate variable of a netCDF file
        subroutine read_coord(path, name, val)
 

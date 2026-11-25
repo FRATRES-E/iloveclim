@@ -221,7 +221,7 @@
       INTEGER, PARAMETER :: Surface_Longwave_Radiation  = 33 !mohr
       INTEGER, PARAMETER :: num_noiso_var               = 33
 
-! dmr&clo   wiso:2e:0002 one numbering with and without WISOATM; the isotope variables are read from their own file
+! dmr&clo   wiso:2e:0002 one numbering with and without WISO; the isotope variables are read from their own file
 !           (outp_wisoatm.param) and numbered after these
       INTEGER, PARAMETER :: Number_of_2D_Fields     = 33
 

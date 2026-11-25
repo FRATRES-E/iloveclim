@@ -1,4 +1,4 @@
-Parameters for land water isotope outputs (WISOATM = 1, land_iso_mode = 'bucket'; read after outp_wisoatm.param) : (WARNING: '/' character forbidden)
+Parameters for land water isotope outputs (WISO = 1, land_iso_mode = 'bucket'; read after outp_wisoatm.param) : (WARNING: '/' character forbidden)
 
 long_name
 name, standard_name(WARNING: never change it), units, kind of pressure

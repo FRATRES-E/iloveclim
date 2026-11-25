@@ -66,7 +66,7 @@
 
       module wiso_budget_mod
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: ip, dblp=>dp, days_month360d_i
         use comatm,               only: nlat, nlon, iwater, iwat16, iwat17, iwat18, iwat2h

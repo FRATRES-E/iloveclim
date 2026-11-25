@@ -60,7 +60,7 @@
 
       module iso_alphas
 
-#if ( WISOATM == 1 )
+#if ( WISO == 1 )
 
         use global_constants_mod, only: ip, dblp=>dp, tK_zero_C
         use comatm,               only: iwat17, iwat18, iwat2h

@@ -170,7 +170,7 @@
       real(kind=8)                 :: zurfow,zflux0,zfluxm,vcor,bheat
       real(kind=8), dimension(2500):: xfreshsv
 
-#if ( ISOOCN >= 1 && WISOATM == 1 )
+#if ( ISOOCN >= 1 && WISO == 1 )
       real(kind=8), dimension(owatert)   :: zflux0s,zfluxms
 #else
       real(kind=8)                 :: zflux0s,zfluxms
