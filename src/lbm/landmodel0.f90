@@ -213,7 +213,8 @@
           stop 1
         endif
 #if ( ICEBERG == 2 || CARAIB > 0 )
-        write(*,*) "ec_initlbm: land_iso_mode = 'bucket' is not available with ICEBERG = 2 or CARAIB > 0 (ROADMAP 3a)"
+        write(*,*) "ec_initlbm: land_iso_mode = 'bucket' is not available with ICEBERG = 2 or CARAIB > 0 (ROADMAP 3a);", &
+                   " set land_iso_mode = 'fixed' in wisoatm.nml"
         stop 1
 #endif
         if (lbm_restart_read) then

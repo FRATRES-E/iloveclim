@@ -119,8 +119,9 @@
         real(dblp)             :: o17exc_ocean     =   0.0_dblp      !< per meg, both modes
 
 ! dmr&clo   wiso:3a:0001 Land isotopes: 'fixed' (evaporation over land and snow at the compositions above, the LBM
-!           carries water only) or 'bucket' (isotopes in the soil water and the snow of the LBM, ROADMAP step 3a)
-        character(len=str_len) :: land_iso_mode    = 'fixed'
+!           carries water only) or 'bucket' (isotopes in the soil water and the snow of the LBM, ROADMAP step 3a);
+!           wiso:3a:0008 default 'bucket' (D70, run bf of the 3a evaluation, O63)
+        character(len=str_len) :: land_iso_mode    = 'bucket'
 !           wiso:3a:0002 'bucket': composition of the soil water and the snow at a cold start of the land isotopes (no
 !           land isotope restart): the isotopes are set to these ratios times the water of the stores
         real(dblp)             :: d18o_soil_init   =  -8.0_dblp      !< permil
@@ -132,8 +133,9 @@
 !           wiso:3a:0007 cold start from these values ('fixed') or from a map ('file', D69): netCDF on the model grid,
 !           d18o_snow (required), dexc_snow, o17exc_snow, d18o_soil, dexc_soil, o17exc_soil (permil, per meg; optional),
 !           the values above where a variable or a cell is missing. Made offline: tools/src/wisolbm_init
-        character(len=str_len) :: land_init_mode   = 'fixed'
-        character(len=str_len) :: land_init_file   = 'startdata/wisolbm_init.nc'
+!           wiso:3a:0008 default 'file', with the map of run bf installed from inputs/isoatm (D70); ignored with 'fixed'
+        character(len=str_len) :: land_init_mode   = 'file'
+        character(len=str_len) :: land_init_file   = 'inputdata/isoatm/wisolbm_init.nc'
 
 ! dmr&clo   Restart of the isotopologues (netCDF, D34; available from ROADMAP 2c)
         logical                :: restart_read     = .false.
@@ -320,9 +322,9 @@
               write(*,*) "iso_nml_read: lbm_restart_read = .true. needs land_iso_mode = 'bucket'"
               stop 1
             endif
+! dmr&clo   wiso:3a:0008 land_init_mode = 'file' is the default (D70): with 'fixed' it has nothing to set, ignored
             if (trim(land_init_mode) == 'file') then
-              write(*,*) "iso_nml_read: land_init_mode = 'file' needs land_iso_mode = 'bucket'"
-              stop 1
+              write(*,*) "iso_nml_read: land_iso_mode = 'fixed', land_init_mode = 'file' ignored"
             endif
           case ('bucket')
             land_bucket = .true.

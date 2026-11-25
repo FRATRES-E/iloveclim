@@ -31,4 +31,5 @@ files = ["wisoatm.nml", "outp_wisoatm.param"]   # outp_wisoatm.param: isotope ou
 [[isoatm.data]]
 from  = "${emic_dir}/inputs/isoatm"
 to    = "inputdata/isoatm"
-files = ["calculated_d18O_v1_1-T21.nc"]
+files = ["calculated_d18O_v1_1-T21.nc",
+         "wisolbm_init.nc"]            # wiso:3a:0008 cold start of the land isotopes (land_init_mode = 'file', D70)

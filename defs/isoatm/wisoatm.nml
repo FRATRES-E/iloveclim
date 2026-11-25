@@ -14,16 +14,17 @@
   dexc_vap_init    =   0.0
   o17exc_vap_init  =   0.0
 
-  land_iso_mode    = 'fixed'                ! 'fixed': land and snow evaporation at the compositions below;
-                                            ! 'bucket': isotopes in the LBM soil water and snow (ROADMAP 3a)
+  land_iso_mode    = 'bucket'               ! 'bucket': isotopes in the LBM soil water and snow (ROADMAP 3a, D70);
+                                            ! 'fixed': land and snow evaporation at the compositions below
+                                            ! ('fixed' required with ICEBERG = 2 or CARAIB > 0)
   d18o_soil_init   =  -8.0                  ! 'bucket', cold start of the land isotopes: soil water
   dexc_soil_init   =  10.0
   o17exc_soil_init =   0.0
   d18o_snow_init   = -25.0                  ! idem, snow
   dexc_snow_init   =  10.0
   o17exc_snow_init =   0.0
-  land_init_mode   = 'fixed'                ! cold start: 'fixed' (values above) or 'file' (map, values above where missing)
-  land_init_file   = 'startdata/wisolbm_init.nc'   ! made by tools/src/wisolbm_init/make_wisolbm_init.py from a run
+  land_init_mode   = 'file'                 ! cold start: 'file' (map, values above where missing) or 'fixed' (values above)
+  land_init_file   = 'inputdata/isoatm/wisolbm_init.nc'   ! from run bf (D70); tools/src/wisolbm_init/make_wisolbm_init.py
   d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (land_iso_mode = 'fixed')
   dexc_land_evap   =   0.0
   o17exc_land_evap =   0.0
