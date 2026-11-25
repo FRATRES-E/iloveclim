@@ -66,7 +66,8 @@
         public :: ISO_NML_FILE, iso_nml_read, iso_nml_write, iso_ratios
         public :: frac_mode, frac_evap, frac_lsc, frac_conv, iso_passive
         public :: ocean_ratio_mode, ocean_d18o_file, restart_read, restart_file, land_iso_mode
-        public :: lbm_restart_read, lbm_restart_file
+        public :: lbm_restart_read, lbm_restart_file, land_init_mode, land_init_file
+        public :: d18o_soil_init, dexc_soil_init, o17exc_soil_init, d18o_snow_init, dexc_snow_init, o17exc_snow_init
         public :: r_vap_init, r_land_evap, r_snow_evap, r_ocean_fixed, dexc_ocean_frac, o17exc_ocean_frac
         public :: land_bucket, r_soil_init, r_snow_init
         public :: delta_check_min, delta_check_max
@@ -128,6 +129,11 @@
         real(dblp)             :: d18o_snow_init   = -25.0_dblp      !< permil
         real(dblp)             :: dexc_snow_init   =  10.0_dblp      !< permil
         real(dblp)             :: o17exc_snow_init =   0.0_dblp      !< per meg
+!           wiso:3a:0007 cold start from these values ('fixed') or from a map ('file', D69): netCDF on the model grid,
+!           d18o_snow (required), dexc_snow, o17exc_snow, d18o_soil, dexc_soil, o17exc_soil (permil, per meg; optional),
+!           the values above where a variable or a cell is missing. Made offline: tools/src/wisolbm_init
+        character(len=str_len) :: land_init_mode   = 'fixed'
+        character(len=str_len) :: land_init_file   = 'startdata/wisolbm_init.nc'
 
 ! dmr&clo   Restart of the isotopologues (netCDF, D34; available from ROADMAP 2c)
         logical                :: restart_read     = .false.
@@ -191,7 +197,7 @@
                                d18o_snow_evap, dexc_snow_evap, o17exc_snow_evap,                                      &
                                ocean_ratio_mode, ocean_d18o_file, d18o_ocean, dexc_ocean, o17exc_ocean,               &
                                land_iso_mode, d18o_soil_init, dexc_soil_init, o17exc_soil_init,                       &
-                               d18o_snow_init, dexc_snow_init, o17exc_snow_init,                                      &
+                               d18o_snow_init, dexc_snow_init, o17exc_snow_init, land_init_mode, land_init_file,      &
                                restart_read, restart_file, lbm_restart_read, lbm_restart_file,                        &
                                alpha_lv_form, alpha_sv_form, diff_form, theta_lv17, theta_sv17, theta_diff17,         &
                                ss_s0, ss_s1, d18o_check_min, d18o_check_max, dd_check_min, dd_check_max,              &
@@ -302,10 +308,20 @@
             stop 1
           end select
 
+          select case (trim(land_init_mode))
+          case ('fixed', 'file')
+          case default
+            write(*,*) "iso_nml_read: unknown land_init_mode = ", trim(land_init_mode), " (fixed | file)"
+            stop 1
+          end select
           select case (trim(land_iso_mode))
           case ('fixed')
             if (lbm_restart_read) then
               write(*,*) "iso_nml_read: lbm_restart_read = .true. needs land_iso_mode = 'bucket'"
+              stop 1
+            endif
+            if (trim(land_init_mode) == 'file') then
+              write(*,*) "iso_nml_read: land_init_mode = 'file' needs land_iso_mode = 'bucket'"
               stop 1
             endif
           case ('bucket')
@@ -439,6 +455,8 @@
                                          d18o_snow_init, dexc_snow_init, o17exc_snow_init
           write(unit_chk, '(a,l1)')      'restart_read     = ', restart_read
           write(unit_chk, '(a,a)')       'restart_file     = ', trim(restart_file)
+          write(unit_chk, '(a,a)')       'land_init_mode   = ', trim(land_init_mode)
+          write(unit_chk, '(a,a)')       'land_init_file   = ', trim(land_init_file)
           write(unit_chk, '(a,l1)')      'lbm_restart_read = ', lbm_restart_read
           write(unit_chk, '(a,a)')       'lbm_restart_file = ', trim(lbm_restart_file)
           write(unit_chk, '(a,a)')       'alpha_lv_form    = ', trim(alpha_lv_form)

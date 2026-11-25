@@ -22,6 +22,8 @@
   d18o_snow_init   = -25.0                  ! idem, snow
   dexc_snow_init   =  10.0
   o17exc_snow_init =   0.0
+  land_init_mode   = 'fixed'                ! cold start: 'fixed' (values above) or 'file' (map, values above where missing)
+  land_init_file   = 'startdata/wisolbm_init.nc'   ! made by tools/src/wisolbm_init/make_wisolbm_init.py from a run
   d18o_land_evap   = -12.0                  ! fixed composition of the evaporation flux over land (land_iso_mode = 'fixed')
   dexc_land_evap   =   0.0
   o17exc_land_evap =   0.0

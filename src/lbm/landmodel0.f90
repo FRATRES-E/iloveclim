@@ -51,7 +51,8 @@
       use comatm,      only: iwat16, nwisos
       use comland_mod, only: lbm_wiso
       use iso_nml_mod, only: land_bucket, r_soil_init, r_snow_init, lbm_restart_read, lbm_restart_file
-      use wisolbm_restart_mod, only: wlr_read
+      use iso_nml_mod, only: land_init_mode, land_init_file
+      use wisolbm_restart_mod, only: wlr_read, wlr_read_init
 #endif
       use comland_mod, only: fractl, dareas, dsnow, bmoisg, runofo, tland, albsnow, bmoismfix, dsnm, dtland, epsl, heatsnown &
                      , heatsnows, iscenland, islndstrt, lhcap, pi, radius, rdtland, rlatfus, rlatsub, rlatvap, rlhcap, rowat &
@@ -217,6 +218,8 @@
 #endif
         if (lbm_restart_read) then
           call wlr_read(lbm_restart_file, r_soil_init, r_snow_init)
+        else if (trim(land_init_mode) == 'file') then
+          call wlr_read_init(land_init_file)              ! wiso:3a:0007, D69
         else
           do k = iwat16, nwisos
             bmoisg(:,:,k) = r_soil_init(k)*bmoisg(:,:,iwater)
