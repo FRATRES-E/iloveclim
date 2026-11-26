@@ -44,6 +44,16 @@
 !!     horizontal schemes put into scaldt) and As = sum of (scalat - S)*tms (advection and diffusion, should be 0).
 !!     All in freshwater equivalent, global means in mm over the CLIO earth (4 pi rterre^2): -dSalt/S*rho0,
 !!     positive = salt lost = freshening. One line per 30 steps in outputdata/globals/clio_saltbud.txt.
+!!     Sea ice and snow on sea ice (wiso:3b:0004, 0005): mass at the marks
+!!         0 start of the step    1 after icdyna    2 after icdadv    3 in thersf, after its section 4 (particular
+!!         cases)    4 after thersf
+!!     so that the changes split into icdyna, icdadv (transport), particular cases, thermodynamics and the rest, with
+!!     the thermodynamic mass changes that thersf reports (dmgbq: ice, the basis of the brine flux fons; dmgwi: snow
+!!     ice; dmnbq: snow). Masses are weighted by the sea-ice model's own cell area (dynami_mod area, m2), which the
+!!     transport conserves; dmgbq is also given weighted by the ocean area aire (the weight of the brine salt flux in
+!!     scale): a difference between the two is a salt imbalance from the two metrics. The ratio area/aire (min, max
+!!     over the ocean cells) is written in the header. Mm of water over the CLIO earth, one line per 30 steps in
+!!     outputdata/globals/clio_icebud.txt.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module clio_saltbud_mod
@@ -54,7 +64,7 @@
 
         private
 
-        public :: sb_mark, sb_scale_bc, sb_scale_k, sb_end_step, sb_icesh
+        public :: sb_mark, sb_scale_bc, sb_scale_k, sb_end_step, sb_icesh, im_mark
 
         integer(ip), parameter :: NST = 7                      !< stages
         integer(ip), parameter :: NT  = 11                     !< scale terms: srf rap bot der phv int Xs As brf brm ics
@@ -71,6 +81,14 @@
         integer(ip), save :: unit      = -1
         logical,     save :: opened    = .false.
         real(dblp),  save :: ficess_l  = 0.0_dblp              !< last ice-shelf salt compensation of thersf (psu/step)
+        integer(ip), parameter :: NIS = 5                      !< ice stages: icdyna, icdadv, particular, thermo, rest
+        integer(ip), parameter :: NIM = 4                      !< thermodynamic masses: dmgbq, dmgwi, dmnbq, dmgbq on aire
+        logical,     save :: ice_have  = .false.
+        real(dblp),  save :: ice_last(2) = 0.0_dblp           !< ice and snow mass at the last ice mark (kg / 1e12)
+        real(dblp),  save :: di(2,NIS) = 0.0_dblp
+        real(dblp),  save :: dm(NIM)   = 0.0_dblp
+        integer(ip), save :: unit_i    = -1
+        logical,     save :: opened_i  = .false.
 
 
       contains
@@ -93,6 +111,47 @@
           have_last = .true.
 
         end subroutine sb_mark
+
+        subroutine im_mark(stage)    ! sea ice, snow: 0 start, 1 after icdyna, 2 after icdadv, 3 thersf section 4, 4 after thersf
+
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2
+          use bloc_mod,    only: aire
+          use dynami_mod,  only: area
+          use ice_mod,     only: hgbq, hnbq, albq, rhog, rhon, dmgbq, dmgwi, dmnbq
+
+          integer(ip), intent(in) :: stage
+
+          real(dblp)  :: m(2), a
+          integer(ip) :: i, j, k
+
+          m = 0.0_dblp
+          do j = js1, js2
+            do i = is1(j), is2(j)
+              a    = (1.0_dblp - albq(i,j))*area(i,j)*tms(i,j,ks2)
+              m(1) = m(1) + a*hgbq(i,j)*rhog
+              m(2) = m(2) + a*hnbq(i,j)*rhon
+            enddo
+          enddo
+          if (ice_have) then
+            k = stage
+            if (stage == 0) k = NIS
+            di(:,k) = di(:,k) + (m - ice_last)
+          endif
+          if (stage == 4) then
+            do j = js1, js2
+              do i = is1(j), is2(j)
+                a     = area(i,j)*tms(i,j,ks2)
+                dm(1) = dm(1) + dmgbq(i,j)*a
+                dm(2) = dm(2) + dmgwi(i,j)*a
+                dm(3) = dm(3) + dmnbq(i,j)*a
+                dm(4) = dm(4) + dmgbq(i,j)*aire(i,j)*1.0e12_dblp*tms(i,j,ks2)
+              enddo
+            enddo
+          endif
+          ice_last = m
+          ice_have = .true.
+
+        end subroutine im_mark
 
         function content() result(s)
 
@@ -213,8 +272,11 @@
           nstep = nstep + 1
           if (nstep == NSTEP_OUT) then
             call write_out()
+            call write_ice()
             d     = 0.0_dblp
             t     = 0.0_dblp
+            di    = 0.0_dblp
+            dm    = 0.0_dblp
             nstep = 0
           endif
 
@@ -254,6 +316,47 @@
           flush(unit)
 
         end subroutine write_out
+
+        subroutine write_ice()
+
+          use const_mod,   only: pi, rterre
+          use bloc_mod,    only: numit, aire
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2
+          use dynami_mod,  only: area
+
+          real(dblp)  :: f, rmin, rmax, r
+          integer(ip) :: i, j
+
+          if (.not. opened_i) then
+            rmin = huge(1.0_dblp)
+            rmax = -huge(1.0_dblp)
+            do j = js1, js2
+              do i = is1(j), is2(j)
+                if (tms(i,j,ks2) > 0.0_dblp .and. aire(i,j) > 0.0_dblp) then
+                  r    = area(i,j)/(aire(i,j)*1.0e12_dblp)
+                  rmin = min(rmin, r)
+                  rmax = max(rmax, r)
+                endif
+              enddo
+            enddo
+            open(newunit=unit_i, file='outputdata/globals/clio_icebud.txt', form='formatted', status='replace',      &
+                 action='write')
+            write(unit_i, '(a)') '# CLIO sea-ice and snow mass budget (clio_saltbud_mod), global means in mm of water'// &
+                                 ' over 30 steps, weighted by the sea-ice area (dynami_mod); stages: icdyna, icdadv,'//   &
+                                 ' part (thersf section 4), thermo (rest of thersf), rest; thersf masses dmgbq (ice),'//  &
+                                 ' dmgwi (snow ice), dmnbq (snow); dmgbq_aire: dmgbq weighted by the ocean area aire'
+            write(unit_i, '(a,2es14.6)') '# area/aire over the ocean cells, min and max:', rmin, rmax
+            write(unit_i, '(a)') '#  numit  I_dyna     I_adv      I_part     I_thermo   I_rest     I_total    dmgbq'//    &
+                                 '      I_th-dmgbq dmgbq_aire dmgwi      S_dyna     S_adv      S_part     S_thermo'//   &
+                                 '   S_rest     S_total    dmnbq      S_th-dmnbq'
+            opened_i = .true.
+          endif
+          f = 1.0_dblp/(4.0_dblp*pi*rterre**2)
+          write(unit_i, '(i8,18es11.3)') numit, di(1,:)*f, sum(di(1,:))*f, dm(1)*f, (di(1,4) - dm(1))*f, dm(4)*f,       &
+                                        dm(2)*f, di(2,:)*f, sum(di(2,:))*f, dm(3)*f, (di(2,4) - dm(3))*f
+          flush(unit_i)
+
+        end subroutine write_ice
 
       end module clio_saltbud_mod
 

@@ -10,7 +10,7 @@
 !   computes surface heat and salt flux at the surface of the ocean
 !  modif : 24/12/99
 
-      use clio_saltbud_mod, only: sb_icesh         ! dmr&clo wiso:3b:0003
+      use clio_saltbud_mod, only: sb_icesh, im_mark   ! dmr&clo wiso:3b:0003, 0004
       use comemic_mod, only: flag_snow_to_flux, iyear, nstpyear
 
 #if ( ISOOCN >= 1 )
@@ -375,6 +375,7 @@
             albq(i,j)   = (albq(i,j)+(zh-1.0))/zh
  200     continue
  210  continue
+      call im_mark(3)                              ! dmr&clo wiso:3b:0004 sea-ice budget: particular cases done
 !
 !
 

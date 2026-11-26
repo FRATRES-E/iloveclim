@@ -360,7 +360,7 @@ c~       dimension irn(imax,8), jrn(jmax,8)
 
       use newunit_clio_mod, only: clio3_out_id
 ! dmr&clo wiso:3b:0002 global salt budget by stage (diagnostics only)
-      use clio_saltbud_mod, only: sb_mark, sb_end_step
+      use clio_saltbud_mod, only: sb_mark, sb_end_step, im_mark
 
 #if ( ICEBERG > 0 ) 
       use iceberg_mod, only: write_iceberg_restartdata 
@@ -430,14 +430,18 @@ c~       common /clio_control_fp/ dtsd2,yrsec,daysec,unsplt
 !           call rfmcpl3(numcpl)
 !        endif
         call sb_mark(0)                    ! dmr&clo wiso:3b:0002 salt budget: start of the step
+        call im_mark(0)                    ! dmr&clo wiso:3b:0004 sea-ice budget
         call icdyna
+        call im_mark(1)                    ! dmr&clo wiso:3b:0005
         call icdadv(xjour)
+        call im_mark(2)                    ! dmr&clo wiso:3b:0004
 
 !cfc    call cfc_flx(nn99)
 
         do ither=1,ntrmax
            call thersf(ither,istep)
            call sb_mark(1)                 ! dmr&clo wiso:3b:0002
+           call im_mark(4)                 ! dmr&clo wiso:3b:0004
 !dmr&afq           call thersf(ither,ntrmax,istep,irunlabelclio)
 
 !cp1       if (icoupl.ge.1.and.ither.lt.ntrmax) then
