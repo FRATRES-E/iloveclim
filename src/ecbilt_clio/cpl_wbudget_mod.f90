@@ -67,6 +67,7 @@
 !!     Contract (public entry points), called from emic:
 !!       cpl_wb_start()   : once, before the time loop (reservoirs at the start).
 !!       cpl_wb_day()     : once a day, after clio (skipped when the ocean is prescribed).
+!!     Active only with BUDGET_DIAG = 1 (choixcomposantes.h, wiso:3b:0009): otherwise both are empty.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module cpl_wbudget_mod
@@ -115,6 +116,7 @@
 
           real(dblp) :: vol
 
+#if ( BUDGET_DIAG == 1 )
           globe = real(nlon, dblp)*sum(darea)
           call reservoirs(res_last)
           call salinity(sal_last, vol)
@@ -123,6 +125,7 @@
           nday    = 0
           ready   = .true.
 
+#endif
         end subroutine cpl_wb_start
 
         subroutine cpl_wb_day()
@@ -131,6 +134,7 @@
 
           real(dblp) :: r(NR), f(NF)
 
+#if ( BUDGET_DIAG == 1 )
           if (.not. ready) return
 
           ! the calendar month changed with days pending (incomplete month, e.g. a restart in the middle of a month)
@@ -157,6 +161,7 @@
             nday    = 0
           endif
 
+#endif
         end subroutine cpl_wb_day
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|

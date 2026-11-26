@@ -74,6 +74,7 @@
 !!     in the Bering raccord cells (iberp/iberpm, jberp and ibera/iberam, jbera, where they are updated), and the five
 !!     cells with the largest cumulative |Def| and |flux to non-updated cells| since the start of the run.
 !!     outputdata/globals/clio_icdiff.txt (one line per 30 steps) and clio_icdiff_top.txt (cumulative top cells).
+!!     Active only with BUDGET_DIAG = 1 (choixcomposantes.h, wiso:3b:0009): otherwise every public routine is empty.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module clio_saltbud_mod
@@ -137,6 +138,7 @@
 
           real(dblp) :: s
 
+#if ( BUDGET_DIAG == 1 )
           s = content()
           if (have_last) then
             if (stage == 0) then
@@ -148,6 +150,7 @@
           last      = s
           have_last = .true.
 
+#endif
         end subroutine sb_mark
 
         subroutine im_mark(stage)    ! sea ice, snow: 0 start, 1 after icdyna, 2 after icdadv, 3 thersf section 4, 4 after thersf
@@ -162,6 +165,7 @@
           real(dblp)  :: m(2), a
           integer(ip) :: i, j, k
 
+#if ( BUDGET_DIAG == 1 )
           m = 0.0_dblp
           do j = js1, js2
             do i = is1(j), is2(j)
@@ -189,6 +193,7 @@
           ice_last = m
           ice_have = .true.
 
+#endif
         end subroutine im_mark
 
         ! icdadv: masses from the model state (hgbq, hnbq, albq) at entry (k = 0) or at the end (k = 5)
@@ -203,6 +208,7 @@
           integer(ip) :: i, j, h
           real(dblp)  :: a, m(2,2), ml(2)
 
+#if ( BUDGET_DIAG == 1 )
           m  = 0.0_dblp
           ml = 0.0_dblp
           do j = js1, js2
@@ -223,6 +229,7 @@
             ia_land(:,2)  = ia_land(:,2) + ml
           endif
 
+#endif
         end subroutine ia_state
 
         ! icdadv: one species (isp 1 ice, 2 snow) of the transported fields at mark k (1 2.2, 2 adv, 3 dif, 4 clip);
@@ -241,6 +248,7 @@
           integer(ip) :: i, j, h
           real(dblp)  :: rho, v, m(2), ml(2)
 
+#if ( BUDGET_DIAG == 1 )
           rho = rhog
           if (isp == 2) rho = rhon
           m  = 0.0_dblp
@@ -259,6 +267,7 @@
           ia_dd(isp,:,k)  = ia_dd(isp,:,k) + (m - ia_m(isp,:,k-1))   ! k = 1 E, 2 A, 3 D, 4 Dc
           if (k == 2 .and. isp == 1) ia_land(:,1) = ia_land(:,1) + ml
 
+#endif
         end subroutine ia_ext
 
         ! adv (iameth = 1): the clip at zero of the corrector call, for the species set in ia_cur
@@ -273,6 +282,7 @@
           integer(ip) :: h
           real(dblp)  :: rho
 
+#if ( BUDGET_DIAG == 1 )
           if (ia_cur == 0 .or. s >= 0.0_dblp) return
           rho = rhog
           if (ia_cur == 2) rho = rhon
@@ -280,6 +290,7 @@
           if (j >= jeq) h = 2
           ia_dd(ia_cur,h,6) = ia_dd(ia_cur,h,6) - s*rho*tms(i,j,ks2)
 
+#endif
         end subroutine ia_addclip
 
         ! diffus: iterations used and last change per iteration
@@ -288,9 +299,11 @@
           integer(ip), intent(in) :: k
           real(dblp),  intent(in) :: amx
 
+#if ( BUDGET_DIAG == 1 )
           id_kcur   = k
           id_amxcur = amx
 
+#endif
         end subroutine ia_dfinfo
 
         ! icdadv: diffusion of the ice volume per unit area, fld0 -> fld1 (diffus, before the clip), split into the flux
@@ -311,6 +324,7 @@
           logical     :: inu(imax,jmax)
           integer(ip) :: i, j, h, ip1, jp1, ii
 
+#if ( BUDGET_DIAG == 1 )
           if (.not. allocated(id_cdef)) then
             allocate(id_cdef(imax,jmax), id_clk(imax,jmax))
             id_cdef = 0.0_dblp
@@ -379,6 +393,7 @@
           id_kmax = max(id_kmax, id_kcur)
           id_amx  = max(id_amx, id_amxcur)
 
+#endif
         end subroutine ia_diffus
 
         subroutine write_icdiff()
@@ -470,8 +485,10 @@
 
           real(dblp), intent(in) :: ficess
 
+#if ( BUDGET_DIAG == 1 )
           ficess_l = ficess
 
+#endif
         end subroutine sb_icesh
 
         ! the explicit boundary terms of scale for the salt, as scale builds them (section 3), on the updated points
@@ -492,6 +509,7 @@
 
           real*8 fluxbrines(imax,jmax)                 ! as in thersf.f, brines_mod.f90 (fons*unsdz/rho0, psu/step)
           common / common_brines / fluxbrines
+#if ( BUDGET_DIAG == 1 )
 
           do j = js1, js2
             do k = 1, kmax
@@ -526,6 +544,7 @@
             enddo
           enddo
 
+#endif
         end subroutine sb_scale_bc
 
         ! level k of the final update of scale for the salt (section 7): internal restoring, totals applied
@@ -541,6 +560,7 @@
           integer(ip) :: i, j, n
           real(dblp)  :: v
 
+#if ( BUDGET_DIAG == 1 )
           do n = 1, nrap(k,2)
             i = 1 + mod(ijrap(n,k,2), imax)
             j = 1 + ijrap(n,k,2)/imax
@@ -554,10 +574,12 @@
             enddo
           enddo
 
+#endif
         end subroutine sb_scale_k
 
         subroutine sb_end_step()                     ! after the last mark of the step (etat)
 
+#if ( BUDGET_DIAG == 1 )
           nstep = nstep + 1
           if (nstep == NSTEP_OUT) then
             call write_out()
@@ -574,6 +596,7 @@
             nstep = 0
           endif
 
+#endif
         end subroutine sb_end_step
 
         subroutine write_out()

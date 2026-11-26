@@ -443,6 +443,14 @@
 #define FRAZER_ARCTIC 0
 
 !
+! 0 no budget diagnostics (default)
+! 1 water, salt and sea-ice budget diagnostics of the coupled system, monthly text files in outputdata/globals/
+!   (cpl_wbudget*.txt, clio_saltbud.txt, clio_icebud.txt, clio_icdadv.txt, clio_icdiff*.txt; wiso:3b, dmr&clo 2026)
+!   Diagnostics only: the model state is the same with 0 and 1.
+!
+#define BUDGET_DIAG 0
+
+!
 ! Wrapper construction
 ! Do not turn to 1 if unsure !
 !
