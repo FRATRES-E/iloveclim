@@ -194,6 +194,8 @@
 
       USE COUPL2OCEAN_COM, only: ec_co2oc
       use ocean_coupling_mod, only: ocean_bndcon_update, ocean_is_prescribed
+! dmr&clo wiso:3b:0000 water inventory of the coupled system (diagnostics only)
+      use cpl_wbudget_mod,    only: cpl_wb_start, cpl_wb_day
 
 #if ( FROG_EXP > 0)
       use main_lib_FROG, only: INITIALIZE_FROG, GET_COUPLING_STEP
@@ -541,6 +543,9 @@ cnb try to call first to have the date t update bathy
 !     *** OCEAN-SEAICE >>
       call write_im("Finalized init", "EMIC MAIN")
 
+! dmr&clo wiso:3b:0000 water inventory: reservoirs at the start (coupled ocean only)
+      if (.not. ocean_is_prescribed()) call cpl_wb_start()
+
 ! dmr  i = the counter of days in the integration
       do i=1,ntotday
 
@@ -634,6 +639,7 @@ c~             !this is just to write the scal file
 c~ #endif
 
                call clio(i,irunlabel+iyear,ntotday)                        ! integrate ocean-seaice for a daily step (physics)
+               call cpl_wb_day()                                           ! dmr&clo wiso:3b:0000 water inventory
               endif ! ocean not prescribed
 
 !#if ( OCYCC == 1 )
