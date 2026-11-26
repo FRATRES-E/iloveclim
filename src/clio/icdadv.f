@@ -20,7 +20,8 @@
      &                    , sxyc2, sxst, syst, sxxst, syyst, sxyst
 
       use bloc0_mod, only: tmu, ku2, dts, ks2, js1, js2, is1, is2, jeq
-     &             , jcl1, jcl2, ims1, ims2
+     &             , jcl1, jcl2, ims1, ims2, tms, iberp, iberpm
+     &             , ibera, iberam, jberpm, jberam
       use bloc_mod, only: idyn
       use ice_mod, only: hnbq, hgbq, albq, alcd, tbq, qstobq, tfsn
      &           , tfsg, xlg, alcr, acrit, hndif, tfu
@@ -40,7 +41,8 @@
 
 !--- loads of locales
 
-       integer(kind=ip):: i, ip1, j, jour, jp1, k, nitad, jj
+       integer(kind=ip):: i, ip1, j, jour, jp1, k, nitad, jj, i0, ii
+       logical         :: lupd(imax,jmax)
        real(kind=dblp) :: acrith, albq_prev, cfl, dta, onelo, usnit
      &                 , vbord, xjour, zeps0, zeps1, zerolo, zignm
      &                 , zindb, zindg, zindhe, zindn, zusvog, zusvon
@@ -94,6 +96,20 @@
           ut(i,jmax) = 0.0
           vt(i,jmax) = 0.0
 90      continue
+!
+!  2.1.1b. No sea-ice transport through the Bering Strait.
+!dmr&clo v1.4.0 (wiso:3b:0008): the raccord cells of the strait are
+!  copies that the ice transport never debits, so ice crossing there
+!  was created or lost (+0.78 mm/yr of ice with uvdif = 0). The faces
+!  between the strait cells and the raccord rows are closed for the ice.
+#if ( L_TEST == 3 )
+        if (iberp.ne.0) then
+          vt(iberpm,jberpm) = 0.0
+          vt(iberp ,jberpm) = 0.0
+          vt(iberam,jberam) = 0.0
+          vt(ibera ,jberam) = 0.0
+        endif
+#endif
 !
 !  2.1.2. CFL test for stability.
 !
@@ -476,6 +492,35 @@
      &                   /(0.5*(dxc1(i,j)+dxc1(ip1,j)))
           difhy(i,j)   = amsky(i,j)*dfhv(i,j)
      &                   /(0.5*(dxc2(i,j)+dxc2(i,jp1)))
+        enddo
+      enddo
+!
+!dmr&clo v1.4.0 (wiso:3b:0008): no ice diffusion through a face between
+!  a cell updated by diffus and one that is not (the Bering raccord
+!  cells: +2.35 mm/yr of ice created there); the cyclic halo stands for
+!  its partner. Diffusion is then conservative by construction.
+      do j=1,jmax
+        do i=1,imax
+          lupd(i,j) = .false.
+        enddo
+      enddo
+      do j=js1,js2
+        do i=is1(j),is2(j)
+          lupd(i,j) = tms(i,j,ks2).gt.zero
+        enddo
+      enddo
+      do j=js1-1,js2-1
+        jp1 = j+1
+        do i=is1(j)-1,is2(j)
+          ip1 = i+1
+          i0  = i
+          ii  = ip1
+          if (j.ge.jcl1.and.j.le.jcl2) then
+            if (i.eq.ims1-1)   i0 = ims2
+            if (ip1.eq.ims2+1) ii = ims1
+          endif
+          if (lupd(i0,j).neqv.lupd(ii,j)) difhx(i,j) = 0.
+          if (lupd(i,j).neqv.lupd(i,jp1)) difhy(i,j) = 0.
         enddo
       enddo
 !
