@@ -27,7 +27,7 @@
       use dynami_mod, only: area, ug, vg, bound, dxc1, dxc2, hnm, hgm
      &              , iameth, dfhu, dfhv
       use newunit_clio_mod, only: clio3_out_id      
-      use clio_saltbud_mod, only: ia_state, ia_ext, ia_cur
+      use clio_saltbud_mod, only: ia_state, ia_ext, ia_cur, ia_diffus
 
 
       implicit none
@@ -486,6 +486,7 @@
       enddo
       call diffus(dta,difhx,difhy,fld0,fld1)
       call ia_ext(3,1,fld1,.false.)
+      call ia_diffus(dta,difhx,difhy,fld0,fld1)
       do j=1,jmax
         do i=1,imax
           s0g(i,j) = max(zero,fld1(i,j)*area(i,j))

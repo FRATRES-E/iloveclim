@@ -16,6 +16,7 @@
       use bloc0_mod
       use bloc_mod
       use dynami_mod
+      use clio_saltbud_mod, only: ia_dfinfo
 !! END_OF_USE_SECTION
 
 
@@ -127,6 +128,8 @@ c~      &            div0(imax,jmax),div(imax,jmax),fact(imax,jmax)
           
           if (amx.lt.2.0e-04) exit kloop
         enddo kloop
+!dmr&clo wiso:3b:0007 iterations and last change (diagnostic only)
+        call ia_dfinfo(min(k,100),amx)
 !
 !       write(53,*) amx,k
         return

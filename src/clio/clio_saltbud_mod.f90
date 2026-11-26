@@ -62,6 +62,18 @@
 !!         L   section 2.5 (clip of the means, concentration cap, removal of thin ice and snow)
 !!     and the mean ice mass on the land cells (tms = 0) of the same rows after the advection and at the end.
 !!     One line per 30 steps in outputdata/globals/clio_icdadv.txt; E + A + D + Dc + L = I_adv (S_adv) of clio_icebud.
+!!     The diffusion of the ice volume (wiso:3b:0007): diffus solves fld1 = fld0 + dt*(alfa*div(fld1) + (1-alfa)*div(fld0))
+!!     (Crank-Nicolson, alfa = 0.5) by relaxed Jacobi iterations; from fld0 and the returned fld1 the face fluxes are
+!!     rebuilt as diffus builds them (grxh, gryh times dxs2, dxs1), and the mass change D on the updated cells splits into
+!!         T    sum of area*dt*(alfa*div(fld1) + (1-alfa)*div(fld0)): what the discrete equation moves; it is the flux
+!!              through faces to cells that diffus does not update (not ocean, outside js1..js2, is1..is2; the cyclic
+!!              halo counted as its partner), 0 for a closed domain
+!!         Def  D - T: the defect of the unconverged iteration
+!!     per hemisphere (T of one hemisphere includes the flux across the equator; T_s + T_n is the leak), with the
+!!     number of iterations (mean, max) and the last change per iteration (max), the mass change
+!!     in the Bering raccord cells (iberp/iberpm, jberp and ibera/iberam, jbera, where they are updated), and the five
+!!     cells with the largest cumulative |Def| and |flux to non-updated cells| since the start of the run.
+!!     outputdata/globals/clio_icdiff.txt (one line per 30 steps) and clio_icdiff_top.txt (cumulative top cells).
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module clio_saltbud_mod
@@ -73,7 +85,7 @@
         private
 
         public :: sb_mark, sb_scale_bc, sb_scale_k, sb_end_step, sb_icesh, im_mark
-        public :: ia_state, ia_ext, ia_addclip, ia_cur
+        public :: ia_state, ia_ext, ia_addclip, ia_cur, ia_diffus, ia_dfinfo
 
         integer(ip), parameter :: NST = 7                      !< stages
         integer(ip), parameter :: NT  = 11                     !< scale terms: srf rap bot der phv int Xs As brf brm ics
@@ -106,6 +118,15 @@
         integer(ip), save :: ia_n      = 0                     !< icdadv calls in the interval
         integer(ip), save :: unit_a    = -1
         logical,     save :: opened_a  = .false.
+        integer(ip), parameter :: NTOP = 5
+        real(dblp),  save :: id_d(2,3)  = 0.0_dblp            !< D, T, Def (hemisphere)
+        real(dblp),  save :: id_ber     = 0.0_dblp            !< mass change of the Bering raccord cells
+        real(dblp),  save :: id_amx     = 0.0_dblp            !< max last change per iteration
+        integer(ip), save :: id_kit     = 0, id_kmax = 0, id_n = 0, id_kcur = 0
+        real(dblp),  save :: id_amxcur  = 0.0_dblp
+        real(dblp),  allocatable, save :: id_cdef(:,:), id_clk(:,:)   !< cumulative per-cell defect and leak (kg)
+        integer(ip), save :: unit_d = -1, unit_t = -1
+        logical,     save :: opened_d = .false.
 
 
       contains
@@ -261,6 +282,166 @@
 
         end subroutine ia_addclip
 
+        ! diffus: iterations used and last change per iteration
+        subroutine ia_dfinfo(k, amx)
+
+          integer(ip), intent(in) :: k
+          real(dblp),  intent(in) :: amx
+
+          id_kcur   = k
+          id_amxcur = amx
+
+        end subroutine ia_dfinfo
+
+        ! icdadv: diffusion of the ice volume per unit area, fld0 -> fld1 (diffus, before the clip), split into the flux
+        ! through faces to non-updated cells (T) and the defect of the iteration (Def)
+        subroutine ia_diffus(dt, difhx, difhy, fld0, fld1)
+
+          use para0_mod,   only: imax, jmax
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2, jeq, jcl1, jcl2, ims1, ims2, iberp, jberp, ibera, jbera,  &
+                                 iberpm, iberam
+          use dynami_mod,  only: area, dxs1, dxs2
+          use ice_mod,     only: rhog
+
+          real(dblp), intent(in) :: dt
+          real(dblp), intent(in) :: difhx(imax,jmax), difhy(imax,jmax), fld0(imax,jmax), fld1(imax,jmax)
+
+          real(dblp), parameter :: ALFA = 0.5_dblp
+          real(dblp)  :: fx(imax,jmax), fy(imax,jmax), tc, dc, f
+          logical     :: inu(imax,jmax)
+          integer(ip) :: i, j, h, ip1, jp1, ii
+
+          if (.not. allocated(id_cdef)) then
+            allocate(id_cdef(imax,jmax), id_clk(imax,jmax))
+            id_cdef = 0.0_dblp
+            id_clk  = 0.0_dblp
+          endif
+          inu = .false.
+          do j = js1, js2
+            do i = is1(j), is2(j)
+              inu(i,j) = tms(i,j,ks2) > 0.0_dblp
+            enddo
+          enddo
+          ! face fluxes (volume per step) as diffus: grxh(i,j) on the face (i,j)|(i+1,j), gryh on (i,j)|(i,j+1)
+          fx = 0.0_dblp
+          fy = 0.0_dblp
+          do j = js1-1, js2
+            jp1 = j + 1
+            do i = is1(j)-1, is2(j)
+              ip1 = i + 1
+              fx(i,j) = dt*dxs2(i,j)*difhx(i,j)*(ALFA*(fld1(ip1,j) - fld1(i,j)) + (1.0_dblp-ALFA)*(fld0(ip1,j) - fld0(i,j)))
+              fy(i,j) = dt*dxs1(i,j)*difhy(i,j)*(ALFA*(fld1(i,jp1) - fld1(i,j)) + (1.0_dblp-ALFA)*(fld0(i,jp1) - fld0(i,j)))
+            enddo
+          enddo
+          do j = js1, js2
+            h = 1
+            if (j >= jeq) h = 2
+            do i = is1(j), is2(j)
+              if (.not. inu(i,j)) cycle
+              tc = (fx(i,j) - fx(i-1,j) + fy(i,j) - fy(i,j-1))*rhog                 ! as bkappa*area
+              dc = area(i,j)*(fld1(i,j) - fld0(i,j))*rhog - tc
+              id_d(h,1) = id_d(h,1) + area(i,j)*(fld1(i,j) - fld0(i,j))*rhog
+              id_d(h,2) = id_d(h,2) + tc
+              id_d(h,3) = id_d(h,3) + dc
+              id_cdef(i,j) = id_cdef(i,j) + dc
+              if ((i == iberp .or. i == iberpm) .and. j == jberp) id_ber = id_ber + tc + dc
+              if ((i == ibera .or. i == iberam) .and. j == jbera) id_ber = id_ber + tc + dc
+            enddo
+          enddo
+          ! unmatched faces: one side updated, the other not (the cyclic halo stands for its partner)
+          do j = js1-1, js2
+            jp1 = j + 1
+            do i = is1(j)-1, is2(j)
+              ip1 = i + 1
+              f  = fx(i,j)*rhog
+              ii = ip1
+              if (j >= jcl1 .and. j <= jcl2 .and. ip1 == ims2+1) ii = ims1
+              if (j >= jcl1 .and. j <= jcl2 .and. i == ims1-1) then
+                ! face ims1-1 | ims1 is the face ims2 | ims2+1 seen from the other side
+                if (inu(ims1,j) .and. .not. inu(ims2,j)) id_clk(ims1,j) = id_clk(ims1,j) - f
+              else if (inu(i,j) .and. .not. inu(ii,j)) then
+                id_clk(i,j) = id_clk(i,j) + f
+              else if (inu(ii,j) .and. .not. inu(i,j)) then
+                id_clk(ii,j) = id_clk(ii,j) - f
+              endif
+              if (jp1 <= jmax) then
+                f = fy(i,j)*rhog
+                if (inu(i,j) .and. .not. inu(i,jp1)) then
+                  id_clk(i,j) = id_clk(i,j) + f
+                else if (inu(i,jp1) .and. .not. inu(i,j)) then
+                  id_clk(i,jp1) = id_clk(i,jp1) - f
+                endif
+              endif
+            enddo
+          enddo
+          id_n    = id_n + 1
+          id_kit  = id_kit + id_kcur
+          id_kmax = max(id_kmax, id_kcur)
+          id_amx  = max(id_amx, id_amxcur)
+
+        end subroutine ia_diffus
+
+        subroutine write_icdiff()
+
+          use const_mod,   only: pi, rterre
+          use bloc_mod,    only: numit
+          use bloc0_mod,   only: iberp, jberp, ibera, jbera
+          use para0_mod,   only: imax, jmax
+
+          real(dblp)  :: f, w(imax,jmax)
+          integer(ip) :: n, loc(2), td(2,NTOP), tl(2,NTOP)
+          real(dblp)  :: vd(NTOP), vl(NTOP)
+
+          if (.not. allocated(id_cdef)) return
+          if (.not. opened_d) then
+            open(newunit=unit_d, file='outputdata/globals/clio_icdiff.txt', form='formatted', status='replace',       &
+                 action='write')
+            write(unit_d, '(a)') '# CLIO ice-volume diffusion in icdadv (clio_saltbud_mod), mm of water over 30 steps on'//&
+                                 ' the updated ocean cells, south (s) and north (n): D mass change (= I_D of'//            &
+                                 ' clio_icdadv), T what the equation moves (T_s + T_n: flux through faces to'//          &
+                                 ' non-updated cells; each alone includes the flux across the equator), Def = D - T'//    &
+                                 ' defect of the'//                                                                         &
+                                 ' unconverged iteration; Ber: mass change of the Bering raccord cells; iterations'//     &
+                                 ' (mean, max) and the largest last change per iteration (m)'
+            write(unit_d, '(a,4i5)') '# Bering raccord cells iberp, jberp, ibera, jbera:', iberp, jberp, ibera, jbera
+            write(unit_d, '(a)') '#  numit  D_s        D_n        T_s        T_n        Def_s      Def_n      Ber'//         &
+                                 '        it_mean   it_max  amx_max'
+            open(newunit=unit_t, file='outputdata/globals/clio_icdiff_top.txt', form='formatted', status='replace',   &
+                 action='write')
+            write(unit_t, '(a)') '# five cells (i, j, kg/1e12 cumulative since the start) with the largest |Def| and'//    &
+                                 ' the largest |flux to non-updated cells| of the ice-volume diffusion'
+            opened_d = .true.
+          endif
+          f = 1.0_dblp/(4.0_dblp*pi*rterre**2)
+          write(unit_d, '(i8,7es11.3,f9.2,i7,es11.3)') numit, id_d(:,1)*f, id_d(:,2)*f, id_d(:,3)*f, id_ber*f,           &
+                real(id_kit, dblp)/real(max(id_n,1), dblp), id_kmax, id_amx
+          flush(unit_d)
+          w = abs(id_cdef)
+          do n = 1, NTOP
+            loc = maxloc(w)
+            td(:,n) = loc
+            vd(n)   = id_cdef(loc(1),loc(2))*1.0e-12_dblp
+            w(loc(1),loc(2)) = -1.0_dblp
+          enddo
+          w = abs(id_clk)
+          do n = 1, NTOP
+            loc = maxloc(w)
+            tl(:,n) = loc
+            vl(n)   = id_clk(loc(1),loc(2))*1.0e-12_dblp
+            w(loc(1),loc(2)) = -1.0_dblp
+          enddo
+          write(unit_t, '(i8,a,5(2i4,es11.3),a,5(2i4,es11.3))') numit, ' Def:', (td(:,n), vd(n), n = 1, NTOP),          &
+                ' Leak:', (tl(:,n), vl(n), n = 1, NTOP)
+          flush(unit_t)
+          id_d    = 0.0_dblp
+          id_ber  = 0.0_dblp
+          id_amx  = 0.0_dblp
+          id_kit  = 0
+          id_kmax = 0
+          id_n    = 0
+
+        end subroutine write_icdiff
+
         function content() result(s)
 
           use para0_mod, only: kmax
@@ -382,6 +563,7 @@
             call write_out()
             call write_ice()
             call write_icdadv()
+            call write_icdiff()
             d     = 0.0_dblp
             t     = 0.0_dblp
             di    = 0.0_dblp
