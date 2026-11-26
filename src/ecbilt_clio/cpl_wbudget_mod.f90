@@ -34,17 +34,32 @@
 !!         O    ocean, free surface eta (CLIO grid, aire*tms, rho0)
 !!         I    sea ice, (1-albq)*hgbq (rhog)
 !!         S    snow on sea ice, (1-albq)*hnbq (rhon)
-!!     and two fluxes of the day are taken:
+!!     and three fluxes of the day are taken:
 !!         Fa   water given by the atmosphere and the land to the ocean coupler, on the ECBilt grid:
 !!              -sumofwf*fracto*darea*86400*rowat (sumofwf = E - P - runoff over the ocean part, daily mean)
 !!         Fo   water received by CLIO on its grid: fwat*aire (fwat, kg/m2/day, from Fa by at2oc)
+!!         Fw   water put into the ocean volume by thersf: -phiss(:,:,0)*aire*rho0 (phiss(:,:,0), m per step, is what
+!!              conti3d turns into the surface w that drives eta); Fo - Fw is what thersf keeps for the snow on sea ice
+!!     (CLIO's aire is in 10^12 m2, converted here, wiso:3b:0001)
+!!     CLIO keeps its volume (wiso:3b:0002): what eta does not take of the surface volume flux leaves each column through
+!!     its bottom (flucor: the bottom w goes into phifs as a flux of bottom water, then w = 0 there), the global drift
+!!     of each scalar is redistributed (deriv), and with vcor > 0 last year's global mean salt flux is removed from the
+!!     surface (thersf, zfluxms). The freshwater the ocean receives therefore shows in its salinity, not its volume:
+!!         Fb   water leaving through the bottoms of the columns, -w_bottom*dts*aire*rho0, w_bottom = phifs(2)/S_bottom
+!!         Fs   freshwater implied by the change of the mean salinity, -dS/S*V*rho0 (V the ocean volume)
+!!         Fc   freshwater equivalent of the vcor salt correction, zfluxms*vcor*dz(ks2)*area/S*rho0 (salt added = water
+!!              removed)
+!!     with the residual Rb = dO - Fw + Fb (eta + bottom against the surface volume flux).
 !!     One line per model month (30 days) goes to outputdata/globals/cpl_wbudget<fini>.txt: the reservoirs at the end
 !!     of the month, their changes over the month, Fa and Fo summed, and the three residuals
 !!         Ral  = dA + dL + Fa          what the atmosphere and the land lose that does not reach the coupler
 !!                                      (atmospheric clipping, see wbudget<fini>.txt, and land bookkeeping)
 !!         Rcp  = Fa - Fo               lost or gained in the regridding atmosphere -> ocean
 !!         Roi  = dO + dI + dS - Fo     ocean + sea ice not explained by what CLIO received (levitating sea ice,
-!!                                      volume correction, snow on ice, ...)
+!!                                      volume correction, snow on ice, ...), split into
+!!         Rw   = dO - Fw               the free surface against the volume flux it was given (barotropic scheme)
+!!         Rs   = Fw + dS - Fo          snow on sea ice against what thersf kept for it
+!!                                      (so that Roi = Rw + Rs + dI)
 !!     and dT = dA + dL + dO + dI + dS = Ral + Roi - Rcp, the drift of the total. All in global means, mm of water
 !!     (kg/m2 over the area of the ECBilt globe). Sources outside these reservoirs (ice sheets, icebergs, CONSEAU,
 !!     uncorrected freshwater fluxes) are not counted: their flags are written in the header.
@@ -71,13 +86,15 @@
 
         integer(ip), parameter :: NR   = 5                     !< reservoirs
         integer(ip), parameter :: R_A  = 1, R_L = 2, R_O = 3, R_I = 4, R_S = 5
-        integer(ip), parameter :: NF   = 2                     !< fluxes
-        integer(ip), parameter :: F_A  = 1, F_O = 2
+        integer(ip), parameter :: NF   = 6                     !< fluxes
+        integer(ip), parameter :: F_A  = 1, F_O = 2, F_W = 3, F_B = 4, F_S = 5, F_C = 6
         real(dblp),  parameter :: SEC_DAY = 86400.0_dblp
+        real(dblp),  parameter :: AIRE_M2 = 1.0e12_dblp        !< CLIO's aire is in 10^12 m2 (defgrid_kernel_mod)
 
         logical,     save :: ready     = .false.
         real(dblp),  save :: globe     = 0.0_dblp              !< area of the ECBilt globe (m2)
         real(dblp),  save :: res_last(NR)                      !< reservoirs at the end of the last day (kg)
+        real(dblp),  save :: sal_last  = 0.0_dblp              !< mean ocean salinity at the end of the last day (psu)
         real(dblp),  save :: d_month(NR)                       !< changes summed over the month (kg)
         real(dblp),  save :: f_month(NF)                       !< fluxes summed over the month (kg)
         integer(ip), save :: nday      = 0
@@ -96,8 +113,11 @@
 
           use comatm, only: nlon, darea
 
+          real(dblp) :: vol
+
           globe = real(nlon, dblp)*sum(darea)
           call reservoirs(res_last)
+          call salinity(sal_last, vol)
           d_month = 0.0_dblp
           f_month = 0.0_dblp
           nday    = 0
@@ -176,9 +196,9 @@
               r(R_S) = r(R_S) + (1.0_dblp - albq(i,j))*hnbq(i,j)*aire(i,j)*tms(i,j,ks2)
             enddo
           enddo
-          r(R_O) = r(R_O)*rho0
-          r(R_I) = r(R_I)*rhog
-          r(R_S) = r(R_S)*rhon
+          r(R_O) = r(R_O)*rho0*AIRE_M2
+          r(R_I) = r(R_I)*rhog*AIRE_M2
+          r(R_S) = r(R_S)*rhon*AIRE_M2
 
         end subroutine reservoirs
 
@@ -188,15 +208,18 @@
           use comphys,     only: rowat
           use comemic_mod, only: fracto
           use comcoup_mod, only: sumofwf
-          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2, phiss, phifs, scal, kfs, dts, dz, zfluxms, vcor
           use bloc_mod,    only: aire
+          use const_mod,   only: rho0
           use ice_mod,     only: fwat
 
           real(dblp), intent(out) :: f(NF)
 
           integer(ip) :: i, j
+          real(dblp)  :: sal, vol, surf, sb
 
-          f = 0.0_dblp
+          f    = 0.0_dblp
+          surf = 0.0_dblp
           do j = 1, nlon
             do i = 1, nlat
               f(F_A) = f(F_A) - sumofwf(i,j,iwater)*fracto(i,j)*darea(i)
@@ -211,10 +234,54 @@
 #else
               f(F_O) = f(F_O) + fwat(i,j)*aire(i,j)*tms(i,j,ks2)
 #endif
+              f(F_W) = f(F_W) - phiss(i,j,0)*aire(i,j)*tms(i,j,ks2)
+              surf   = surf + aire(i,j)*tms(i,j,ks2)
+              sb = scal(i,j,kfs(i,j),2)
+              if (tms(i,j,ks2) > 0.0_dblp .and. sb > 0.0_dblp) f(F_B) = f(F_B) - phifs(i,j,2)/sb*aire(i,j)
             enddo
           enddo
+          f(F_O) = f(F_O)*AIRE_M2
+          f(F_W) = f(F_W)*rho0*AIRE_M2
+          f(F_B) = f(F_B)*dts(ks2)*rho0*AIRE_M2
+          surf   = surf*AIRE_M2
+
+          call salinity(sal, vol)
+          f(F_S) = -(sal - sal_last)/sal_last*vol*rho0
+#if ( ISOOCN >= 1 )
+          f(F_C) = zfluxms(2)*vcor*dz(ks2)*surf/sal*rho0
+#else
+          f(F_C) = zfluxms*vcor*dz(ks2)*surf/sal*rho0
+#endif
+          sal_last = sal
 
         end subroutine fluxes
+
+        subroutine salinity(sal, vol)                ! volume-mean salinity (psu) and ocean volume (m3)
+
+          use para0_mod,   only: kmax
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, scal, dz
+          use bloc_mod,    only: aire
+
+          real(dblp), intent(out) :: sal, vol
+
+          integer(ip) :: i, j, k
+          real(dblp)  :: v
+
+          sal = 0.0_dblp
+          vol = 0.0_dblp
+          do k = 1, kmax
+            do j = js1, js2
+              do i = is1(j), is2(j)
+                v   = aire(i,j)*dz(k)*tms(i,j,k)
+                vol = vol + v
+                sal = sal + v*scal(i,j,k,2)
+              enddo
+            enddo
+          enddo
+          sal = sal/vol
+          vol = vol*AIRE_M2
+
+        end subroutine salinity
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 ! dmr&clo   Output
@@ -224,7 +291,7 @@
 
           use comemic_mod, only: fini, irunlabel, iobclin
 
-          real(dblp) :: r(NR), d(NR), f(NF), ral, rcp, roi, dt
+          real(dblp) :: r(NR), d(NR), f(NF), ral, rcp, roi, rw, rs, rb, dt
 
           if (.not. opened) then
             open(newunit=unit, file='outputdata/globals/cpl_wbudget'//fini//'.txt', form='formatted',                 &
@@ -233,15 +300,19 @@
                                   'irunlabel = ', irunlabel
             write(unit, '(a)') '# A atmosphere, L land, O ocean (eta), I sea ice, S snow on sea ice: end of month;'//   &
                                ' d*: change over the month'
-            write(unit, '(a)') '# Fa = -sumofwf (ECBilt grid), Fo = fwat (CLIO grid); Ral = dA + dL + Fa,'//           &
-                               ' Rcp = Fa - Fo, Roi = dO + dI + dS - Fo, dT = Ral + Roi - Rcp'
+            write(unit, '(a)') '# Fa = -sumofwf (ECBilt grid), Fo = fwat (CLIO grid), Fw = -phiss(0) (volume flux to eta);'// &
+                               ' Ral = dA + dL + Fa, Rcp = Fa - Fo, Roi = dO + dI + dS - Fo = Rw + Rs + dI,'//         &
+                               ' Rw = dO - Fw, Rs = Fw + dS - Fo, dT = Ral + Roi - Rcp'
+            write(unit, '(a)') '# Fb = water out through the column bottoms, Fs = freshwater from the mean salinity,'//   &
+                               ' Fc = freshwater equivalent of the vcor salt correction, Rb = dO - Fw + Fb'
             write(unit, '(a,7(a,i0))') '# not counted, flags:', ' ICEBERG=', ICEBERG, ' ISM=', ISM, ' CONSEAU=',     &
                                        CONSEAU, ' UNCORFLUX=', UNCORFLUX, ' APPLY_UNCORFWF=', APPLY_UNCORFWF,           &
                                        ' iobclin=', iobclin, ' ISOOCN=', ISOOCN
             write(unit, '(a)') '# year month nday     A             L             O             I             S'//     &
                                '             dA            dL            dO            dI            dS'//            &
-                               '            Fa            Fo            Ral           Rcp           Roi'//            &
-                               '           dT'
+                               '            Fa            Fo            Fw            Fb            Fs'//            &
+                               '            Fc            Ral           Rcp           Roi           Rw'//            &
+                               '            Rs            Rb            dT'
             opened = .true.
           endif
 
@@ -251,8 +322,11 @@
           ral = d(R_A) + d(R_L) + f(F_A)
           rcp = f(F_A) - f(F_O)
           roi = d(R_O) + d(R_I) + d(R_S) - f(F_O)
+          rw  = d(R_O) - f(F_W)
+          rs  = f(F_W) + d(R_S) - f(F_O)
+          rb  = d(R_O) - f(F_W) + f(F_B)
           dt  = sum(d)
-          write(unit, '(i6,i4,i6,18es14.6)') cur_year, cur_month, nday, r, d, f, ral, rcp, roi, dt
+          write(unit, '(i6,i4,i6,25es14.6)') cur_year, cur_month, nday, r, d, f, ral, rcp, roi, rw, rs, rb, dt
           flush(unit)
 
         end subroutine write_month
