@@ -27,6 +27,7 @@
       use dynami_mod, only: area, ug, vg, bound, dxc1, dxc2, hnm, hgm
      &              , iameth, dfhu, dfhv
       use newunit_clio_mod, only: clio3_out_id      
+      use clio_saltbud_mod, only: ia_state, ia_ext, ia_cur
 
 
       implicit none
@@ -119,6 +120,8 @@
 !--2.2. Transported properties.
 !-------------------------------
 !
+!dmr&clo wiso:3b:0006 icdadv sub-stage budget (diagnostic only)
+        call ia_state(0)
         do 150 j=1,jmax
           do 140 i=1,imax
 !
@@ -160,6 +163,8 @@
 !
 140       continue
 150        continue
+        call ia_ext(1,1,s0g,.true.)
+        call ia_ext(1,2,s0n,.true.)
 !
 !--2.3. Calls to advection and diffusion routines.
 !-------------------------------------------------
@@ -186,7 +191,9 @@
                s1(i,j) = 0.5*(s0g(i,j)+s1(i,j))
               enddo
             enddo
+            ia_cur = 1
             call adv(dta*usnit,ut,vt,s0g,s1)
+            ia_cur = 0
             do j=1,jmax
               do i=1,imax
                 s0g(i,j) = s1(i,j)
@@ -204,7 +211,9 @@
                 s1(i,j) = 0.5*(s0n(i,j)+s1(i,j))
               enddo
             enddo
+            ia_cur = 2
             call adv(dta*usnit,ut,vt,s0n,s1)
+            ia_cur = 0
             do j=1,jmax
               do i=1,imax
                 s0n(i,j) = s1(i,j)
@@ -426,6 +435,8 @@
           endif
         endif
 
+        call ia_ext(2,1,s0g,.true.)
+        call ia_ext(2,2,s0n,.true.)
 !
 !     extra amount of lead opening/closing due to shearing
 !     deformation (hibler, 1980, 1984; flato and hibler, 1991,1995;
@@ -474,11 +485,13 @@
         enddo
       enddo
       call diffus(dta,difhx,difhy,fld0,fld1)
+      call ia_ext(3,1,fld1,.false.)
       do j=1,jmax
         do i=1,imax
           s0g(i,j) = max(zero,fld1(i,j)*area(i,j))
         enddo
       enddo
+      call ia_ext(4,1,s0g,.true.)
 !
       do j=1,jmax
         do i=1,imax
@@ -486,11 +499,13 @@
         enddo
       enddo
       call diffus(dta,difhx,difhy,fld0,fld1)
+      call ia_ext(3,2,fld1,.false.)
       do j=1,jmax
         do i=1,imax
           s0n(i,j) = max(zero,fld1(i,j)*area(i,j))
         enddo
       enddo
+      call ia_ext(4,2,s0n,.true.)
 !
       do j=1,jmax
         do i=1,imax
@@ -632,6 +647,7 @@
 !age        ageg(i,j)   = zindg*s0ag(i,j)*zusvog
 180       continue
 190        continue
+        call ia_state(5)
 !
 !  2.5.3. Raccord cyclique (not neccesary here)
 !

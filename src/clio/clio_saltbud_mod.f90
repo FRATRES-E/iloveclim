@@ -54,6 +54,14 @@
 !!     scale): a difference between the two is a salt imbalance from the two metrics. The ratio area/aire (min, max
 !!     over the ocean cells) is written in the header. Mm of water over the CLIO earth, one line per 30 steps in
 !!     outputdata/globals/clio_icebud.txt.
+!!     Inside icdadv (wiso:3b:0006): ice and snow volume (times rhog, rhon) per hemisphere (south j < jeq, north
+!!     j >= jeq) on the ocean cells of the update (js1..js2, is1..is2, times tms) at the sub-stages of the routine:
+!!         E   extensive fields of 2.2 against the state at entry (should be 0)
+!!         A   advection (adv or advx/advy), Ac the part of it from the clip at zero inside adv (iameth = 1 only)
+!!         D   diffusion (diffus, before the clip)    Dc  the clip at zero after diffus
+!!         L   section 2.5 (clip of the means, concentration cap, removal of thin ice and snow)
+!!     and the mean ice mass on the land cells (tms = 0) of the same rows after the advection and at the end.
+!!     One line per 30 steps in outputdata/globals/clio_icdadv.txt; E + A + D + Dc + L = I_adv (S_adv) of clio_icebud.
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 
       module clio_saltbud_mod
@@ -65,6 +73,7 @@
         private
 
         public :: sb_mark, sb_scale_bc, sb_scale_k, sb_end_step, sb_icesh, im_mark
+        public :: ia_state, ia_ext, ia_addclip, ia_cur
 
         integer(ip), parameter :: NST = 7                      !< stages
         integer(ip), parameter :: NT  = 11                     !< scale terms: srf rap bot der phv int Xs As brf brm ics
@@ -89,6 +98,14 @@
         real(dblp),  save :: dm(NIM)   = 0.0_dblp
         integer(ip), save :: unit_i    = -1
         logical,     save :: opened_i  = .false.
+        integer(ip), parameter :: NIA = 6                      !< icdadv marks: 0 entry, 1 2.2, 2 adv, 3 dif, 4 clip, 5 end
+        integer(ip), save :: ia_cur    = 0                     !< species whose adv clip is counted (1 ice, 2 snow, 0 none)
+        real(dblp),  save :: ia_m(2,2,0:NIA-1) = 0.0_dblp     !< last mass at each mark (species, hemisphere)
+        real(dblp),  save :: ia_dd(2,2,NIA)    = 0.0_dblp     !< accumulated: E A D Dc L, Ac (species, hemisphere)
+        real(dblp),  save :: ia_land(2,2)      = 0.0_dblp     !< ice mass on land cells (hemisphere; after adv, end)
+        integer(ip), save :: ia_n      = 0                     !< icdadv calls in the interval
+        integer(ip), save :: unit_a    = -1
+        logical,     save :: opened_a  = .false.
 
 
       contains
@@ -152,6 +169,97 @@
           ice_have = .true.
 
         end subroutine im_mark
+
+        ! icdadv: masses from the model state (hgbq, hnbq, albq) at entry (k = 0) or at the end (k = 5)
+        subroutine ia_state(k)
+
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2, jeq
+          use dynami_mod,  only: area
+          use ice_mod,     only: hgbq, hnbq, albq, rhog, rhon
+
+          integer(ip), intent(in) :: k
+
+          integer(ip) :: i, j, h
+          real(dblp)  :: a, m(2,2), ml(2)
+
+          m  = 0.0_dblp
+          ml = 0.0_dblp
+          do j = js1, js2
+            h = 1
+            if (j >= jeq) h = 2
+            do i = is1(j), is2(j)
+              a      = (1.0_dblp - albq(i,j))*area(i,j)
+              m(1,h) = m(1,h) + a*hgbq(i,j)*rhog*tms(i,j,ks2)
+              m(2,h) = m(2,h) + a*hnbq(i,j)*rhon*tms(i,j,ks2)
+              ml(h)  = ml(h)  + a*hgbq(i,j)*rhog*(1.0_dblp - tms(i,j,ks2))
+            enddo
+          enddo
+          ia_m(:,:,k) = m
+          if (k == 0) then
+            ia_n = ia_n + 1
+          else
+            ia_dd(:,:,5)  = ia_dd(:,:,5) + (m - ia_m(:,:,4))      ! L
+            ia_land(:,2)  = ia_land(:,2) + ml
+          endif
+
+        end subroutine ia_state
+
+        ! icdadv: one species (isp 1 ice, 2 snow) of the transported fields at mark k (1 2.2, 2 adv, 3 dif, 4 clip);
+        ! fld extensive (volume per cell, ext) or per unit area (times area)
+        subroutine ia_ext(k, isp, fld, ext)
+
+          use para0_mod,   only: imax, jmax
+          use bloc0_mod,   only: tms, is1, is2, js1, js2, ks2, jeq
+          use dynami_mod,  only: area
+          use ice_mod,     only: rhog, rhon
+
+          integer(ip), intent(in) :: k, isp
+          real(dblp),  intent(in) :: fld(imax,jmax)
+          logical,     intent(in) :: ext
+
+          integer(ip) :: i, j, h
+          real(dblp)  :: rho, v, m(2), ml(2)
+
+          rho = rhog
+          if (isp == 2) rho = rhon
+          m  = 0.0_dblp
+          ml = 0.0_dblp
+          do j = js1, js2
+            h = 1
+            if (j >= jeq) h = 2
+            do i = is1(j), is2(j)
+              v = fld(i,j)
+              if (.not. ext) v = v*area(i,j)
+              m(h)  = m(h)  + v*rho*tms(i,j,ks2)
+              ml(h) = ml(h) + v*rho*(1.0_dblp - tms(i,j,ks2))
+            enddo
+          enddo
+          ia_m(isp,:,k)   = m
+          ia_dd(isp,:,k)  = ia_dd(isp,:,k) + (m - ia_m(isp,:,k-1))   ! k = 1 E, 2 A, 3 D, 4 Dc
+          if (k == 2 .and. isp == 1) ia_land(:,1) = ia_land(:,1) + ml
+
+        end subroutine ia_ext
+
+        ! adv (iameth = 1): the clip at zero of the corrector call, for the species set in ia_cur
+        subroutine ia_addclip(i, j, s)
+
+          use bloc0_mod,   only: tms, ks2, jeq
+          use ice_mod,     only: rhog, rhon
+
+          integer(ip), intent(in) :: i, j
+          real(dblp),  intent(in) :: s                        !< value before the clip (volume per cell)
+
+          integer(ip) :: h
+          real(dblp)  :: rho
+
+          if (ia_cur == 0 .or. s >= 0.0_dblp) return
+          rho = rhog
+          if (ia_cur == 2) rho = rhon
+          h = 1
+          if (j >= jeq) h = 2
+          ia_dd(ia_cur,h,6) = ia_dd(ia_cur,h,6) - s*rho*tms(i,j,ks2)
+
+        end subroutine ia_addclip
 
         function content() result(s)
 
@@ -273,10 +381,14 @@
           if (nstep == NSTEP_OUT) then
             call write_out()
             call write_ice()
+            call write_icdadv()
             d     = 0.0_dblp
             t     = 0.0_dblp
             di    = 0.0_dblp
             dm    = 0.0_dblp
+            ia_dd   = 0.0_dblp
+            ia_land = 0.0_dblp
+            ia_n    = 0
             nstep = 0
           endif
 
@@ -357,6 +469,37 @@
           flush(unit_i)
 
         end subroutine write_ice
+
+        subroutine write_icdadv()
+
+          use const_mod,   only: pi, rterre
+          use bloc_mod,    only: numit
+
+          real(dblp)  :: f, fl
+          integer(ip) :: isp, h
+
+          if (.not. opened_a) then
+            open(newunit=unit_a, file='outputdata/globals/clio_icdadv.txt', form='formatted', status='replace',      &
+                 action='write')
+            write(unit_a, '(a)') '# CLIO icdadv sub-stages (clio_saltbud_mod), ice (I) and snow (S) on the ocean cells,'//  &
+                                 ' south (s) and north (n), global means in mm of water over 30 steps: E entry, A'//      &
+                                 ' advection, Ac its clip at zero (part of A), D diffusion, Dc clip after diffusion,'//    &
+                                 ' L section 2.5; E+A+D+Dc+L = I_adv; Lnd_a, Lnd_e: mean ice mass on land cells (mm)'//    &
+                                 ' after advection and at the end'
+            write(unit_a, '(a)') '#  numit  I_E_s      I_A_s      I_Ac_s     I_D_s      I_Dc_s     I_L_s      I_E_n'//    &
+                                 '      I_A_n      I_Ac_n     I_D_n      I_Dc_n     I_L_n      S_E_s      S_A_s'//       &
+                                 '      S_Ac_s     S_D_s      S_Dc_s     S_L_s      S_E_n      S_A_n      S_Ac_n'//      &
+                                 '     S_D_n      S_Dc_n     S_L_n      Lnd_a_s    Lnd_a_n    Lnd_e_s    Lnd_e_n'
+            opened_a = .true.
+          endif
+          f  = 1.0_dblp/(4.0_dblp*pi*rterre**2)
+          fl = f/real(max(ia_n, 1), dblp)
+          write(unit_a, '(i8,28es11.3)') numit,                                                                        &
+                ((ia_dd(isp,h,1)*f, ia_dd(isp,h,2)*f, ia_dd(isp,h,6)*f, ia_dd(isp,h,3)*f, ia_dd(isp,h,4)*f,           &
+                  ia_dd(isp,h,5)*f, h = 1, 2), isp = 1, 2), ia_land(:,1)*fl, ia_land(:,2)*fl
+          flush(unit_a)
+
+        end subroutine write_icdadv
 
       end module clio_saltbud_mod
 

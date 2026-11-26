@@ -20,6 +20,7 @@
       use bloc0_mod
       use bloc_mod
       use dynami_mod
+      use clio_saltbud_mod, only: ia_addclip, ia_cur
 !! END_OF_USE_SECTION
 
 
@@ -68,6 +69,9 @@ c~         dimension div(imax,jmax),huc(imax,jmax),hvc(imax,jmax)
 !     &                  +bkappa(i,j,2,2)*vt(i,j)*hvc(i,j)
 !     &                  -bkappa(i,j,2,1)*vt(i,jm1)*hvc(i,jm1)
              s1(i,j)  = max(zero,s0(i,j)-area(i,j)*dt*div(i,j))
+!dmr&clo wiso:3b:0006 clip at zero counted (diagnostic only)
+             if (ia_cur.ne.0)
+     &         call ia_addclip(i,j,s0(i,j)-area(i,j)*dt*div(i,j))
          enddo
        enddo
        do 200 jj=jcl1,jcl2
