@@ -37,6 +37,9 @@
 !!         srf  surface flux phiss(:,:,2)          rap  surface restoring rappes*(S - scalr)
 !!         bot  bottom outflow cczdt*phifs(:,:,2)   der  global drift correction -deriv*dts (upper ocean)
 !!         phv  volume sources -phivs               int  internal restoring rapint*(scalr - S)
+!!     with the surface flux further split (wiso:3b:0003): brine of sea-ice growth (fons > 0) and melt (fons < 0),
+!!     from fluxbrines, and the ice-shelf melt compensation ficess (thersf, south iceberg zone), which should be the
+!!     opposite of phv (the ice-shelf melt at depth); srf - brine - ics is what is left of the surface flux;
 !!     and the totals that scale applies: Xs = sum of scaldt*tms (all explicit terms; Xs - the six = what the
 !!     horizontal schemes put into scaldt) and As = sum of (scalat - S)*tms (advection and diffusion, should be 0).
 !!     All in freshwater equivalent, global means in mm over the CLIO earth (4 pi rterre^2): -dSalt/S*rho0,
@@ -51,11 +54,12 @@
 
         private
 
-        public :: sb_mark, sb_scale_bc, sb_scale_k, sb_end_step
+        public :: sb_mark, sb_scale_bc, sb_scale_k, sb_end_step, sb_icesh
 
         integer(ip), parameter :: NST = 7                      !< stages
-        integer(ip), parameter :: NT  = 8                      !< scale terms: srf rap bot der phv int Xs As
+        integer(ip), parameter :: NT  = 11                     !< scale terms: srf rap bot der phv int Xs As brf brm ics
         integer(ip), parameter :: T_SRF = 1, T_RAP = 2, T_BOT = 3, T_DER = 4, T_PHV = 5, T_INT = 6, T_XS = 7, T_AS = 8
+        integer(ip), parameter :: T_BRF = 9, T_BRM = 10, T_ICS = 11
         integer(ip), parameter :: NSTEP_OUT = 30
 
         logical,     save :: have_last = .false.
@@ -66,6 +70,7 @@
         integer(ip), save :: nstep     = 0
         integer(ip), save :: unit      = -1
         logical,     save :: opened    = .false.
+        real(dblp),  save :: ficess_l  = 0.0_dblp              !< last ice-shelf salt compensation of thersf (psu/step)
 
 
       contains
@@ -113,6 +118,14 @@
 
         end function content
 
+        subroutine sb_icesh(ficess)                  ! from thersf: the ice-shelf salt compensation of this step
+
+          real(dblp), intent(in) :: ficess
+
+          ficess_l = ficess
+
+        end subroutine sb_icesh
+
         ! the explicit boundary terms of scale for the salt, as scale builds them (section 3), on the updated points
         subroutine sb_scale_bc(cczdt, k1000, k2000, j50S)
 
@@ -120,12 +133,17 @@
           use bloc0_mod, only: tms, is1, is2, js1, js2, ks2, scal, scalr, dz, dts, phiss, phivs, phifs, rappes,     &
                                kfs, scpme, spvr
           use bloc_mod,  only: aire, deriv
+          use para0_mod, only: imax, jmax
+          use ice_mod,   only: iicebers1, iicebers2, jicebers1, jicebers2
 
           real(dblp),  intent(in) :: cczdt(kmax)
           integer(ip), intent(in) :: k1000, k2000, j50S
 
           integer(ip) :: i, j, k, kfd
           real(dblp)  :: v, sscal
+
+          real*8 fluxbrines(imax,jmax)                 ! as in thersf.f, brines_mod.f90 (fons*unsdz/rho0, psu/step)
+          common / common_brines / fluxbrines
 
           do j = js1, js2
             do k = 1, kmax
@@ -148,6 +166,13 @@
               v = aire(i,j)*dz(ks2)*tms(i,j,ks2)
               t(T_SRF) = t(T_SRF) - phiss(i,j,2)*v
               t(T_RAP) = t(T_RAP) - rappes(i,j,2)*(scal(i,j,ks2,2) - scalr(i,j,ks2,2))*v
+              if (fluxbrines(i,j) > 0.0_dblp) then
+                t(T_BRF) = t(T_BRF) + fluxbrines(i,j)*v          ! salt gained = fons*unsdz/rho0
+              else
+                t(T_BRM) = t(T_BRM) + fluxbrines(i,j)*v
+              endif
+              if (i >= iicebers1 .and. i <= iicebers2 .and. j >= jicebers1 .and. j <= jicebers2)                     &
+                t(T_ICS) = t(T_ICS) + ficess_l*v
               kfd = kfs(i,j)
               t(T_BOT) = t(T_BOT) + cczdt(kfd)*phifs(i,j,2)*aire(i,j)*dz(kfd)*tms(i,j,kfd)
             enddo
@@ -200,7 +225,7 @@
           use const_mod, only: rho0, pi, rterre
           use bloc_mod,  only: numit
 
-          real(dblp) :: f, dd(NST), tt(NT), dtot, tsum
+          real(dblp) :: f, dd(NST), tt(NT), dtot, tsum, rest
 
           if (.not. opened) then
             open(newunit=unit, file='outputdata/globals/clio_saltbud.txt', form='formatted', status='replace',       &
@@ -209,10 +234,12 @@
                                ' mm over 30 steps (-dSalt/S*rho0 over 4 pi rterre^2; positive = salt lost)'
             write(unit, '(a)') '# stages: thersf brines pre-scale(diftur..isoadvec) scale scali etat rest; total;'//      &
                                ' scale terms: srf rap bot der phv int, Xs (scaldt applied), Xs-sum, As (scalat-S),'//   &
-                               ' scale - Xs - As'
+                               ' scale - Xs - As; surface split: brine freeze, brine melt, ice-shelf compensation,'//   &
+                               ' srf - brine - ics'
             write(unit, '(a)') '#  numit  S_mean     thersf     brines     prescl     scale      scali      etat'//    &
                                '       rest       total      srf        rap        bot        der        phv'//       &
-                               '        int        Xs         Xs-sum     As         sc-Xs-As'
+                               '        int        Xs         Xs-sum     As         sc-Xs-As   brf        brm'//      &
+                               '        ics        srf-rest'
             opened = .true.
           endif
 
@@ -221,8 +248,9 @@
           tt   = t*f
           dtot = sum(dd)
           tsum = sum(tt(T_SRF:T_INT))
-          write(unit, '(i8,f9.4,19es11.3)') numit, sal_mean, dd, dtot, tt(T_SRF:T_INT), tt(T_XS), tt(T_XS) - tsum,      &
-                                          tt(T_AS), dd(4) - tt(T_XS) - tt(T_AS)
+          rest = tt(T_SRF) - tt(T_BRF) - tt(T_BRM) - tt(T_ICS)
+          write(unit, '(i8,f9.4,22es11.3)') numit, sal_mean, dd, dtot, tt(T_SRF:T_INT), tt(T_XS), tt(T_XS) - tsum,      &
+                                          tt(T_AS), dd(4) - tt(T_XS) - tt(T_AS), tt(T_BRF), tt(T_BRM), tt(T_ICS), rest
           flush(unit)
 
         end subroutine write_out

@@ -10,6 +10,7 @@
 !   computes surface heat and salt flux at the surface of the ocean
 !  modif : 24/12/99
 
+      use clio_saltbud_mod, only: sb_icesh         ! dmr&clo wiso:3b:0003
       use comemic_mod, only: flag_snow_to_flux, iyear, nstpyear
 
 #if ( ISOOCN >= 1 )
@@ -1471,6 +1472,7 @@
      &     *ddtb*unsdz(ks2)
 !     &           *ddtb*unsdz(ks2)/rho0
 !     ficess=0.0
+      call sb_icesh(ficess)                        ! dmr&clo wiso:3b:0003 salt budget (diagnostics only)
 
       do i=iicebers1,iicebers2
          do j=jicebers1,jicebers2
