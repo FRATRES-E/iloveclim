@@ -359,6 +359,8 @@ c~       dimension irn(imax,8), jrn(jmax,8)
      >                           ,unsplt
 
       use newunit_clio_mod, only: clio3_out_id
+! dmr&clo wiso:3b:0002 global salt budget by stage (diagnostics only)
+      use clio_saltbud_mod, only: sb_mark, sb_end_step
 
 #if ( ICEBERG > 0 ) 
       use iceberg_mod, only: write_iceberg_restartdata 
@@ -427,6 +429,7 @@ c~       common /clio_control_fp/ dtsd2,yrsec,daysec,unsplt
 !cp2       call rfmcpl2(numcpl)
 !           call rfmcpl3(numcpl)
 !        endif
+        call sb_mark(0)                    ! dmr&clo wiso:3b:0002 salt budget: start of the step
         call icdyna
         call icdadv(xjour)
 
@@ -434,6 +437,7 @@ c~       common /clio_control_fp/ dtsd2,yrsec,daysec,unsplt
 
         do ither=1,ntrmax
            call thersf(ither,istep)
+           call sb_mark(1)                 ! dmr&clo wiso:3b:0002
 !dmr&afq           call thersf(ither,ntrmax,istep,irunlabelclio)
 
 !cp1       if (icoupl.ge.1.and.ither.lt.ntrmax) then
@@ -444,6 +448,7 @@ c~       common /clio_control_fp/ dtsd2,yrsec,daysec,unsplt
 #if ( BRINES >= 1 )
       call brines
 #endif
+           call sb_mark(2)                 ! dmr&clo wiso:3b:0002
 !nb fin
         enddo
 !       call ocesla
@@ -454,9 +459,14 @@ c~       common /clio_control_fp/ dtsd2,yrsec,daysec,unsplt
         call flucor
         call isoslope
         if (aitd(kmax).gt.zero) call isoadvec
+        call sb_mark(3)                    ! dmr&clo wiso:3b:0002
         call scale(nsew,nn99)
+        call sb_mark(4)                    ! dmr&clo wiso:3b:0002
         call scali
+        call sb_mark(5)                    ! dmr&clo wiso:3b:0002
         call etat(mixage, nn99)
+        call sb_mark(6)                    ! dmr&clo wiso:3b:0002
+        call sb_end_step()                 ! dmr&clo wiso:3b:0002
         do 250 nuclin=1,nclin
           call uve
           call barot

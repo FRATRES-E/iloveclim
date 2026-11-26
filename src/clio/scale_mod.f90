@@ -91,6 +91,7 @@
       use isodiffu_mod, only: isodiffu, isodiffu_init
       
       use slopez_mod, only: slopez
+      use clio_saltbud_mod, only: sb_scale_bc, sb_scale_k   ! dmr&clo wiso:3b:0002 salt budget (diagnostics only)
 
 #if ( GEOTHERMAL == 1 )
       use ncio        , only: nc_read
@@ -265,6 +266,8 @@
 !--fin de la 1ere boucle sur l'indice de latitude "j".
       enddo ! on j
 
+      if (ns == 2) call sb_scale_bc(cczdt, k1000, k2000, j50S)   ! dmr&clo wiso:3b:0002
+
       scal_copie(:,:,:) = scalat(:,:,:)
 
 
@@ -398,6 +401,7 @@
          scaldt(i,j,k) = scaldt(i,j,k) + rapint(n,k,ns) * ( scalr(i,j,k,ns) - scal(i,j,k,ns) )
        enddo
 !--
+       if (ns == 2) call sb_scale_k(k, scalat, scaldt)           ! dmr&clo wiso:3b:0002
        do j=js1,js2
         do i=is1(j),is2(j)
          scal(i,j,k,ns) = scalat(i,j,k) + scaldt(i,j,k) * tms(i,j,k)
