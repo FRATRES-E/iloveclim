@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [fvt_testcases_mod]
 !
 !>     @brief Standard 2-D transport test cases on the sphere for the FV transport (flows, initial fields, diagnostics).
@@ -56,7 +52,7 @@
 
       module fvt_testcases_mod
 
-        use global_constants_mod, only: ip, dblp=>dp, PI=>pi_dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp, PI=>fvt_pi
         use fvt_legendre_mod,     only: fvt_gauss_nodes
         use fvt_grid_mod,         only: fvt_grid_t
 

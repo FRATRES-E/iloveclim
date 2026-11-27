@@ -2,6 +2,7 @@
 #
 #   make                      build the test programs
 #   make check COEF=<path>    build and run them; COEF is ECBilt's inputdata/coef.dat
+#   make check-lib            only the library tests: no input file, no ECBilt code (NAG FFT) needed
 #   make suite                build the evaluation suite fvt_suite (needs netCDF-Fortran, nf-config)
 #   ./run_suite.sh <outdir>   run it at T21, T42, T85 and plot (python3 with numpy, matplotlib, netCDF4)
 #
@@ -22,8 +23,10 @@ FFLAGS  ?= -O2 -g -cpp -std=f2008 -Wall -Wextra -ffree-line-length-132 -fimplici
            -fconvert=big-endian -frecord-marker=4 -fcheck=all -ffpe-trap=invalid,zero,overflow
 COEF    ?= $(TOP)/inputs/ecbilt/coef.dat
 
-OBJS    := global_constants_mod.o fvt_kinds_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o fvt_specflux_mod.o
-PROGS   := test_fvt_grid test_fvt_ffsl test_fvt_specflux test_fvt_specref
+LOBJS   := fvt_kinds_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o fvt_specflux_mod.o
+OBJS    := global_constants_mod.o $(LOBJS)
+PROGS   := test_fvt_grid test_fvt_ffsl test_fvt_specflux test_fvt_specflux_ecbilt test_fvt_specref
+LPROGS  := test_fvt_grid test_fvt_ffsl test_fvt_specflux
 
 # evaluation suite: optimised, no run-time checks, objects kept apart from the test build
 NCFFLAGS := $(shell nf-config --fflags 2>/dev/null)
@@ -33,7 +36,7 @@ SDIR     := suite_build
 SSRC     := $(SRC_GC) $(SRC_FVT)/fvt_kinds_mod.f90 $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
             fvt_testcases_mod.f90 fvt_ncout_mod.f90 fvt_specref_mod.f90
 
-.PHONY: all check suite realwinds ratiocheck clean
+.PHONY: all check check-lib suite realwinds ratiocheck clean
 
 all: $(PROGS)
 
@@ -41,7 +44,7 @@ global_constants_mod.o: $(SRC_GC)
 	$(FC) $(FFLAGS) -std=gnu -c $< -o $@
 
 %.o: $(SRC_FVT)/%.f90
-	$(FC) $(FFLAGS) $(INC) -c $< -o $@
+	$(FC) $(FFLAGS) -c $< -o $@
 
 fvt_legendre_mod.o: fvt_kinds_mod.o
 fvt_grid_mod.o:     fvt_legendre_mod.o
@@ -49,17 +52,22 @@ fvt_ffsl_mod.o:     fvt_grid_mod.o
 fvt_specflux_mod.o: fvt_grid_mod.o
 
 # the tests compare reals bitwise on purpose (exact poles, symmetry)
-test_fvt_grid: test_fvt_grid.f90 $(OBJS)
-	$(FC) $(FFLAGS) -Wno-compare-reals $(INC) $< $(OBJS) -o $@
+# library tests: library objects only, no include path
+test_fvt_grid: test_fvt_grid.f90 $(LOBJS)
+	$(FC) $(FFLAGS) -Wno-compare-reals $< $(LOBJS) -o $@
 
-test_fvt_ffsl: test_fvt_ffsl.f90 $(OBJS)
-	$(FC) $(FFLAGS) $(INC) $< $(OBJS) -o $@
+test_fvt_ffsl: test_fvt_ffsl.f90 $(LOBJS)
+	$(FC) $(FFLAGS) $< $(LOBJS) -o $@
 
 # ECBilt's NAG FFT (legacy fixed form), needed to reproduce the model transforms
 nag.o: $(TOP)/src/ecbilt/nag.f
 	$(FC) -O2 -cpp -std=legacy -w $(INC) -c $< -o $@
 
-test_fvt_specflux: test_fvt_specflux.f90 $(OBJS) nag.o
+test_fvt_specflux: test_fvt_specflux.f90 $(LOBJS)
+	$(FC) $(FFLAGS) $< $(LOBJS) -o $@
+
+# ECBilt side: the spectral convention against the model's transforms (coef.dat, NAG FFT)
+test_fvt_specflux_ecbilt: test_fvt_specflux_ecbilt.f90 $(OBJS) nag.o
 	$(FC) $(FFLAGS) $(INC) $< $(OBJS) nag.o -o $@
 
 # spectral baseline (current ECBilt chain), a test-side module
@@ -72,8 +80,14 @@ test_fvt_specref: test_fvt_specref.f90 $(OBJS) fvt_specref_mod.o nag.o
 check: all
 	./test_fvt_grid $(COEF)
 	./test_fvt_ffsl
-	./test_fvt_specflux $(COEF)
+	./test_fvt_specflux
+	./test_fvt_specflux_ecbilt $(COEF)
 	./test_fvt_specref
+
+check-lib: $(LPROGS)
+	./test_fvt_grid
+	./test_fvt_ffsl
+	./test_fvt_specflux
 
 suite: fvt_suite
 

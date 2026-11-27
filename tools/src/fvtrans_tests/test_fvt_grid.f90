@@ -17,17 +17,14 @@
 !   Style sheet: v1.0.0 (applied by analogy: standalone programs are not yet covered)
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      PROGRAM: [test_fvt_grid]
 !
 !>     @brief Checks of fvt_legendre_mod and fvt_grid_mod (ROADMAP step 1.1, patch wiso:1:0001).
 !
 !      DESCRIPTION:
-!>     1. T21 / 32 latitudes against inputdata/coef.dat (path given as first argument): Gaussian nodes and weights,
-!!        spectral index tables, pp, pd, pw.
+!>     Usage: test_fvt_grid [path to coef.dat]
+!!     1. Only if a path is given: T21 / 32 latitudes against ECBilt's inputdata/coef.dat (model input data, not part
+!!        of the library): Gaussian nodes and weights, spectral index tables, pp, pd, pw. Skipped otherwise.
 !!     2. For several truncations: orthonormality of P(n,m) under Gaussian quadrature, dP/dmu against a 4th-order
 !!        finite difference, values at the poles.
 !!     3. For the same grids: FV faces (exact poles and equator, bitwise symmetry, monotonicity, interlacing with the
@@ -38,7 +35,7 @@
 
       program test_fvt_grid
 
-        use global_constants_mod, only: ip, dblp=>dp, str_len, PI=>pi_dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp, PI=>fvt_pi
         use fvt_legendre_mod,     only: fvt_gauss_nodes, fvt_spec_index, fvt_legendre_eval, fvt_legendre_tables, fvt_nsh
         use fvt_grid_mod,         only: fvt_grid_t, fvt_grid_init, fvt_grid_free
 
@@ -48,18 +45,18 @@
         integer(ip), parameter :: TRUNCS(NTEST) = [21, 42, 63, 106, 170]  !< triangular truncations tested
         integer(ip), parameter :: NLATS(NTEST)  = [32, 64, 96, 160, 256]  !< matching Gaussian grids
         integer(ip), parameter :: NLONS(NTEST)  = [64, 128, 192, 320, 512]
+        integer,     parameter :: STR_LEN = 256
 
-        character(len=str_len) :: coef_file
+        character(len=STR_LEN) :: coef_file
         integer(ip)            :: nfail, itest
 
         nfail = 0
-        if (command_argument_count() < 1) then
-          write(*, '(a)') 'usage: test_fvt_grid <path to coef.dat>'
-          error stop 2
+        if (command_argument_count() >= 1) then
+          call get_command_argument(1, coef_file)
+          call check_coef_dat(trim(coef_file))
+        else
+          write(*, '(a)') 'no coef.dat given: check 1 (against ECBilt''s coef.dat) skipped'
         endif
-        call get_command_argument(1, coef_file)
-
-        call check_coef_dat(trim(coef_file))
         do itest = 1, NTEST
           call check_legendre(TRUNCS(itest), NLATS(itest))
           call check_grid(NLATS(itest), NLONS(itest))

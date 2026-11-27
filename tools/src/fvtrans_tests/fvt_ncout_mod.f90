@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [fvt_ncout_mod]
 !
 !>     @brief Minimal netCDF writer for the FV transport test suite (raw netCDF calls, no io_nc dependency).
@@ -36,7 +32,7 @@
 
       module fvt_ncout_mod
 
-        use global_constants_mod, only: ip, dblp=>dp, PI=>pi_dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp, PI=>fvt_pi
         use fvt_grid_mod,         only: fvt_grid_t
         use netcdf,               only: nf90_create, nf90_def_dim, nf90_def_var, nf90_put_att, nf90_enddef, nf90_put_var, &
                                         nf90_close, nf90_strerror, NF90_CLOBBER, NF90_NETCDF4, NF90_DOUBLE, NF90_GLOBAL,     &

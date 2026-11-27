@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0 (applied by analogy: standalone programs are not yet covered)
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      PROGRAM: [test_fvt_ffsl]
 !
 !>     @brief Checks of fvt_ffsl_mod (ROADMAP step 1.1, patch wiso:1a:0002). The full test suite is wiso:1a:0003.
@@ -42,7 +38,7 @@
 
       program test_fvt_ffsl
 
-        use global_constants_mod, only: ip, dblp=>dp, PI=>pi_dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp, PI=>fvt_pi
         use fvt_grid_mod,         only: fvt_grid_t, fvt_grid_init
         use fvt_ffsl_mod,         only: fvt_ffsl_density, fvt_ffsl_ratio, fvt_ffsl_nsub, fvt_recon_1d,                &
                                         FVT_RECON_PPM, FVT_RECON_VL, FVT_LIM_NONE, FVT_LIM_MONO, FVT_LIM_POSDEF
