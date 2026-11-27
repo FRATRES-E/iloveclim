@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [fvt_specflux_mod]
 !
 !>     @brief FV face fluxes from a spectral streamfunction and velocity potential (ECBilt convention).
@@ -56,7 +52,7 @@
 
       module fvt_specflux_mod
 
-        use global_constants_mod, only: ip, dblp=>dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp
         use fvt_legendre_mod,     only: fvt_gauss_nodes, fvt_spec_index, fvt_legendre_eval, fvt_nsh
         use fvt_grid_mod,         only: fvt_grid_t
 

@@ -7,6 +7,8 @@
 #
 # Flags follow the model's gfortran.options where they matter (double precision default, big-endian unformatted
 # with 4-byte record markers), plus the style sheet's -std=f2008 -Wall -Wextra.
+# The library in src/fvtrans is self-contained (fvt_kinds_mod, no include file); global_constants_mod and the
+# include paths are only needed by the test programs themselves.
 
 ifeq ($(origin FC),default)
 FC      := gfortran
@@ -20,7 +22,7 @@ FFLAGS  ?= -O2 -g -cpp -std=f2008 -Wall -Wextra -ffree-line-length-132 -fimplici
            -fconvert=big-endian -frecord-marker=4 -fcheck=all -ffpe-trap=invalid,zero,overflow
 COEF    ?= $(TOP)/inputs/ecbilt/coef.dat
 
-OBJS    := global_constants_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o fvt_specflux_mod.o
+OBJS    := global_constants_mod.o fvt_kinds_mod.o fvt_legendre_mod.o fvt_grid_mod.o fvt_ffsl_mod.o fvt_specflux_mod.o
 PROGS   := test_fvt_grid test_fvt_ffsl test_fvt_specflux test_fvt_specref
 
 # evaluation suite: optimised, no run-time checks, objects kept apart from the test build
@@ -28,7 +30,7 @@ NCFFLAGS := $(shell nf-config --fflags 2>/dev/null)
 NCLIBS   := $(shell nf-config --flibs 2>/dev/null)
 SFLAGS   ?= -O3 -cpp -std=f2008 -Wall -Wextra -ffree-line-length-132 -fimplicit-none
 SDIR     := suite_build
-SSRC     := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
+SSRC     := $(SRC_GC) $(SRC_FVT)/fvt_kinds_mod.f90 $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
             fvt_testcases_mod.f90 fvt_ncout_mod.f90 fvt_specref_mod.f90
 
 .PHONY: all check suite realwinds ratiocheck clean
@@ -41,7 +43,7 @@ global_constants_mod.o: $(SRC_GC)
 %.o: $(SRC_FVT)/%.f90
 	$(FC) $(FFLAGS) $(INC) -c $< -o $@
 
-fvt_legendre_mod.o: global_constants_mod.o
+fvt_legendre_mod.o: fvt_kinds_mod.o
 fvt_grid_mod.o:     fvt_legendre_mod.o
 fvt_ffsl_mod.o:     fvt_grid_mod.o
 fvt_specflux_mod.o: fvt_grid_mod.o
@@ -87,7 +89,7 @@ fvt_suite: fvt_suite.f90 $(SSRC)
 
 # FV transport with real ECBilt winds (reads the big-endian dump of the temporary model diagnostic)
 RDIR := realwinds_build
-RSRC := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
+RSRC := $(SRC_GC) $(SRC_FVT)/fvt_kinds_mod.f90 $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
         $(SRC_FVT)/fvt_specflux_mod.f90 fvt_specref_mod.f90
 
 realwinds: fvt_realwinds
@@ -106,7 +108,7 @@ fvt_realwinds: fvt_realwinds.f90 $(RSRC)
 MFLAGS := -O3 -cpp -finit-local-zero -fno-sign-zero -fdefault-real-8 -fdefault-double-8 -fno-align-commons \
           -fconvert=big-endian -frecord-marker=4 -ffree-line-length-none
 QDIR := ratiocheck_build
-QSRC := $(SRC_GC) $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
+QSRC := $(SRC_GC) $(SRC_FVT)/fvt_kinds_mod.f90 $(SRC_FVT)/fvt_legendre_mod.f90 $(SRC_FVT)/fvt_grid_mod.f90 $(SRC_FVT)/fvt_ffsl_mod.f90 \
         $(SRC_FVT)/fvt_specflux_mod.f90
 
 ratiocheck: fvt_ratiocheck

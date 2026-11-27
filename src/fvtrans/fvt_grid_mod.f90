@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [fvt_grid_mod]
 !
 !>     @brief Finite-volume cells built on a Gaussian grid: faces from the cumulative Gaussian weights.
@@ -48,7 +44,7 @@
 
       module fvt_grid_mod
 
-        use global_constants_mod, only: ip, dblp=>dp, GRID_PI=>pi_dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp, GRID_PI=>fvt_pi
         use fvt_legendre_mod,     only: fvt_gauss_nodes
 
         implicit none

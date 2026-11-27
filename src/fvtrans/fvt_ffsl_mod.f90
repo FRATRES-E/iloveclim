@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [fvt_ffsl_mod]
 !
 !>     @brief Flux-form semi-Lagrangian transport (Lin and Rood 1996) on the FV Gaussian grid of fvt_grid_mod.
@@ -92,7 +88,7 @@
 
       module fvt_ffsl_mod
 
-        use global_constants_mod, only: ip, dblp=>dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp
         use fvt_grid_mod,         only: fvt_grid_t
 
         implicit none

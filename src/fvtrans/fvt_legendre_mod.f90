@@ -17,10 +17,6 @@
 !   Style sheet: v1.0.0
 
 !-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
-
-#include "choixcomposantes.h"
-
-!-----|--1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2----+----3-|
 !      MODULE: [fvt_legendre_mod]
 !
 !>     @brief Gaussian quadrature and associated Legendre functions in the ECBilt spectral convention, at any truncation.
@@ -56,7 +52,7 @@
 
       module fvt_legendre_mod
 
-        use global_constants_mod, only: ip, dblp=>dp, LEG_PI=>pi_dp
+        use fvt_kinds_mod,        only: ip=>fvt_ip, dblp=>fvt_dp, LEG_PI=>fvt_pi
 
         implicit none
 
